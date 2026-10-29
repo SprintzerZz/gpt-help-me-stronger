@@ -124,13 +124,8 @@
       box-shadow: 0 0 12px rgb(133 243 223 / 80%);
     }
 
-    .hero {
-      padding: 54px 0 46px;
-      text-align: center;
-    }
-
     .intro {
-      margin: 0 0 29px;
+      margin: 0 0 16px;
       color: #929bb3;
       font-size: 0.98rem;
       line-height: 1.8;
@@ -407,14 +402,6 @@
         padding: 20px 18px 28px;
       }
 
-      .hero {
-        padding: 42px 0 36px;
-      }
-
-      .intro {
-        font-size: 0.9rem;
-      }
-
       .catalog {
         padding: 22px 0 32px;
       }
@@ -486,19 +473,15 @@
       <div class="status"><span class="status-dot" aria-hidden="true"></span>学习资料库</div>
     </header>
 
-    <section class="hero" aria-label="搜索学习资料">
-      <p class="intro">交互式教学内容，把复杂概念变成直观体验。<br>搜索主题，开启你的下一段探索。</p>
-
-      <div class="search">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.8"></circle>
-          <path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-        </svg>
-        <label class="visually-hidden" for="resource-search">搜索学习资料</label>
-        <input id="resource-search" type="search" placeholder="搜索课程、主题或关键词…" autocomplete="off">
-      </div>
-      <p class="results-count" id="results-count" aria-live="polite"></p>
-    </section>
+    <div class="search">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.8"></circle>
+        <path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      </svg>
+      <label class="visually-hidden" for="resource-search">搜索学习资料</label>
+      <input id="resource-search" type="search" placeholder="搜索课程、主题或关键词…" autocomplete="off">
+    </div>
+    <p class="results-count" id="results-count" aria-live="polite"></p>
 
     <section class="catalog" aria-label="学习资料列表">
       <div class="catalog-heading">
