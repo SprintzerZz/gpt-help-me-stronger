@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GPT 生成的 HTML 交互教学网页目录">
+  <title>交互学习资料目录</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #172339;
+      background: #f5f7fb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    main {
+      width: min(880px, 100%);
+      margin: 0 auto;
+      padding: 64px 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: #2857a4;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 3rem);
+      letter-spacing: -0.04em;
+    }
+
+    .intro {
+      margin: 12px 0 32px;
+      color: #607087;
+      line-height: 1.7;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 1.15rem;
+    }
+
+    .card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 22px 24px;
+      border: 1px solid #e1e7ef;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 8px 28px rgb(25 49 74 / 5%);
+      color: inherit;
+      text-decoration: none;
+      transition: border-color 150ms ease, transform 150ms ease;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      transform: translateY(-2px);
+      border-color: #9ab8e5;
+    }
+
+    .card:focus-visible {
+      outline: 3px solid #9ab8e5;
+      outline-offset: 3px;
+    }
+
+    .category {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #edf3fa;
+      color: #4b6280;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .title {
+      display: block;
+      font-size: 1.15rem;
+      font-weight: 750;
+    }
+
+    .description {
+      display: block;
+      margin-top: 6px;
+      color: #607087;
+      line-height: 1.6;
+    }
+
+    .arrow {
+      flex: 0 0 auto;
+      color: #2857a4;
+      font-size: 1.5rem;
+    }
+
+    footer {
+      margin-top: 32px;
+      color: #8090a4;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 520px) {
+      main {
+        padding: 44px 18px;
+      }
+
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">GPT INTERACTIVE LEARNING</p>
+    <h1>交互学习资料目录</h1>
+    <p class="intro">浏览 GPT 生成的 HTML 交互教学网页，点击条目即可开始学习。</p>
+
+    <section aria-labelledby="mysql-heading">
+      <h2 id="mysql-heading">MySQL</h2>
+      <a class="card" href="MySQL/sql-joins/">
+        <span>
+          <span class="category">MySQL · JOIN</span>
+          <span class="title">SQL JOIN 交互式学习</span>
+          <span class="description">通过交互示例学习不同 JOIN 的匹配规则、SQL 写法和查询结果。</span>
+        </span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </section>
+
+    <footer>持续整理中 · 选择上方条目打开教学页面</footer>
+  </main>
+</body>
+</html>
