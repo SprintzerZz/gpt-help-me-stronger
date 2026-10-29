@@ -125,49 +125,12 @@
     }
 
     .hero {
-      padding: 84px 0 46px;
+      padding: 54px 0 46px;
       text-align: center;
     }
 
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      margin: 0 0 20px;
-      color: var(--accent);
-      font-size: 0.75rem;
-      font-weight: 720;
-      letter-spacing: 0.19em;
-    }
-
-    .eyebrow::before,
-    .eyebrow::after {
-      width: 17px;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--accent));
-      content: "";
-    }
-
-    .eyebrow::after {
-      transform: rotate(180deg);
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(2.4rem, 7vw, 4.1rem);
-      font-weight: 760;
-      letter-spacing: -0.065em;
-      line-height: 1.16;
-    }
-
-    h1 span {
-      background: linear-gradient(105deg, #f3f5ff 17%, #b1c0ff 49%, #85f3df 88%);
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
     .intro {
-      margin: 17px 0 29px;
+      margin: 0 0 29px;
       color: #929bb3;
       font-size: 0.98rem;
       line-height: 1.8;
@@ -445,7 +408,7 @@
       }
 
       .hero {
-        padding: 68px 0 36px;
+        padding: 42px 0 36px;
       }
 
       .intro {
@@ -476,11 +439,6 @@
 
       .description {
         font-size: 0.82rem;
-      }
-
-      footer {
-        align-items: flex-start;
-        flex-direction: column;
       }
     }
 
@@ -528,9 +486,7 @@
       <div class="status"><span class="status-dot" aria-hidden="true"></span>学习资料库</div>
     </header>
 
-    <section class="hero" aria-labelledby="page-title">
-      <p class="eyebrow">GPT · INTERACTIVE LEARNING</p>
-      <h1 id="page-title"><span>探索知识的新方式</span></h1>
+    <section class="hero" aria-label="搜索学习资料">
       <p class="intro">交互式教学内容，把复杂概念变成直观体验。<br>搜索主题，开启你的下一段探索。</p>
 
       <div class="search">
@@ -579,8 +535,7 @@
     </section>
 
     <footer>
-      <span class="footer-note"><span class="footer-icon" aria-hidden="true">✦</span>持续更新 · 更多交互课程即将上线</span>
-      <span>LEARN BY EXPLORING</span>
+      <span class="footer-note"><span class="footer-icon" aria-hidden="true">✦</span>持续更新</span>
     </footer>
   </main>
   <script>
