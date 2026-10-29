@@ -43,14 +43,75 @@
     }
 
     .intro {
-      margin: 12px 0 32px;
+      margin: 12px 0 24px;
       color: #607087;
       line-height: 1.7;
+    }
+
+    .search {
+      position: relative;
+      margin-bottom: 32px;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .search-icon {
+      position: absolute;
+      top: 50%;
+      left: 16px;
+      width: 20px;
+      height: 20px;
+      color: #718198;
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+
+    .search input {
+      width: 100%;
+      min-height: 54px;
+      padding: 0 18px 0 48px;
+      border: 1px solid #d6deea;
+      border-radius: 14px;
+      background: #fff;
+      color: #172339;
+      font: inherit;
+      box-shadow: 0 4px 16px rgb(25 49 74 / 4%);
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .search input::placeholder {
+      color: #8a98aa;
+    }
+
+    .search input:focus {
+      border-color: #6b95d0;
+      outline: none;
+      box-shadow: 0 0 0 4px rgb(40 87 164 / 12%);
+    }
+
+    .results-count {
+      margin: -20px 0 24px;
+      color: #718198;
+      font-size: 0.88rem;
     }
 
     h2 {
       margin: 0 0 14px;
       font-size: 1.15rem;
+    }
+
+    .resource-section {
+      margin-bottom: 28px;
     }
 
     .card {
@@ -109,6 +170,19 @@
       font-size: 1.5rem;
     }
 
+    .empty-state {
+      padding: 32px 24px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 16px;
+      color: #607087;
+      text-align: center;
+    }
+
+    .empty-state[hidden],
+    .resource-section[hidden] {
+      display: none;
+    }
+
     footer {
       margin-top: 32px;
       color: #8090a4;
@@ -130,11 +204,21 @@
   <main>
     <p class="eyebrow">GPT INTERACTIVE LEARNING</p>
     <h1>交互学习资料目录</h1>
-    <p class="intro">浏览 GPT 生成的 HTML 交互教学网页，点击条目即可开始学习。</p>
+    <p class="intro">浏览 GPT 生成的 HTML 交互教学网页，搜索主题或关键词，点击条目即可开始学习。</p>
 
-    <section aria-labelledby="mysql-heading">
+    <div class="search">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.8"></circle>
+        <path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+      </svg>
+      <label class="visually-hidden" for="resource-search">搜索学习资料</label>
+      <input id="resource-search" type="search" placeholder="搜索课程、主题或关键词…" autocomplete="off">
+    </div>
+    <p class="results-count" id="results-count" aria-live="polite"></p>
+
+    <section class="resource-section" aria-labelledby="mysql-heading">
       <h2 id="mysql-heading">MySQL</h2>
-      <a class="card" href="MySQL/sql-joins/">
+      <a class="card" href="MySQL/sql-joins/" data-search="mysql sql joins join 数据库 关联 查询">
         <span>
           <span class="category">MySQL · JOIN</span>
           <span class="title">SQL JOIN 交互式学习</span>
@@ -143,8 +227,43 @@
         <span class="arrow" aria-hidden="true">→</span>
       </a>
     </section>
+    <p class="empty-state" id="empty-state" role="status" hidden>没有找到匹配的学习资料，试试其他关键词。</p>
 
     <footer>持续整理中 · 选择上方条目打开教学页面</footer>
   </main>
+  <script>
+    const searchInput = document.querySelector("#resource-search");
+    const resultCount = document.querySelector("#results-count");
+    const emptyState = document.querySelector("#empty-state");
+    const sections = [...document.querySelectorAll(".resource-section")];
+    const resources = [...document.querySelectorAll(".card")].map((card) => ({
+      card,
+      section: card.closest(".resource-section"),
+      searchableText: `${card.textContent} ${card.dataset.search}`.toLocaleLowerCase()
+    }));
+
+    function updateResults() {
+      const query = searchInput.value.trim().toLocaleLowerCase();
+      let visibleCount = 0;
+
+      for (const resource of resources) {
+        const isVisible = resource.searchableText.includes(query);
+        resource.card.hidden = !isVisible;
+        visibleCount += Number(isVisible);
+      }
+
+      for (const section of sections) {
+        section.hidden = !section.querySelector(".card:not([hidden])");
+      }
+
+      resultCount.textContent = query
+        ? `找到 ${visibleCount} 个学习页面`
+        : `共 ${visibleCount} 个学习页面`;
+      emptyState.hidden = visibleCount > 0;
+    }
+
+    searchInput.addEventListener("input", updateResults);
+    updateResults();
+  </script>
 </body>
 </html>
