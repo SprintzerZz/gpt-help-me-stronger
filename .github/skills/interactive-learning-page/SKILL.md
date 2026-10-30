@@ -33,24 +33,28 @@ Create accurate, approachable, offline-friendly teaching pages for this reposito
 
 ## 4. Visual language
 
-Use the root catalog as the reference identity for new pages: a restrained dark navy interface with cool, readable text and mint/blue accents.
+Use the root catalog and [algorithm visualization reference](https://sprintzerzz.github.io/algorithm-visualization/) as the reference identity: a warm paper palette, editorial serif headings, olive-green accents, and restrained terracotta highlights.
 
 ```css
 :root {
-  color-scheme: dark;
-  --background: #080b14;
-  --surface: #121726;
-  --surface-raised: #141b2c;
-  --text: #edf2ff;
-  --muted: #929bb3;
-  --line: rgb(166 179 219 / 13%);
-  --accent: #85f3df;
-  --accent-secondary: #8ca7ff;
+  color-scheme: light;
+  --bg: #f3eee4;
+  --surface: #fbf8f1;
+  --surface-soft: #eee8dc;
+  --line: #ded5c7;
+  --text: #292923;
+  --muted: #777267;
+  --green: #65745c;
+  --green-dark: #4a5842;
+  --coral: #c76c4e;
+  --shadow: 0 18px 42px #382a1712;
 }
 ```
 
-- Use the colors consistently for page backgrounds, cards, borders, controls, diagrams, and code. Maintain readable contrast; use labels or shapes as well as color to distinguish states.
-- Keep gradients and glow effects subtle. Avoid introducing unrelated palettes or requiring an external font to match the site.
+- Use warm paper backgrounds, ink-colored text, fine warm borders, muted olive algorithm states, and terracotta actions or highlights. Keep code panels dark charcoal with warm off-white monospace text.
+- Use serif display headings and readable sans-serif body text. Keep cards and sections softly rounded with low-contrast shadows.
+- Maintain readable contrast; use labels or shapes as well as color to distinguish states.
+- Keep gradients and decorative texture subtle. Avoid neon colors, heavy shadows, or requiring an external font to match the site.
 - Preserve page-specific layouts where useful, but make new pages visually compatible with the catalog and existing learning pages.
 - Keep styles local to each standalone HTML page unless the repository gains an established shared stylesheet.
 - If the user requests a site-wide visual refresh, inspect and update every HTML page, including the root index and all lessons; do not leave pages on mixed themes.

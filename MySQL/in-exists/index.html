@@ -9,6 +9,102 @@ button:focus-visible,input:focus-visible,tr[data-id]:focus-visible{outline:3px s
 button.active{background:var(--green);border-color:var(--green);color:#080b14}
 tr[data-id]{cursor:pointer}
 tr[data-id]:hover{background:#1b2942}
+</style>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --panel: #fbf8f1;
+  --line: #ded5c7;
+  --text: #292923;
+  --muted: #777267;
+  --blue: #c76c4e;
+  --green: #65745c;
+  --yellow: #8a692c;
+  --red: #a74e37;
+  --paper-soft: #eee8dc;
+  --shadow: 0 18px 42px #382a1712;
+}
+body {
+  background:
+    radial-gradient(ellipse at 86% 0%, #fffaf0 0, transparent 34rem),
+    linear-gradient(135deg, #f7f3eb, var(--bg) 60%, #eee8dc);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+h1, h2, h3 {
+  color: var(--text);
+  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+p, .hint, .footer { color: var(--muted); }
+.eyebrow { color: #a74e37; }
+.eyebrow::before { background: var(--green); }
+.notice {
+  border-color: #d7c6a9;
+  background: #f1e8d6;
+  color: #514638;
+}
+.notice strong { color: #8a692c; }
+button {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--paper-soft);
+  color: var(--text);
+}
+button:hover { border-color: var(--green); }
+button:focus-visible, input:focus-visible, tr[data-id]:focus-visible {
+  outline: 3px solid #c76c4e80;
+  outline-offset: 2px;
+}
+button.active {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fffaf1;
+}
+.panel {
+  border-color: var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px #382a170a;
+}
+table { color: var(--text); }
+th { color: var(--muted); }
+th, td { border-color: var(--line); }
+tr.pick { background: #f1e2d7; }
+tr.match { background: #e8ecdf; }
+tr.nonmatch { background: #f1e2d7; }
+.yes { background: #dce5d5; color: #3f4b39; }
+.no { background: #f1e2d7; color: #8e422e; }
+.unknown { background: #eee5d2; color: #70551f; }
+pre {
+  border-color: #3e3a32;
+  background: #292923;
+  color: #fbf8f1;
+}
+.explain {
+  border-left-color: var(--green);
+  background: #e8ecdf;
+  color: #3f4b39;
+}
+.controls input { accent-color: var(--green); }
+.step {
+  border-color: var(--line);
+  background: var(--paper-soft);
+}
+.step.current {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px var(--blue);
+}
+.logic { color: #4a5842; }
+.small-panel {
+  border-color: var(--line);
+  background: var(--paper-soft);
+}
+.small-panel strong { color: var(--text); }
+kbd { background: #ded5c7; }
+@media(prefers-reduced-motion:reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
 </style></head><body><main class="wrap"><div class="eyebrow">MYSQL · 可交互 SQL 学习实验室</div><h1>IN vs EXISTS：把 NULL 陷阱看明白</h1><p class="lead">选择 SQL 类型，点击用户行，观察条件如何计算。你还可以开关订单中的 <code>NULL</code>，亲眼看到 <code>NOT IN</code> 与 <code>NOT EXISTS</code> 为什么不一样。</p><div class="notice"><strong>先纠正一个常见误区：</strong> <code>IN</code> 的结果集里有 <code>NULL</code>，<strong>不代表 IN 永远不为 TRUE</strong>。只要找到明确匹配的非 NULL 值，仍然为 TRUE；真正危险的是 <code>NOT IN</code> 在列表含 NULL 时可能无法筛出任何行。<code>NULL IN (NULL)</code> 的结果也不是 TRUE，而是 UNKNOWN。</div>
 <div class="tabs" id="tabs" aria-label="选择SQL"></div><div class="layout"><section class="panel"><div class="flex"><h2>① users（外表）</h2><span class="hint">点击某一行试试</span></div><table><thead><tr><th>id</th><th>name</th><th>当前 SQL 结果</th></tr></thead><tbody id="users"></tbody></table><p class="hint">查询目标：找到存在 / 不存在金额大于 100 的订单的用户。</p></section><section class="panel"><div class="flex"><h2>② orders（内表）</h2><span class="hint">amount &gt; 100</span></div><table><thead><tr><th>order_id</th><th>user_id</th><th>amount</th><th>是否满足金额条件</th></tr></thead><tbody id="orders"></tbody></table><div class="controls"><label><input type="checkbox" id="nullToggle" checked> 添加一条 <code>user_id = NULL</code> 且金额 &gt; 100 的订单</label></div></section><section class="panel wide"><div class="flex"><h2>③ SQL 与判断步骤</h2><span id="method" class="hint"></span></div><pre id="sql"></pre><div class="steps"><span class="step">1. 选中外表用户</span><span class="step current">2. 判断子查询</span><span class="step">3. 得到 TRUE / FALSE / UNKNOWN</span></div><div class="explain" id="trace"></div><div class="flex" style="margin-top:14px"><button id="prev">← 上一位用户</button><span class="hint" id="selection"></span><button id="next">下一位用户 →</button></div></section><section class="panel wide"><h2>④ 最终查询结果</h2><div class="big" id="result"></div><p id="resultDesc"></p></section><section class="panel wide"><h2>⑤ 一眼分清：NULL 真值表</h2><div class="note-grid"><div class="small-panel"><strong>IN (1, NULL)</strong><div class="logic">1 IN (1, NULL) → TRUE<br>2 IN (1, NULL) → UNKNOWN<br>NULL IN (1, NULL) → UNKNOWN</div></div><div class="small-panel"><strong>NOT IN (1, NULL)</strong><div class="logic">1 NOT IN (1, NULL) → FALSE<br>2 NOT IN (1, NULL) → UNKNOWN<br>NULL NOT IN (1, NULL) → UNKNOWN</div></div><div class="small-panel"><strong>EXISTS (SELECT NULL)</strong><div class="logic">只要子查询返回一行 → TRUE<br>哪怕这一行的值就是 NULL<br>因为检查的是“有没有行”</div></div><div class="small-panel"><strong>NOT EXISTS (无匹配行)</strong><div class="logic">子查询没有返回行 → TRUE<br>子查询存在关联匹配行 → FALSE<br>不会把 NULL 当成相等</div></div></div></section><section class="panel wide"><h2>⑥ 真实 MySQL 优化器与面试要点</h2><p><strong>不要机械背“IN 先全部查出来，EXISTS 每行执行一次”。</strong>这是便于理解的逻辑模型，不是 MySQL 必然采取的物理执行方案。现代 MySQL 可能对 <code>IN</code>/<code>EXISTS</code> 进行半连接（semijoin）、物化（materialization）、索引查找等优化，两者可能生成相似执行计划。</p><p><strong>选择依据：</strong>先保证语义正确，再看索引、表大小、选择性和实际执行计划。用 <code>EXPLAIN ANALYZE</code> 检查，不要单纯按“子查询大就选 EXISTS”下结论。</p><p><strong>特别注意：</strong>上方 <code>EXISTS</code> 的 <code>o.user_id = u.id</code> 遇到 NULL 不会匹配，但这和“EXISTS 完全不受 NULL 影响”是两回事。EXISTS 不检查 SELECT 列的值，但 WHERE 里的 NULL 比较仍服从 SQL 三值逻辑。</p></section></div><div class="footer">演示按 SQL 三值逻辑计算；表中颜色表示当前子查询的判断结果，并非实际数据库的逐行执行计划。</div></main><script>
 const users=[{id:1,name:'小明'},{id:2,name:'小红'},{id:3,name:'小王'},{id:4,name:'小李'}];const base=[{order_id:101,user_id:1,amount:150},{order_id:102,user_id:1,amount:50},{order_id:103,user_id:3,amount:220},{order_id:104,user_id:2,amount:70}];const sqls={IN:'SELECT * FROM users u\nWHERE u.id IN (\n  SELECT o.user_id FROM orders o\n  WHERE o.amount > 100\n);',EXISTS:'SELECT * FROM users u\nWHERE EXISTS (\n  SELECT 1 FROM orders o\n  WHERE o.user_id = u.id AND o.amount > 100\n);','NOT IN':'SELECT * FROM users u\nWHERE u.id NOT IN (\n  SELECT o.user_id FROM orders o\n  WHERE o.amount > 100\n);','NOT EXISTS':'SELECT * FROM users u\nWHERE NOT EXISTS (\n  SELECT 1 FROM orders o\n  WHERE o.user_id = u.id AND o.amount > 100\n);'};let mode='IN',selected=1,hasNull=true;const $=id=>document.getElementById(id);const eligible=()=>[...base,...(hasNull?[{order_id:105,user_id:null,amount:180}]:[])].filter(o=>o.amount>100);const cmp=(a,b)=>a===null||b===null?'UNKNOWN':a===b?'TRUE':'FALSE';function evalIn(id){let c=eligible().map(o=>cmp(id,o.user_id));return c.includes('TRUE')?'TRUE':c.includes('UNKNOWN')?'UNKNOWN':'FALSE'}function inv(v){return v==='TRUE'?'FALSE':v==='FALSE'?'TRUE':'UNKNOWN'}function evalExists(id){return eligible().some(o=>cmp(id,o.user_id)==='TRUE')?'TRUE':'FALSE'}function val(id){return mode==='IN'?evalIn(id):mode==='NOT IN'?inv(evalIn(id)):mode==='EXISTS'?evalExists(id):inv(evalExists(id))}const chip=v=>`<span class="chip ${v==='TRUE'?'yes':v==='FALSE'?'no':'unknown'}">${v}</span>`;function render(){const sel=users.find(u=>u.id===selected);$('tabs').innerHTML=Object.keys(sqls).map(s=>`<button data-mode="${s}" class="${mode===s?'active':''}">${s}</button>`).join('');document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;render()});$('users').innerHTML=users.map(u=>`<tr data-id="${u.id}" class="${selected===u.id?'pick':''}"><td>${u.id}</td><td>${u.name}</td><td>${chip(val(u.id))}</td></tr>`).join('');document.querySelectorAll('[data-id]').forEach(tr=>tr.onclick=()=>{selected=+tr.dataset.id;render()});$('orders').innerHTML=[...base,...(hasNull?[{order_id:105,user_id:null,amount:180}]:[])].map(o=>`<tr class="${o.amount>100?'match':''}"><td>${o.order_id}</td><td>${o.user_id===null?'<span style="color:var(--yellow)">NULL</span>':o.user_id}</td><td>${o.amount}</td><td>${o.amount>100?chip('TRUE'):chip('FALSE')}</td></tr>`).join('');$('nullToggle').checked=hasNull;$('sql').textContent=sqls[mode];$('method').textContent=mode.includes('EXISTS')?'关联子查询（逻辑解释）':'集合成员判断（逻辑解释）';let matched=eligible().filter(o=>cmp(selected,o.user_id)==='TRUE'), ids=eligible().map(o=>o.user_id===null?'NULL':o.user_id).join(', ');let explanation='';if(mode.includes('EXISTS')){explanation=`选中 <b>${sel.name}（id=${selected}）</b>。子查询要同时满足 <code>amount > 100</code> 和 <code>o.user_id = ${selected}</code>。<br>找到关联订单：${matched.length?matched.map(o=>'#'+o.order_id).join('、'):'无'}。<br>EXISTS = ${chip(evalExists(selected))} ${mode==='NOT EXISTS'?'；NOT EXISTS 取反后 = '+chip(val(selected)):''}。<br><span class="hint">即使 SELECT NULL，只要有匹配行 EXISTS 也是 TRUE；但 user_id=NULL 不满足关联等号条件。</span>`}else{let comparisons=eligible().map(o=>`${selected} = ${o.user_id===null?'NULL':o.user_id} → <b>${cmp(selected,o.user_id)}</b>`).join('<br>');explanation=`选中 <b>${sel.name}（id=${selected}）</b>，子查询返回集合 <code>(${ids})</code>。<br><div class="logic" style="padding:9px 0">${comparisons}</div>IN 合并规则：有 TRUE 就是 TRUE；没有 TRUE 但有 UNKNOWN 就是 UNKNOWN；否则为 FALSE。<br>IN = ${chip(evalIn(selected))}${mode==='NOT IN'?'；NOT IN = '+chip(val(selected)):''}。<br><span class="hint">WHERE 只保留 TRUE，FALSE 与 UNKNOWN 都会被过滤。</span>`}$('trace').innerHTML=explanation;let passed=users.filter(u=>val(u.id)==='TRUE');$('result').innerHTML=passed.length?passed.map(u=>`<span class="chip yes" style="font-size:16px;margin-right:8px">${u.name} · id=${u.id}</span>`).join(''):'<span style="color:var(--red)">无结果（0 行）</span>';$('resultDesc').textContent=`共 ${passed.length} 行。`+(mode==='NOT IN'&&hasNull?' 因为子查询里有 NULL，未命中的用户会得到 UNKNOWN，而不是 TRUE，所以 NOT IN 结果为空。':' SQL 的 WHERE 只返回条件为 TRUE 的行。');$('selection').textContent=`正在判断：${sel.name}（id=${selected}）`}$('nullToggle').onchange=e=>{hasNull=e.target.checked;render()};$('prev').onclick=()=>{selected=selected===1?4:selected-1;render()};$('next').onclick=()=>{selected=selected===4?1:selected+1;render()};render();

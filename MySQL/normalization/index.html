@@ -6,6 +6,85 @@
 <style>
 :root{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;color:#19283c;background:#f3f6fb}*{box-sizing:border-box}body{margin:0;padding:30px 18px}.app{max-width:1000px;margin:auto;background:#fff;border:1px solid #dde5ef;border-radius:20px;padding:28px;box-shadow:0 15px 45px #1d3b5b10}h1{font-size:27px;margin:0 0 8px}h2{font-size:20px;margin:4px 0 10px}.sub,.explain{color:#607086;line-height:1.75}.sub{margin:0 0 24px}.tabs{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:24px}button{font:inherit;cursor:pointer;border:1px solid #d7e0ec;border-radius:10px;padding:10px 15px;background:#fff;color:#27364a;font-weight:600}button:hover{border-color:#3979e5}button.active,.primary{color:#fff;background:#2463d4;border-color:#2463d4}button:disabled{opacity:.4;cursor:default}.panel{border:1px solid #dbe3ee;border-radius:12px;padding:15px;margin:12px 0}.label{font-size:14px;font-weight:700;margin-bottom:12px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:11px;border-bottom:1px solid #e8edf4;white-space:nowrap}th{background:#f3f6fb}tr:last-child td{border-bottom:0}.bad{background:#ffe4df;color:#af3623;border-radius:5px;padding:3px 5px}.result{padding:13px 16px;border-left:4px solid #3878e5;border-radius:8px;background:#eff5ff;line-height:1.7;margin:14px 0}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.controls{margin:16px 0}.small{font-size:13px}.center{text-align:center}.question-option{display:block;width:100%;text-align:left;margin:9px 0}.question-option.correct{background:#dcf5e8;border-color:#27a46c}.question-option.wrong{background:#ffe8e5;border-color:#d34b40}.nav{display:flex;justify-content:space-between;margin-top:20px}.progress{height:8px;background:#e9edf4;border-radius:10px;overflow:hidden}.progress div{height:100%;background:#2463d4;transition:width .25s}@media(max-width:650px){body{padding:10px}.app{padding:17px}.two,.three{grid-template-columns:1fr}h1{font-size:22px}button{padding:9px 11px}}
 </style>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --surface: #fbf8f1;
+  --surface-soft: #eee8dc;
+  --line: #ded5c7;
+  --text: #292923;
+  --muted: #777267;
+  --green: #65745c;
+  --green-dark: #4a5842;
+  --coral: #c76c4e;
+  --shadow: 0 18px 42px #382a1712;
+}
+body {
+  background:
+    radial-gradient(ellipse at 86% 0%, #fffaf0 0, transparent 34rem),
+    linear-gradient(135deg, #f7f3eb, var(--bg) 60%, #eee8dc);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+.app {
+  border-color: var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+h1, h2 {
+  color: var(--text);
+  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+.sub, .explain { color: var(--muted); }
+.panel {
+  border-color: var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+button {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+button:hover { border-color: var(--green); }
+button:focus-visible {
+  outline: 3px solid #c76c4e66;
+  outline-offset: 2px;
+}
+button.active, .primary {
+  border-color: var(--coral);
+  background: var(--coral);
+  color: #fffaf1;
+}
+th {
+  background: var(--surface-soft);
+  color: var(--text);
+}
+th, td { border-color: var(--line); }
+.bad, .question-option.wrong {
+  border-color: #c76c4e66;
+  background: #f5e4dc;
+  color: #8e422e;
+}
+.result {
+  border-left-color: var(--green);
+  background: #e8ecdf;
+  color: #3f4b39;
+}
+.question-option.correct {
+  border-color: var(--green);
+  background: #e8ecdf;
+  color: #3f4b39;
+}
+.progress { background: var(--surface-soft); }
+.progress div { background: var(--green); }
+@media(prefers-reduced-motion:reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+</style>
 </head>
 <body>
 <main class="app"><h1>🗃️ MySQL 三大范式</h1><p class="sub">点击规范化拆表，观察 1NF、2NF、3NF 的区别；再体验订单反范式设计并完成面试小测。本文件可离线打开。</p><nav class="tabs" id="tabs"><button data-tab="0" class="active">① 第一范式</button><button data-tab="1">② 第二范式</button><button data-tab="2">③ 第三范式</button><button data-tab="3">④ 反范式优化</button><button data-tab="4">⑤ 面试小测</button></nav><section id="content" aria-live="polite"></section></main>
