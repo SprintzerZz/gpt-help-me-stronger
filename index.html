@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="SQL 交互式学习资料索引，通过演示理解查询语句与数据变化。">
-  <title>Algorithm Visualizations · 学习资料索引</title>
+  <meta name="description" content="SQL 学习资料索引，通过交互演示理解查询语句、数据关系与核心逻辑。">
+  <title>SQL 学习资料索引</title>
   <style>
     :root {
       color-scheme: dark;
@@ -522,25 +522,73 @@
     }
 
     .page-heading {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
       margin: 0 0 36px;
-      padding-bottom: 22px;
-      border-bottom: 3px double var(--line);
+      padding: clamp(30px, 5vw, 58px);
+      border: 1px solid #dfcfc0;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle, #c76c4e1b 0 3px, transparent 4px) 0 0 / 28px 28px,
+        linear-gradient(120deg, #fbf8f1, #eee6d9);
+      box-shadow: var(--shadow);
+    }
+
+    .page-heading::after {
+      position: absolute;
+      z-index: 0;
+      right: -74px;
+      bottom: -180px;
+      width: 330px;
+      height: 330px;
+      border: 1px solid #c76c4e35;
+      border-radius: 50%;
+      box-shadow: 0 0 0 28px #c76c4e0a, 0 0 0 58px #65745c0a;
+      content: "";
+      pointer-events: none;
+    }
+
+    .page-heading .eyebrow {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      color: var(--coral);
+      font-size: 0.82rem;
+      font-weight: 750;
+      letter-spacing: 0.12em;
+    }
+
+    .page-heading .eyebrow::before {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--coral);
+      content: "";
     }
 
     .page-heading h1 {
-      margin: 0 0 8px;
+      position: relative;
+      z-index: 1;
+      margin: 0 0 10px;
       color: var(--text);
       font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
-      font-size: clamp(36px, 7vw, 58px);
+      font-size: clamp(40px, 7vw, 70px);
       letter-spacing: 0;
       line-height: 1.12;
     }
 
     .page-heading p {
+      position: relative;
+      z-index: 1;
       max-width: 620px;
       margin: 0;
-      color: var(--muted);
-      font-size: 1.05rem;
+      color: #756c5b;
+      font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 1.1rem;
       line-height: 1.7;
     }
 
@@ -686,6 +734,20 @@
     @media (max-width: 520px) {
       .page-heading {
         margin-bottom: 30px;
+        padding: 28px 24px;
+        border-radius: 18px;
+      }
+
+      .page-heading h1 {
+        font-size: clamp(38px, 10vw, 52px);
+      }
+
+      .page-heading p {
+        font-size: 1rem;
+      }
+
+      .page-heading::after {
+        right: -190px;
       }
 
       .resource-section {
@@ -710,8 +772,9 @@
     </header>
 
     <header class="page-heading">
-      <h1>Algorithm Visualizations</h1>
-      <p>通过交互式演示观察 SQL 语句、数据变化与核心思路。</p>
+      <span class="eyebrow">SQL LEARNING RESOURCES</span>
+      <h1>SQL 学习资料索引</h1>
+      <p>通过交互式演示观察 SQL 查询、数据关系与核心逻辑。</p>
     </header>
 
     <div class="search">
