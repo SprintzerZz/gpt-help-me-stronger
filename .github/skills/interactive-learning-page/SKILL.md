@@ -1,0 +1,84 @@
+---
+name: interactive-learning-page
+description: 'Create or maintain standalone interactive learning pages in this repository. Use for MySQL/database tutorials, visual explanations, quizzes, simulations, adding learning resources to the searchable home catalog, or refreshing the site theme while preserving existing behavior.'
+argument-hint: 'Topic and learning goal, with any supplied examples or source material'
+user-invocable: true
+---
+
+# Interactive Learning Pages
+
+Create accurate, approachable, offline-friendly teaching pages for this repository and keep them discoverable from the root catalog.
+
+## 1. Inspect the repository
+
+- Read the root `index.html` and the relevant topic pages before making changes.
+- Check `git status`, the current branch, and configured remotes. Preserve unrelated work.
+- Follow the existing topic and slug conventions. Current MySQL pages live under `MySQL/<topic>/index.html`.
+- Check whether the requested topic already exists. Update it rather than creating duplicate lessons; ask if the intended topic or destination is unclear.
+
+## 2. Design the lesson
+
+- Identify the target learner, learning goal, key concept, and the misconception or question the page should resolve.
+- Organize the explanation around concrete examples. For database lessons, keep sample tables, SQL, and displayed results consistent with one another.
+- Preserve supplied wording, examples, and requirements unless the user asks for editorial changes. Do not invent unsupported product behavior; distinguish MySQL syntax and limitations from general SQL concepts.
+- Choose interactions that directly teach the concept, such as comparing before/after states, switching JOIN types, stepping through a process, or answering a short quiz. Explain the result and why it occurs.
+
+## 3. Implement the page
+
+- Put a new MySQL lesson at `MySQL/<short-kebab-case-topic>/index.html`, following neighboring pages. Use an existing category when one fits; do not create a new top-level structure without a clear need.
+- Keep each lesson self-contained and usable by opening its HTML file directly. Prefer inline CSS and JavaScript; do not add frameworks, remote scripts, external fonts, build steps, or network-dependent content just for a lesson.
+- Preserve existing DOM hooks and interactions when editing. Keep rendering, controls, examples, and explanations aligned; do not change lesson logic as a side effect of visual work.
+- Use semantic headings, buttons and tables; provide accessible labels for interactive controls and visualizations. Keep keyboard focus visible, layouts usable on narrow screens, and honor reduced-motion preferences when transitions are used.
+- Escape or otherwise safely handle user-controlled text before inserting it into HTML. Use `textContent` for plain text where practical.
+
+## 4. Visual language
+
+Use the root catalog as the reference identity for new pages: a restrained dark navy interface with cool, readable text and mint/blue accents.
+
+```css
+:root {
+  color-scheme: dark;
+  --background: #080b14;
+  --surface: #121726;
+  --surface-raised: #141b2c;
+  --text: #edf2ff;
+  --muted: #929bb3;
+  --line: rgb(166 179 219 / 13%);
+  --accent: #85f3df;
+  --accent-secondary: #8ca7ff;
+}
+```
+
+- Use the colors consistently for page backgrounds, cards, borders, controls, diagrams, and code. Maintain readable contrast; use labels or shapes as well as color to distinguish states.
+- Keep gradients and glow effects subtle. Avoid introducing unrelated palettes or requiring an external font to match the site.
+- Preserve page-specific layouts where useful, but make new pages visually compatible with the catalog and existing learning pages.
+- Keep styles local to each standalone HTML page unless the repository gains an established shared stylesheet.
+- If the user requests a site-wide visual refresh, inspect and update every HTML page, including the root index and all lessons; do not leave pages on mixed themes.
+
+## 5. Update the root catalog
+
+- Add one card inside the appropriate `.resource-section` in the root `index.html`, linking to the new lesson with a correct relative URL.
+- Include a concise title and description, a category label consistent with neighboring cards, and accurate keywords in `data-search`. Include likely search terms, acronyms, and alternate spellings.
+- Retain the existing card structure and accessible link/focus behavior. Do not rewrite the search implementation unless the current behavior cannot support the requested entry.
+- The result count is calculated from visible cards; do not add or manually maintain a separate total.
+- Do not remove or reorder unrelated entries.
+
+## 6. Validate
+
+- Review the full diff and run `git diff --check`.
+- Confirm the new page exists at the intended path, the catalog link resolves, and its title/keywords are searchable.
+- Check that the page works offline, all controls perform the stated action, and rendered examples agree with their explanations.
+- Check inline JavaScript syntax with an available runtime or browser. When browser tools are available, inspect the catalog and lesson at desktop and narrow widths, search by a topic keyword, follow the card, and exercise the main interaction.
+- For a theme-only request, compare all HTML pages and correct visual drift. Avoid unrelated fixes.
+
+## 7. Commit and publish
+
+- After validation, create a local commit and push by default unless the user asks not to.
+- Stage only files related to the requested lesson, catalog, or theme changes. Inspect the staged diff and run `git diff --cached --check` before committing.
+- Use a concise commit message describing the lesson or site change. Include the repository's required commit trailers.
+- Push only to a verified configured remote and the intended branch. Never invent or silently change either. If Git metadata, authentication, or a remote update blocks publishing, report the exact blocker.
+- Verify the resulting commit and final working-tree status.
+
+## 8. Report
+
+Summarize the lesson path, catalog changes, validation, and commit/publish status. Link workspace files using absolute paths.
