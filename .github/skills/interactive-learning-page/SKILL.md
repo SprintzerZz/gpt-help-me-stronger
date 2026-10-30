@@ -1,13 +1,13 @@
 ---
 name: interactive-learning-page
-description: 'Create or maintain standalone interactive learning pages in this repository. Use for MySQL/database tutorials, visual explanations, quizzes, simulations, adding learning resources to the searchable home catalog, or refreshing the site theme while preserving existing behavior.'
+description: 'Create or maintain standalone interactive learning pages in this repository. Use for MySQL/database tutorials, visual explanations, quizzes, simulations, adding learning resources to the searchable home catalog, applying the Claude-inspired vintage HTML theme, or removing lab terminology while preserving existing behavior.'
 argument-hint: 'Topic and learning goal, with any supplied examples or source material'
 user-invocable: true
 ---
 
 # Interactive Learning Pages
 
-Create accurate, approachable, offline-friendly teaching pages for this repository and keep them discoverable from the root catalog.
+Create accurate, approachable, offline-friendly teaching pages for this repository and keep them discoverable from the root catalog. All HTML pages must follow the shared Claude-inspired vintage theme, and page copy must not describe the site or a lesson as a "lab" or "laboratory".
 
 ## 1. Inspect the repository
 
@@ -58,6 +58,8 @@ Use the root catalog and [algorithm visualization reference](https://sprintzerzz
 - Preserve page-specific layouts where useful, but make new pages visually compatible with the catalog and existing learning pages.
 - Keep styles local to each standalone HTML page unless the repository gains an established shared stylesheet.
 - If the user requests a site-wide visual refresh, inspect and update every HTML page, including the root index and all lessons; do not leave pages on mixed themes.
+- This vintage visual language is the default for every HTML page, not an optional theme. New pages, edited pages, and the root index must all use it.
+- Never use "实验室", "交互式实验室", "lab", or "laboratory" in visible page text, document titles, navigation, headings, or descriptions. Prefer "交互演示", "学习资料", or "学习索引". Before finishing, search every HTML page for these terms and remove any remaining occurrences.
 
 ## 5. Update the root catalog
 
@@ -74,6 +76,7 @@ Use the root catalog and [algorithm visualization reference](https://sprintzerzz
 - Check that the page works offline, all controls perform the stated action, and rendered examples agree with their explanations.
 - Check inline JavaScript syntax with an available runtime or browser. When browser tools are available, inspect the catalog and lesson at desktop and narrow widths, search by a topic keyword, follow the card, and exercise the main interaction.
 - For a theme-only request, compare all HTML pages and correct visual drift. Avoid unrelated fixes.
+- Search all HTML pages for lab/laboratory wording and confirm no prohibited terms remain in user-facing content.
 
 ## 7. Commit and publish
 
