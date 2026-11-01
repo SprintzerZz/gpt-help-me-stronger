@@ -1,0 +1,294 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>InnoDB B+ 树、数据页与索引回表</title><style>
+:root{--bg:#f4f6fa;--ink:#223047;--muted:#68778e;--line:#d6dfeb;--blue:#376ad5;--orange:#e36e43;--teal:#188f85;--panel:#fff;--green:#dcefd9;--pink:#f5d9e0;--focus:#ef5548}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif}header{background:linear-gradient(130deg,#142946,#294678);color:white;padding:30px max(20px,calc((100vw - 1320px)/2));}h1{margin:0;font-size:27px}header p{margin:9px 0 0;color:#d6e6ff;max-width:1000px}.shell{max-width:1370px;margin:22px auto;padding:0 18px 45px}.nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}.nav button{border:1px solid #d8e0eb;background:#fff;color:#354861;padding:11px 14px;border-radius:10px;cursor:pointer;font-weight:650}.nav button.active{background:#1f4e93;color:#fff;border-color:#1f4e93}.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}@media(max-width:940px){.layout{grid-template-columns:1fr}}.panel,.side{background:var(--panel);border:1px solid #dfe5ee;border-radius:16px;box-shadow:0 8px 30px #25405d0b}.panel{padding:16px;min-width:0}.side{padding:18px}.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:5px 0 13px}.toolbar button,.toolbar select{font:inherit;border-radius:9px;padding:9px 11px;border:1px solid #cfd8e5;background:white;color:#263b57;cursor:pointer}.toolbar button.primary{background:#2866c5;color:#fff;border-color:#2866c5}.toolbar button:disabled{opacity:.35;cursor:default}.toolbar input[type=range]{width:145px}.visual{background:linear-gradient(#fafcff,#f7f9fd);border:1px solid #dce4ee;border-radius:12px;overflow:auto;position:relative}svg{display:block;width:100%;height:auto;min-width:600px}.wide svg{min-width:940px}.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;color:var(--muted);font-size:12px}.legend b{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}.sql{font:13px/1.6 ui-monospace,Consolas,monospace;background:#142338;color:#e8f0ff;padding:12px;border-radius:9px;white-space:pre-wrap;word-break:break-word}.explain{font-size:14px;margin:10px 0;color:#3e536e}.stepbox{background:#eef5ff;border:1px solid #d5e6ff;border-radius:10px;padding:12px;margin:12px 0;min-height:90px}.stephead{color:#27579a;font-size:12px;font-weight:750;text-transform:uppercase;letter-spacing:.06em}.steptext{font-weight:650;margin-top:5px}.small{font-size:12px;color:var(--muted)}.side h2{font-size:17px;margin:0 0 12px}.side h3{font-size:14px;margin:18px 0 7px}.side ul{padding-left:19px;margin:7px 0}.side li{margin:8px 0}.note{background:#fff8e8;border:1px solid #f3dca5;padding:11px;border-radius:9px;font-size:13px;color:#78602e;margin-top:14px}.kbd{background:#e9eef5;border:1px solid #d6dfeb;border-radius:5px;padding:1px 4px;font-family:monospace}.footer{font-size:12px;color:#748399;margin-top:16px} .svgtitle{font:700 16px 'Microsoft YaHei',sans-serif;fill:#284463}.svgsub{font:12px 'Microsoft YaHei',sans-serif;fill:#6b7e94}.page{fill:#e7f1e2;stroke:#526954;stroke-width:1.6}.page.active{fill:#fff4d4;stroke:#ee5543;stroke-width:3}.pagehead{fill:#d8e9d3;stroke:#526954;stroke-width:1.25}.pagelabel{font:bold 14px sans-serif;fill:#273e38}.rec{fill:#e9e7f8;stroke:#99a3b9;stroke-width:1}.rec.target{fill:#fff0b5;stroke:#ef5149;stroke-width:2.6}.rec-mini{font:11px ui-monospace,Consolas,monospace;fill:#24364e}.rec-val{font:12px ui-monospace,Consolas,monospace;fill:#24364e}.type{fill:#ffdce4;stroke:#b5929f}.blueptr{stroke:#3565cd;stroke-width:2.2;fill:none}.leaflink{stroke:#ee5d4b;stroke-width:2.2;fill:none}.blackptr{stroke:#2c394a;stroke-width:1.5;fill:none}.route{stroke:#ed4e44;stroke-width:4;fill:none;stroke-linecap:round;stroke-dasharray:9 5;filter:drop-shadow(0 0 1px #d95540)}.callout{fill:#fff;stroke:#bdd0e3;stroke-width:1.4}.bodytext{font:13px 'Microsoft YaHei',sans-serif;fill:#344969}.tiny{font:11px 'Microsoft YaHei',sans-serif;fill:#58718a}.levelband{fill:#e8edff;stroke:#a6b7ed;stroke-width:1.2}.levellabel{font:12px 'Microsoft YaHei',sans-serif;fill:#334ea2}.page-row{fill:#e6f6f3;stroke:#80aaa6}.diagram-panel{fill:#fff;stroke:#d3e0ef;stroke-width:1.2}
+</style><style>
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --ink: #292923;
+  --muted: #777267;
+  --line: #ded5c7;
+  --panel: #fbf8f1;
+  --panel-soft: #eee8dc;
+  --olive: #65745c;
+  --olive-deep: #4a5842;
+  --olive-soft: #e8ecdf;
+  --terracotta: #c76c4e;
+  --terracotta-soft: #f1e2d7;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+header {
+  padding: 28px max(20px, calc((100vw - 1320px) / 2));
+  border-bottom: 1px solid #ded5c7;
+  background: linear-gradient(120deg, #fbf8f1, #eee6d9);
+  color: var(--ink);
+}
+header h1 {
+  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+  font-size: clamp(25px, 3.2vw, 38px);
+  line-height: 1.25;
+}
+header p { color: #756c5b; }
+.page-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 15px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.page-topline a {
+  color: var(--olive-deep);
+  text-decoration: none;
+  letter-spacing: 0;
+}
+.page-topline a:hover { color: var(--terracotta); text-decoration: underline; }
+.page-topline a:focus-visible, button:focus-visible {
+  outline: 3px solid #c76c4e80;
+  outline-offset: 3px;
+}
+.shell { max-width: 1480px; padding: 22px 24px 48px; }
+.nav { gap: 9px; margin-bottom: 18px; }
+.nav button {
+  border-color: var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink);
+  transition: background-color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.nav button:hover { border-color: var(--olive); background: var(--olive-soft); }
+.nav button.active {
+  border-color: var(--olive-deep);
+  background: var(--olive-deep);
+  color: #fffaf1;
+}
+.layout {
+  grid-template-columns: minmax(0, 1fr) minmax(310px, 360px);
+  gap: 20px;
+  align-items: start;
+}
+.panel, .side {
+  border-color: var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 8px 26px #382a170d;
+}
+.panel { padding: 20px; }
+.side { padding: 22px; }
+.toolbar { gap: 9px; margin: 0 0 15px; }
+.toolbar button, .toolbar select {
+  border-color: var(--line);
+  border-radius: 9px;
+  background: var(--panel-soft);
+  color: var(--ink);
+}
+.toolbar button:hover:not(:disabled), .toolbar select:hover { border-color: var(--olive); }
+.toolbar button.primary {
+  border-color: var(--terracotta-dark);
+  background: var(--terracotta);
+  color: #fffaf1;
+}
+.toolbar button.secondary { background: var(--panel-soft); color: var(--ink); }
+.toolbar button:disabled { opacity: .48; }
+.toolbar input[type="range"] { accent-color: var(--olive); }
+.visual {
+  border-color: var(--line);
+  border-radius: 13px;
+  background: var(--panel);
+  overscroll-behavior-x: contain;
+  scrollbar-color: #b7ad9d #eee8dc;
+  scrollbar-width: thin;
+}
+.wide svg { min-width: 900px; }
+.legend { gap: 10px 16px; margin-top: 12px; color: var(--muted); }
+.diagram-hint { display: none; margin: 8px 2px 0; font-size: .75rem; color: var(--muted); }
+.sql {
+  border: 1px solid #3e3a32;
+  border-radius: 10px;
+  background: #292923;
+  color: #f3eee4;
+  overflow-wrap: anywhere;
+}
+.explain { color: #514d42; line-height: 1.7; }
+.stepbox {
+  border-color: #d7c6a9;
+  border-radius: 11px;
+  background: #f1e8d6;
+}
+.stephead { color: var(--terracotta-dark); }
+.steptext { line-height: 1.65; }
+.small, .footer { color: var(--muted); }
+.side h2, .side h3 {
+  color: var(--ink);
+  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+.side h2 { font-size: 1.2rem; }
+.side li { padding-left: 2px; line-height: 1.65; }
+.note {
+  border-color: #d7c6a9;
+  background: #f1e8d6;
+  color: #514638;
+  line-height: 1.65;
+}
+.kbd { border-color: var(--line); background: var(--panel-soft); }
+.svgtitle { fill: var(--ink); font-family: Georgia, "Noto Serif SC", "Songti SC", serif; }
+.svgsub, .tiny { fill: var(--muted); }
+.page { fill: var(--olive-soft); stroke: var(--olive); }
+.page.active { fill: #f6e8c9; stroke: var(--terracotta); }
+.pagehead { fill: #dce5d5; stroke: var(--olive); }
+.pagelabel, .bodytext { fill: #3e4938; }
+.rec { fill: #f4f0e7; stroke: #bcb3a4; }
+.rec.target { fill: #f4d8c8; stroke: var(--terracotta-dark); }
+.rec-mini, .rec-val { fill: var(--ink); }
+.type { fill: #f1e2d7; stroke: #c9957d; }
+.blueptr { stroke: var(--olive); }
+.leaflink { stroke: var(--terracotta); }
+.blackptr { stroke: #756c5b; }
+.route { stroke: var(--terracotta); filter: drop-shadow(0 0 1px #a74e37); }
+.callout { fill: var(--panel); stroke: #c9bdab; }
+.levelband { fill: #eee8dc; stroke: #c9bdab; }
+.levellabel { fill: var(--olive-deep); }
+.page-row { fill: #e8ecdf; stroke: #9baa8e; }
+.diagram-panel { fill: var(--panel); stroke: var(--line); }
+[style*="#b8d3f8"] { background: #65745c !important; }
+[style*="#fa8172"], [style*="#ef5548"] { background: #c76c4e !important; }
+[style*="#e7f1e2"] { background: #e8ecdf !important; }
+@media (max-width: 1120px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 22px; }
+  .side h2, .side .sql, .side .explain, .side .stepbox, .side h3, .side ul, .side .note { margin-top: 0; }
+  .side h2, .side .sql, .side .explain, .side .stepbox { grid-column: 1 / -1; }
+  .side h3 { align-self: end; }
+  .side ul { grid-column: 1; }
+  .side .note { grid-column: 2; align-self: start; }
+}
+@media (max-width: 640px) {
+  header { padding: 22px 18px; }
+  header p { font-size: .9rem; }
+  .shell { margin-top: 14px; padding: 0 12px 32px; }
+  .nav { gap: 7px; }
+  .nav button { padding: 9px 12px; font-size: .84rem; }
+  .panel, .side { padding: 14px; }
+  .toolbar { gap: 7px; }
+  .toolbar button { padding: 8px 10px; font-size: .84rem; }
+  .toolbar .small { flex-basis: 100%; }
+  .wide svg { min-width: 820px; }
+  .diagram-hint { display: block; }
+  .side { display: block; }
+  .side h2, .side h3 { margin-top: 18px; }
+  .side h2:first-child { margin-top: 0; }
+  .side .sql, .side .explain, .side .stepbox, .side ul, .side .note { margin-top: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+</style></head><body><header><div class="page-topline"><a href="../../index.html">← 学习资料索引</a><span>MYSQL · DATABASE</span></div><h1>InnoDB B+ 树 · 数据页 · 回表过程</h1><p>参考你上传的五张结构图，重画“页内部 → 页目录 → 三层 B+ 树 → 普通索引回表 → 联合索引回表”。点击下一步或自动播放，红色路径会逐步高亮。</p></header><main class="shell"><div class="nav" id="nav"></div><div class="layout"><section class="panel"><div class="toolbar" id="toolbar"></div><div class="visual wide" id="visual"></div><p class="diagram-hint">结构图支持横向滚动，拖动或使用 Shift + 鼠标滚轮查看完整内容。</p><div class="legend" id="legend"><span><b style="background:#b8d3f8"></b>树的父子指针</span><span><b style="background:#fa8172"></b>同层/叶子页双向链表</span><span><b style="background:#ef5548"></b>正在执行的查询路径</span><span><b style="background:#e7f1e2"></b>InnoDB 索引页（示意）</span></div><p class="footer">说明：用简化数据记录和页编号表现实际原理；并非真实页布局的逐字节复刻。页面记录、槽、目录指针和层级关系均用示意模型表达。</p></section><aside class="side"><h2 id="sideTitle"></h2><div class="sql" id="sql"></div><p class="explain" id="summary"></p><div class="stepbox"><div class="stephead" id="stepCounter"></div><div class="steptext" id="stepText"></div></div><h3>理解要点</h3><ul id="bullet"></ul><div class="note" id="note"></div></aside></div></main>
+<script>
+const NS='http://www.w3.org/2000/svg';
+const topics=[{name:'① 数据页内部',sql:'InnoDB INDEX Page（16 KB 默认页大小）',summary:'先看一页内部：File Header / Page Header / Infimum+Supremum / User Records / Free Space / Page Directory / File Trailer。',bullets:['User Records 通过 record header 的 next_record 偏移形成逻辑有序单向链表。','Infimum 和 Supremum 是每个索引页中的伪记录，分别标识最小/最大边界。','Page Directory 的 Slot 指向某组记录的最后一条（组内最大），用于页内二分定位。'],note:'InnoDB 页通常为 16 KiB（可配置）。Free Space 和用户记录区域大小随记录插入变化。',steps:['观察数据页的七个主要区域。','定位 User Records：每条记录有记录头并按键值逻辑相连。','定位 Page Directory：Slot 指向各记录分组的最后一条。','页内查找：先二分 Slot，再顺序遍历对应分组中的记录。']},
+{name:'② Slot 页目录',sql:'SELECT * FROM t_user WHERE id = 6;',summary:'一页内的记录按键值组织，Page Directory 的槽提供“二分到组、组内遍历”的查找方式。',bullets:['Slot 是 Page Directory 的槽位，不是普通记录本身。','Slot 包含指向一条记录的偏移量，InnoDB 可以根据槽位二分缩小范围。','一页内普通记录之间依靠记录头里的 next_record 连接。'],note:'示意图为了清晰把 Slot 指针画在记录上方；真实 Slot 存的是页内记录偏移量。',steps:['先在 Page Directory 槽数组上二分，定位目标属于哪个记录组。','定位到 Slot-2 所属组对应的末记录。','沿该组记录链表比较 id=5，再到 id=6。','命中 id=6，得到对应的行记录。']},
+{name:'③ 三层 B+ 树',sql:'SELECT * FROM t_user WHERE id = 15;',summary:'聚簇索引的三层 B+ 树：根页 page(38) → 目录页 page(40) → 数据页 page(26)，再查记录 id=15。',bullets:['非叶子节点中保存用于导航的“索引键 + 子页号”，record_type=1。','叶子节点保存真正的用户记录，record_type=0；聚簇索引的叶子节点包含整行。','同一层索引页通过 FIL Header 中的 Prev/Next 指针连接。'],note:'页号与数据分布模仿你给出的示意图。B+ 树节点对应页，箭头是页与页的父子指针。',steps:['访问根目录页 page(38)。','根据 id=15 选择 page(40) 子目录页。','根据页内目录记录选择 page(26) 叶子页。','在 page(26) 的普通记录中找到 id=15。']},
+{name:'④ 二级索引回表',sql:"SELECT * FROM t_user WHERE name = 'K';",summary:'先沿普通索引 idx_name 找到 (name=K, id=15)，再用 id=15 去聚簇索引 PRIMARY 取完整行。',bullets:['普通二级索引的叶子记录包含索引列值与对应的主键值。','索引 idx_name 无法直接提供查询所需的所有列，于是发生回表。','回表是在另一棵 PRIMARY B+ 树上重新走根页 → 目录页 → 数据页。'],note:'InnoDB 的二级索引只存索引列和主键，不存整行。对于 SELECT id,name 则可能直接覆盖，不需要回表。',steps:['普通索引 idx_name：进入根目录页。','沿 name=K 的方向访问中间目录页。','到达普通索引叶子 page(26)，找到 K → id=15。','拿到主键 id=15，开始回表（跨树）。','PRIMARY：访问主键索引根目录页。','沿 id=15 找到中间目录页和叶子页。','聚簇索引叶子中找到 id=15 的完整行，返回结果。']},
+{name:'⑤ 联合索引回表',sql:"SELECT * FROM t_user WHERE name = 'K' AND age = 96;",summary:'先在联合索引 idx_name_age 中利用 (name,age) 查到复合键及 id，再回到聚簇索引获取 SELECT * 的其他字段。',bullets:['联合二级索引按 (name, age, 主键 id) 的字典序组织记录。','两列都满足 WHERE 时，可以在联合索引树中缩小搜索范围。','索引的叶子节点虽有 name、age、id，但 SELECT * 还需要其他字段，所以仍需回表。'],note:'如果改为 SELECT name,age,id，且过滤和返回列都由该联合索引覆盖，就可避免回表（假设优化器选择该索引）。',steps:['进入联合索引 idx_name_age 的根页。','按 (name=K, age=96) 选择目录分支。','在叶子 page(26) 找到 K,96,id=15。','取出主键 id=15：触发回表。','进入 PRIMARY 索引根页，寻找 id=15。','到达 PRIMARY 的 leaf page(26)，定位 id=15。','取出完整行，完成查询。']}];
+let tab=0,step=0,timer=null;
+const $=x=>document.getElementById(x);
+function stop(){if(timer){clearInterval(timer);timer=null}}
+function e(tag,attrs={},children=''){let a=Object.entries(attrs).map(([k,v])=>`${k}="${String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"`).join(' ');return `<${tag} ${a}>${children}</${tag}>`}
+function text(x,y,s,cls='bodytext',extra={}){return e('text',{x,y,class:cls,...extra},String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'))}
+function rect(x,y,w,h,cls,extra={}){return e('rect',{x,y,width:w,height:h,rx:3,class:cls,...extra})}
+function line(d,cls='blackptr',extra={}){return e('path',{d,class:cls,...extra})}
+function markers(){return `<defs><marker id="mb" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3466cd"/></marker><marker id="mr" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ed6152"/></marker><marker id="mk" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#283d4c"/></marker></defs>`}
+function svg(w,h,body){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="InnoDB 索引页与 B+ 树教学结构图">${markers()}${body}</svg>`}
+// The page glyph contains a header and ordered records. type=1 directory pages, type=0 leaf data pages.
+function page(x,y,w,h,label,vals,type=0,opt={}){
+ const active=opt.active;const target=opt.target;
+ let out=rect(x,y,w,h,'page'+(active?' active':''));out+=rect(x,y,w,31,'pagehead');out+=text(x+w/2,y+21,label,'pagelabel',{'text-anchor':'middle'});
+ const pad=8,top=y+42;const n=vals.length+2;const recW=Math.min(46,(w-2*pad-5*(n-1))/n);let points=[];
+ const items=[{k:'2',v:''},...vals.map(v=>({k:String(type),v:String(v)})),{k:'3',v:''}];
+ const total=n*recW+(n-1)*5,ox=x+(w-total)/2;
+ items.forEach((r,i)=>{
+ const rx=ox+i*(recW+5);points.push(rx+recW/2);
+ out+=rect(rx,top,recW,26,'type'+((target===i)?' target':''),target===i?{stroke:'#eb4b42','stroke-width':3}:{});
+ out+=text(rx+recW/2,top+18,r.k,'rec-mini',{'text-anchor':'middle'});
+ if(r.v){out+=rect(rx,top+27,recW,28,'rec'+((target===i)?' target':''));out+=text(rx+recW/2,top+46,r.v,'rec-val',{'text-anchor':'middle'})}
+ if(i<n-1)out+=line(`M${rx+recW} ${top+13} H${ox+(i+1)*(recW+5)-1}`,'blackptr',{'marker-end':'url(#mk)'});
+ });
+ out+=text(x+8,y+h-8,type===1?'record_type=1 · 目录':'record_type=0 · 数据','tiny');
+ return out;
+}
+function pageDetail(){let a='';
+ a+=text(34,37,'一、16KB 索引页：物理布局','svgtitle');
+ const x=80,y=70,w=440;const regions=[['File Header','38 Bytes',52,'#d8e6ff'],['Page Header','56 Bytes',61,'#f3d7df'],['Infimum + Supremum','固定伪记录',52,'#e1efd8'],['User Records','用户记录区（增长）',205,'#fbe6d7'],['Free Space','空闲区域（缩小）',125,'#fff7e9'],['Page Directory','槽数组',60,'#dfecfb'],['File Trailer','8 Bytes',44,'#a8c7f3']];let yy=y;const bounds=[];
+ regions.forEach((r,i)=>{a+=rect(x,yy,w,r[2],'', {fill:r[3],stroke:'#9eb2c7','stroke-width':1.2});a+=text(x+19,yy+24,r[0],i===3?'pagelabel':'bodytext');a+=text(x+w-18,yy+24,r[1],'tiny',{'text-anchor':'end'});bounds.push(yy);yy+=r[2]});
+ if(step>=1){for(let i=0;i<6;i++){let ry=bounds[3]+29+i*29;a+=rect(x+35,ry,230,25,'page-row');a+=text(x+50,ry+17,`record-${i+1}   id=${i+1}`,'rec-mini');if(i<5)a+=line(`M${x+277} ${ry+12} V${ry+40}`,'blackptr',{'marker-end':'url(#mk)'})}a+=rect(x+25,bounds[3]+9,280,184,'',{fill:'none',stroke:'#ef5548','stroke-width':2.5,rx:6});}
+ if(step>=2){let sy=bounds[5];['Slot 0 → Infimum','Slot 1 → id=4','Slot 2 → Supremum'].forEach((s,i)=>{a+=rect(x+24+i*132,sy+10,123,34,'',{fill:'#fff',stroke:'#4878aa'});a+=text(x+29+i*132,sy+31,s,'tiny')});}
+ a+=text(590,90,'二、记录与页目录的关系','svgtitle');
+ const rx=610, ry=129; a+=rect(rx,ry,360,380,'diagram-panel');a+=text(rx+18,ry+35,'有序用户记录（next_record）','bodytext');
+ for(let i=0;i<8;i++){let xx=rx+22+(i%4)*85, yy2=ry+65+Math.floor(i/4)*105;a+=rect(xx,yy2,70,54,'rec'+((step>=1)?' target':''));a+=text(xx+35,yy2+21,'id='+String(i+1),'rec-val',{'text-anchor':'middle'});a+=text(xx+35,yy2+40,'type=0','tiny',{'text-anchor':'middle'});if(i%4!==3)a+=line(`M${xx+70} ${yy2+25} H${xx+84}`,'blackptr',{'marker-end':'url(#mk)'})}
+ a+=text(rx+18,ry+301,'Slot-0', 'bodytext');a+=text(rx+125,ry+301,'Slot-1','bodytext');a+=text(rx+232,ry+301,'Slot-2','bodytext');
+ for(let i=0;i<3;i++){let sx=rx+18+i*110;a+=rect(sx,ry+311,95,42,'',{fill:'#f4dcd5',stroke:'#ad7f74'});a+=text(sx+48,ry+337,i===0?'Infimum':i===1?'id=4':'Supremum','tiny',{'text-anchor':'middle'})}if(step>=3)a+=line(`M${rx+165} ${ry+311} L${rx+165} ${ry+262} L${rx+260} ${ry+238}`,'route',{'marker-end':'url(#mr)'});
+ a+=text(590,554,'Slot 通过页目录缩小搜索范围，记录仍靠链表顺序访问。','svgsub');
+ return svg(1030,625,a);
+}
+function slotView(){let a=text(45,39,'页内查询：Page Directory 二分 + 记录链表遍历','svgtitle');let py=96;
+ a+=rect(145,py,740,310,'page');a+=rect(145,py,740,45,'pagehead');a+=text(515,py+29,'page(10)   ·   聚簇索引叶子页','pagelabel',{'text-anchor':'middle'});
+ let xs=[];for(let i=0;i<10;i++){let xx=183+i*67;xs.push(xx);a+=rect(xx,py+82,55,50,i===0||i===9?'type':'rec'+((step>=3&&i===6)?' target':''));a+=text(xx+27,py+110,i===0?'Inf':i===9?'Sup':String(i),'rec-mini',{'text-anchor':'middle'});if(i>0&&i<9)a+=text(xx+27,py+153,'id='+i,'rec-val',{'text-anchor':'middle'});if(i<9)a+=line(`M${xx+55} ${py+106} H${xs[i]+66}`,'blackptr',{'marker-end':'url(#mk)'})}
+ a+=text(170,py+205,'Page Directory / Slots（保存组内末记录的偏移）','bodytext');const slotxs=[215,420,625]; ['Slot-1 → id=3','Slot-2 → id=6','Slot-3 → Sup'].forEach((v,i)=>{a+=rect(slotxs[i],py+220,176,52,'',{fill:step>=1&&i===1?'#ffe0b9':'#e1eefa',stroke:step>=1&&i===1?'#ef5548':'#8aacd1','stroke-width':step>=1&&i===1?2.8:1});a+=text(slotxs[i]+88,py+251,v,'bodytext',{'text-anchor':'middle'})});
+ [3,6,9].forEach((v,i)=>a+=line(`M${slotxs[i]+88} ${py+220} Q${xs[v]+28} ${py+184} ${xs[v]+28} ${py+139}`,'blueptr',{'stroke-dasharray':'5 5','marker-end':'url(#mb)'}));
+ if(step>=2)a+=line(`M${xs[5]+28} ${py+75} H${xs[6]+24}`,'route',{'marker-end':'url(#mr)'});
+ a+=text(175,py+290,'※ 简化分组：真实 Infimum / Supremum 的分组规则由 n_owned 等页内结构维护。','tiny');
+ a+=text(65,475,'页内查询过程','svgtitle'); const labels=['目录 Slot 二分','锁定所属记录组','组内顺序遍历','找到 id=6'];labels.forEach((v,i)=>{const xx=73+i*236;a+=rect(xx,504,208,63,'',{fill:step>=i?'#e6f5ee':'#f2f5f9',stroke:step>=i?'#51ac87':'#c6d5e4'});a+=text(xx+104,530,v,'bodytext',{'text-anchor':'middle'});a+=text(xx+104,550,step>=i?'已完成':'待执行','tiny',{'text-anchor':'middle'});if(i<3)a+=line(`M${xx+208} 536 H${xx+232}`,'blueptr',{'marker-end':'url(#mb)'})});return svg(1030,610,a)}
+// A whole 3 level tree; coordinates scaled to space.
+function tree(x,y,wscale=1,leafType=0,opts={}){
+ let s='';const xx=n=>x+n*wscale;const yy=n=>y+n;const W=220*wscale,H=104;
+ const root={x:xx(390),y:yy(0)},middle=[{x:xx(150),y:yy(165)},{x:xx(635),y:yy(165)}];
+ const leaves=[{x:xx(20),y:yy(365),k:'page(10)',v:leafType===0?['1','2','4']:['A:2','B:10','D:66']},{x:xx(265),y:yy(365),k:'page(26)',v:leafType===0?['5','12','15']:['F:26','K:15','M:55']},{x:xx(510),y:yy(365),k:'page(8)',v:leafType===0?['21','22','25']:['N:5','O:12','P:21']},{x:xx(755),y:yy(365),k:'page(21)',v:leafType===0?['35','55','61']:['R:35','T:61','Z:2']}];
+ const leafW=195*wscale,midW=245*wscale,rootW=245*wscale;
+ // lines behind nodes
+ middle.forEach((m,i)=>{s+=line(`M${root.x+rootW/2} ${root.y+104} L${m.x+midW/2} ${m.y}`,'blueptr',{'marker-end':'url(#mb)'})});
+ const pairs=[[0,1,2],[3]];pairs.forEach((ary,j)=>ary.forEach(k=>{let m=middle[j],l=leaves[k];s+=line(`M${m.x+midW/2} ${m.y+104} L${l.x+leafW/2} ${l.y}`,'blueptr',{'marker-end':'url(#mb)'})}));
+ for(let i=0;i<leaves.length-1;i++){let l=leaves[i],r=leaves[i+1];let ylink=l.y+78; s+=line(`M${l.x+leafW} ${ylink-10} H${r.x}`,'leaflink',{'marker-end':'url(#mr)'});s+=line(`M${r.x} ${ylink+10} H${l.x+leafW}`,'leaflink',{'marker-end':'url(#mr)'})}
+ s+=page(root.x,root.y,rootW,104,'page(38)',leafType===0?['1/40','35/32']:['A/40','R/32'],1,{active:opts.active?.includes('root')});
+ middle.forEach((m,i)=>{s+=page(m.x,m.y,midW,104,i===0?'page(40)':'page(32)',leafType===0?(i===0?['1/10','5/26','21/8']:['35/21']):(i===0?['A/10','F/26','N/8']:['R/21']),1,{active:opts.active?.includes(i===0?'middle':'othermiddle')})});
+ leaves.forEach((l,i)=>{s+=page(l.x,l.y,leafW,104,l.k,l.v,0,{active:opts.active?.includes('leaf'+i),target:i===1&&opts.active?.includes('record')?3:-1})});
+ if(opts.active?.includes('root'))s+=rect(root.x-5,root.y-5,rootW+10,114,'',{fill:'none',stroke:'#ef5548','stroke-width':2.4,rx:8});
+ if(opts.active?.includes('route1'))s+=line(`M${root.x+rootW/2} ${root.y+104} L${middle[0].x+midW/2} ${middle[0].y}`,'route',{'marker-end':'url(#mr)'});
+ if(opts.active?.includes('route2'))s+=line(`M${middle[0].x+midW/2} ${middle[0].y+104} L${leaves[1].x+leafW/2} ${leaves[1].y}`,'route',{'marker-end':'url(#mr)'});
+ return s;
+}
+function treeView(){let a=text(40,40,'三层聚簇索引 PRIMARY：根页 → 目录页 → 数据页','svgtitle');a+=rect(10,62,1000,140,'levelband');a+=rect(10,208,1000,161,'levelband');a+=rect(10,375,1000,216,'levelband');a+=text(25,85,'根目录层 · record_type=1','levellabel');a+=text(25,230,'中间目录层 · record_type=1','levellabel');a+=text(25,395,'叶子数据层 · record_type=0','levellabel');let active=[];if(step>=0)active.push('root');if(step>=1)active.push('middle','route1');if(step>=2)active.push('leaf1','route2');if(step>=3)active.push('record');a+=tree(12,104,.97,0,{active});a+=text(40,632,'蓝线：父页指向子页  ·  橙线：同层页双向链接  ·  红线：当前查询路径','svgsub');return svg(1030,663,a)}
+function smallTree(x,y,kind,progress,variant){const scale=.46;let a='';const rootX=x+190,rootY=y+30,middleX=x+115,middleY=y+160,leafX=x+98,leafY=y+295;
+ // two branch diagrams, path should be readable
+ a+=line(`M${rootX+55} ${rootY+82} L${middleX+110} ${middleY}`,'blueptr',{'marker-end':'url(#mb)'});
+ a+=line(`M${middleX+110} ${middleY+82} L${leafX+115} ${leafY}`,'blueptr',{'marker-end':'url(#mb)'});
+ a+=page(rootX,rootY,145,85,'page(38)',kind==='primary'?['1/40','35/32']:variant.joint===true?['A/40','R/32']:['A/40','R/32'],1,{active:progress>=1});
+ a+=page(middleX,middleY,233,85,'page(40)',kind==='primary'?['1/10','5/26','21/8']:['A/10','F/26','N/8'],1,{active:progress>=2});
+ a+=page(leafX,leafY,270,100,'page(26)',kind==='primary'?['5','12','15']:variant.joint===true?['F,73,26','K,96,15','M,55,4']:['F,26','K,15','M,55'],0,{active:progress>=3,target:progress>=3?2:-1});
+ if(progress>=2)a+=line(`M${rootX+55} ${rootY+82} L${middleX+110} ${middleY}`,'route',{'marker-end':'url(#mr)'});
+ if(progress>=3)a+=line(`M${middleX+110} ${middleY+82} L${leafX+115} ${leafY}`,'route',{'marker-end':'url(#mr)'});
+ a+=text(x+30,y+12,kind==='primary'?'聚簇索引 PRIMARY':'二级索引 '+(variant.joint===true?'idx_name_age':'idx_name'),'svgtitle');
+ a+=text(x+30,y+443,kind==='primary'?'叶子节点：主键 → 完整行':'叶子节点：索引字段 → 主键 id','svgsub');
+ return a;
+}
+function backView(joint=false){let a='';a+=rect(10,52,497,494,'diagram-panel');a+=rect(522,52,498,494,'diagram-panel');
+ const leftProg=step>=0?(step===0?1:step===1?2:3):0; const rightProg=step>=4?step===4?1:step===5?2:3:0;
+ a+=smallTree(30,75,'secondary',leftProg,{joint});a+=smallTree(542,75,'primary',rightProg,{joint});
+ if(step>=3){a+=line('M380 420 C510 380 535 320 675 125','route',{'marker-end':'url(#mr)'});a+=rect(455,287,136,42,'',{fill:'#fff2e8',stroke:'#ed5548','stroke-width':2});a+=text(523,314,'id = 15 → 回表','pagelabel',{'text-anchor':'middle'});}
+ a+=text(40,40,joint?'联合索引 (name, age) → 主键索引的两棵 B+ 树':'普通索引 (name) → 主键索引的两棵 B+ 树','svgtitle');
+ a+=text(36,591,joint?'查到 (K,96,id=15)，但 SELECT * 仍需要聚簇索引中的其他列。':'查到 (K,id=15)，但 SELECT * 需要完整行，因此进入 PRIMARY 再查一次。','svgsub');
+ a+=text(36,617,'红色虚线路径为跨树回表；图示是逻辑查找过程，不代表物理文件之间的直连指针。','svgsub');return svg(1030,650,a)}
+function render(){let t=topics[tab];$('nav').innerHTML=topics.map((x,i)=>`<button data-i="${i}" class="${i===tab?'active':''}">${x.name}</button>`).join('');document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{stop();tab=+b.dataset.i;step=0;render()});
+ $('sideTitle').textContent=t.name;$('sql').textContent=t.sql;$('summary').textContent=t.summary;$('bullet').innerHTML=t.bullets.map(x=>`<li>${x}</li>`).join('');$('note').textContent=t.note;
+ $('stepCounter').textContent=`步骤 ${step+1} / ${t.steps.length}`;$('stepText').textContent=t.steps[step];
+ $('toolbar').innerHTML=`<button id="prev" ${step===0?'disabled':''}>◀ 上一步</button><button id="next" class="primary" ${step===t.steps.length-1?'disabled':''}>下一步 ▶</button><button id="autoplay" class="secondary">${timer?'■ 停止播放':'▶ 自动播放'}</button><button id="restart">↺ 重置</button><span class="small">选择章节，逐步高亮 B+ 树路径</span>`;
+ $('prev').onclick=()=>{stop();step=Math.max(0,step-1);render()};$('next').onclick=()=>{stop();step=Math.min(t.steps.length-1,step+1);render()};$('restart').onclick=()=>{stop();step=0;render()};$('autoplay').onclick=()=>{if(timer){stop();render();return}if(step===t.steps.length-1)step=0;timer=setInterval(()=>{if(step<t.steps.length-1){step++;render()}else{stop();render()}},1350);render()};
+ $('visual').innerHTML=tab===0?pageDetail():tab===1?slotView():tab===2?treeView():backView(tab===4);
+}
+render();
+</script></body></html>
