@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="交互理解 MySQL COUNT(*)、COUNT(1)、COUNT(列名) 的计数差异，以及 InnoDB 的索引扫描。"><title>MySQL COUNT 计数规则与索引扫描</title><style>
+:root{--bg:#0b1020;--panel:#141c2f;--panel2:#1b2740;--border:#2b3954;--text:#e9f0ff;--muted:#a4b5d4;--a:#60a5fa;--b:#34d399;--c:#fbbf24;--bad:#fb7185}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -10%,#203d67,transparent 37%),var(--bg);color:var(--text);font:15px/1.65 system-ui,-apple-system,"Microsoft YaHei",sans-serif}.wrap{max-width:1120px;margin:auto;padding:36px 20px 70px}h1{font-size:clamp(25px,4vw,36px);margin:0 0 8px}h2{font-size:20px;margin:0 0 16px}p{margin:8px 0;color:var(--muted)}.lead{font-size:16px;margin-bottom:28px}.layout{display:grid;grid-template-columns:1.13fr .87fr;gap:18px}.card{border:1px solid var(--border);background:var(--panel);border-radius:18px;padding:22px;margin-bottom:18px;box-shadow:0 8px 28px #0002}.full{grid-column:1/-1}.seg{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}.btn{border:1px solid #415675;background:#22314c;color:#dceafe;border-radius:10px;padding:10px 15px;cursor:pointer;font:600 14px/1.2 inherit;transition:.15s}.btn:hover{background:#324769}.btn.active{background:#1c4a73;border-color:var(--a);color:#fff;box-shadow:inset 0 0 0 1px var(--a)}.btn:focus-visible,input:focus-visible{outline:3px solid var(--a);outline-offset:3px}.sql{background:#0b1425;color:#c9e2ff;border-radius:12px;padding:17px 19px;overflow:auto;font:15px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap}.table-wrap{overflow:auto}table{width:100%;border-collapse:separate;border-spacing:0 7px;text-align:left}th{font-size:13px;color:var(--muted);padding:4px 12px}td{background:#202b42;padding:12px;border-top:1px solid #35455d;border-bottom:1px solid #35455d;transition:.2s}td:first-child{border-left:1px solid #35455d;border-radius:9px 0 0 9px}td:last-child{border-right:1px solid #35455d;border-radius:0 9px 9px 0}tr.hit td{background:#123e38;border-color:#1c785d}tr.miss td{opacity:.46}tr.hit td:last-child{color:#55e6ad;font-weight:750}tr.miss td:last-child{color:#fba3b0}code{color:#93c5fd}.null{color:#ff9aa9;font:600 13px ui-monospace,monospace}.stat{display:flex;gap:13px;align-items:center;margin-top:16px}.num{font-weight:800;font-size:44px;line-height:1;color:var(--b)}.chip{border-radius:100px;padding:4px 10px;background:#263c58;font-size:12px;color:#d1e6ff}.hint{font-size:13px;color:var(--muted)}.eyebrow{color:#86aee3;letter-spacing:.1em;font-size:12px;font-weight:800;text-transform:uppercase}.legend{display:flex;gap:15px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:5px;background:var(--b)}.dot.off{background:var(--bad)}.switchline{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:13px 0;border-bottom:1px solid var(--border)}.switchline:last-child{border:0}input[type=checkbox]{width:19px;height:19px;accent-color:#57b5fa;cursor:pointer}.explain{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}.metric{background:#1c2942;border-radius:11px;padding:13px}.metric b{display:block;font-size:16px;overflow-wrap:anywhere}.metric span{font-size:12px;color:var(--muted)}.warning{border-left:3px solid var(--c);background:#3a302334;padding:12px 15px;border-radius:0 9px 9px 0;color:#f0d9ad;font-size:13px}.success{color:#7fe7b6}.footer{color:#a5b7d2;font-size:13px}.smallhead{font-weight:700;margin-bottom:8px}.mini{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.mini button{padding:7px 10px}.bar{display:flex;gap:4px;margin-top:11px}.tile{height:23px;flex:1;background:#2c5a4c;border-radius:5px;position:relative}.tile.faded{background:#344257}.tile:after{content:attr(data-id);position:absolute;inset:0;display:grid;place-items:center;font:12px monospace;color:#d9f0ff}@media(max-width:780px){.layout{grid-template-columns:1fr}.explain{grid-template-columns:1fr 1fr}.wrap{padding:22px 12px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style><style>
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --panel: #fbf8f1;
+  --panel2: #eee8dc;
+  --border: #ded5c7;
+  --text: #292923;
+  --muted: #777267;
+  --a: #c76c4e;
+  --b: #65745c;
+  --c: #8a692c;
+  --bad: #a74e37;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+h1, h2, .smallhead {
+  color: var(--text);
+  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+p, .hint, .footer { color: var(--muted); }
+.wrap { max-width: 1120px; }
+.card {
+  border-color: var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px #382a170a;
+}
+.btn {
+  border-color: var(--border);
+  background: var(--panel2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+.btn:hover { border-color: var(--b); background: #e8ecdf; }
+.btn.active {
+  border-color: var(--a);
+  background: var(--a);
+  color: #fffaf1;
+  box-shadow: none;
+}
+.btn:focus-visible, input:focus-visible {
+  outline: 3px solid #c76c4e80;
+  outline-offset: 3px;
+}
+.sql {
+  border: 1px solid #3e3a32;
+  background: #292923;
+  color: #f3eee4;
+}
+table { color: var(--text); }
+th { color: var(--muted); }
+td { background: #f4f0e7; border-color: var(--border); }
+td:first-child, td:last-child { border-color: var(--border); }
+tr.hit td { background: #e8ecdf; border-color: #cdd7c3; }
+tr.miss td { background: #f1e2d7; border-color: #dec7b9; opacity: 1; }
+tr.hit td:last-child { color: #4a5842; }
+tr.miss td:last-child { color: var(--bad); }
+code { color: #a74e37; }
+.null { color: var(--bad); }
+.num { color: var(--b); }
+.chip { background: #ebe3d5; color: #4a5842; }
+.eyebrow { color: #a74e37; }
+.dot { background: var(--b); }
+.dot.off { background: var(--bad); }
+.switchline { border-color: var(--border); }
+input[type="checkbox"] { accent-color: var(--b); }
+.warning {
+  border-left-color: var(--c);
+  background: #eee5d2;
+  color: #514638;
+}
+.warning code { color: #70551f; }
+.metric { background: var(--panel2); }
+.metric span { color: var(--muted); }
+.tile { background: #65745c; }
+.tile.faded { background: #ded5c7; }
+.tile:after { color: #fbf8f1; }
+.lead strong, p[style*="color"] { color: var(--text) !important; }
+@media (max-width: 780px) {
+  .card { padding: 18px; }
+}
+@media (max-width: 520px) {
+  .card { padding: 15px; }
+  .seg { gap: 7px; }
+}
+</style></head><body><main class="wrap"><div class="eyebrow">MySQL · 可操作的面试知识点</div><h1>COUNT(*)、COUNT(1)、COUNT(列名)</h1><p class="lead">点击 SQL、修改 NULL、切换索引，亲自观察<strong style="color:#eaf2ff">统计结果</strong>和<strong style="color:#eaf2ff">扫描方式</strong>的区别。</p>
+<div class="layout"><section class="card"><h2>① 点击 COUNT，观察哪些行被计数</h2><div class="seg" id="counts"><button class="btn active" data-count="*">COUNT(*)</button><button class="btn" data-count="1">COUNT(1)</button><button class="btn" data-count="id">COUNT(id)</button><button class="btn" data-count="name">COUNT(name)</button><button class="btn" data-count="value">COUNT(value)</button></div><div class="sql" id="query">SELECT COUNT(*) FROM t1;</div><div class="table-wrap"><table><thead><tr><th>id</th><th>name</th><th>value</th><th>是否计数</th></tr></thead><tbody id="rows"></tbody></table></div><div class="legend"><span><i class="dot"></i>计入结果</span><span><i class="dot off"></i>因 NULL 而不计入</span></div><div class="stat"><div class="num" id="result">5</div><div><strong id="resultlabel">统计 5 行</strong><div class="hint" id="explaincount">COUNT(*) 按行计数，不检查列是否为 NULL。</div></div></div></section>
+<section class="card"><h2>② 手动改变数据</h2><p>切换某个字段为 NULL，查看不同 COUNT 写法是否受到影响。</p><div id="editor"></div><div class="mini"><button class="btn" id="reset">还原示例数据</button></div><div class="warning" style="margin-top:20px"><b>关键点：</b><code>COUNT(1)</code> 中的 <code>1</code> 是非 NULL 的常量，不是“统计 id=1 的行”，也不是只统计第一列。</div><div class="smallhead" style="margin-top:23px">原始建表和插入语句</div><div class="sql" style="font-size:12px">CREATE TABLE t1 (
+  id INT,
+  name VARCHAR(50),
+  value INT
+);
+
+INSERT INTO t1 VALUES
+(1,'A',10), (2,'B',NULL),
+(3,'C',30), (4,NULL,40),
+(5,'E',NULL);</div></section>
+<section class="card full"><h2>③ 为什么没有索引时 COUNT(*) 要扫描表？</h2><p>切换“有无二级索引”，观察 InnoDB 可能采用的扫描路径。此处模拟的是<strong>常见的优化器选择</strong>，不是执行真实 SQL。</p><div class="switchline"><div><strong>在 <code>name</code> 上创建普通二级索引</strong><div class="hint">CREATE INDEX idx_name ON t1(name);</div></div><input id="index" type="checkbox" aria-label="开启 name 二级索引"></div><div class="explain"><div class="metric"><span>模拟访问类型 type</span><b id="type">ALL</b></div><div class="metric"><span>模拟使用索引 key</span><b id="key">NULL</b></div><div class="metric"><span>扫描对象</span><b id="scans">聚簇索引 / 表记录</b></div></div><div class="smallhead" id="scantitle">遍历聚簇索引记录，逐行计数</div><div class="bar" id="blocks"></div><p id="scandesc"></p><div class="warning"><strong>注意：</strong>InnoDB 中“全表扫描”通常是遍历聚簇索引（如果没有显式主键，InnoDB 会选择合适的唯一键或生成隐藏行 ID），并不是完全没有任何内部索引。<br>添加二级索引后，<code>COUNT(*)</code> <strong>可能</strong>扫描更窄的二级索引，但仍需要遍历可见的索引记录；不是读取一个预先存储的精确总行数。实际方案以 <code>EXPLAIN</code> 为准。</div></section>
+<section class="card full"><h2>④ 面试时怎么回答？</h2><p style="color:#e8f0ff">“<code>COUNT(*)</code> 和 <code>COUNT(1)</code> 都统计满足条件的行数，不会因为某个字段为 NULL 就漏掉这行，MySQL 中通常性能差别可以忽略。<code>COUNT(列名)</code> 只统计该列非 NULL 的行。InnoDB 不保存事务可见的精确总行数，所以需要扫描记录；有合适的较小二级索引时，优化器可能选择扫描二级索引。实际开发推荐用 <code>COUNT(*)</code>，语义清晰。”</p><p class="footer">补充：如果 <code>COUNT(id)</code> 的 id 可为 NULL，它也会漏掉 NULL 行。本示例的 id 未声明主键或 NOT NULL，因此不能从字段名推断它永不为 NULL。<code>COUNT(DISTINCT col)</code> 则是另一个语义：统计非 NULL 的不同值数量。</p></section></div></main>
+<script>
+const original=[{id:1,name:'A',value:10},{id:2,name:'B',value:null},{id:3,name:'C',value:30},{id:4,name:null,value:40},{id:5,name:'E',value:null}];let data=structuredClone(original),selected='*';const $=id=>document.getElementById(id);const escapeHtml=v=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');function included(r){return selected==='*'||selected==='1'||r[selected]!==null}function render(){document.querySelectorAll('[data-count]').forEach(b=>{let a=b.dataset.count===selected;b.classList.toggle('active',a);b.setAttribute('aria-pressed',a)});$('query').textContent=`SELECT COUNT(${selected}) FROM t1;`;let sum=0;$('rows').innerHTML=data.map(r=>{let yes=included(r);if(yes)sum++;return `<tr class="${yes?'hit':'miss'}"><td>${r.id}</td><td>${r.name===null?'<span class="null">NULL</span>':escapeHtml(r.name)}</td><td>${r.value===null?'<span class="null">NULL</span>':r.value}</td><td>${yes?'✓ 计入':'✕ 不计入'}</td></tr>`}).join('');$('result').textContent=sum;$('resultlabel').textContent=`统计 ${sum} 行`;$('explaincount').textContent=selected==='*'?'COUNT(*) 按行计数，不检查列是否为 NULL。':selected==='1'?'每行的常量 1 都非 NULL，因此每行都计入。':`仅 ${selected} 列非 NULL 的行被计入。`;$('editor').innerHTML=['name','value'].map(col=>`<div class="switchline"><div><strong>${col} 列</strong><div class="hint">点击按钮切换原值 / NULL</div><div class="mini">${data.map((r,i)=>`<button class="btn ${r[col]===null?'active':''}" data-edit="${col}" data-row="${i}">第 ${i+1} 行：${r[col]===null?'NULL':escapeHtml(r[col])}</button>`).join('')}</div></div></div>`).join('');renderIndex()}
+function renderIndex(){const yes=$('index').checked;$('type').textContent=yes?'index':'ALL';$('key').textContent=yes?'idx_name':'NULL';$('scans').textContent=yes?'二级索引叶子节点':'聚簇索引 / 表记录';$('scantitle').textContent=yes?'扫描更窄的 idx_name 索引项（示意）':'扫描聚簇索引记录（示意）';$('blocks').innerHTML=data.map(r=>`<div class="tile ${yes?'faded':''}" data-id="${r.id}" title="记录 ${r.id}"></div>`).join('');$('scandesc').textContent=yes?'普通二级索引的叶子节点保存索引键和主键（或行定位信息）。索引覆盖 COUNT(*) 所需数据时，优化器可能选较小的索引进行扫描；需要考虑事务可见性。':'没有可用的二级索引时，通常遍历聚簇索引中的记录进行精确统计。即使表的 id 没建索引，InnoDB 也会维护聚簇索引结构。'}
+document.addEventListener('click',e=>{let b=e.target.closest('[data-count]');if(b){selected=b.dataset.count;render();return}b=e.target.closest('[data-edit]');if(b){const i=Number(b.dataset.row),col=b.dataset.edit;data[i][col]=data[i][col]===null?original[i][col]??(col==='name'?'X':99):null;render()}});$('reset').addEventListener('click',()=>{data=structuredClone(original);render()});$('index').addEventListener('change',renderIndex);render();
+</script></body></html>
