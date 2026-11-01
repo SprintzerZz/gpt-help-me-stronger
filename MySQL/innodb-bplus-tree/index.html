@@ -180,7 +180,7 @@ header p { color: #756c5b; }
 }
 .blackptr {
   stroke: #292923;
-  stroke-width: 1.6;
+  stroke-width: 2;
   stroke-linecap: round;
   fill: none;
 }
@@ -241,7 +241,7 @@ function e(tag,attrs={},children=''){let a=Object.entries(attrs).map(([k,v])=>`$
 function text(x,y,s,cls='bodytext',extra={}){return e('text',{x,y,class:cls,...extra},String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'))}
 function rect(x,y,w,h,cls,extra={}){return e('rect',{x,y,width:w,height:h,rx:3,class:cls,...extra})}
 function line(d,cls='blackptr',extra={}){return e('path',{d,class:cls,...extra})}
-function markers(){return `<defs><marker id="mb" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#292923"/></marker><marker id="mr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#a74e37"/></marker><marker id="mk" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L6,3 L0,6 Z" fill="#292923"/></marker></defs>`}
+function markers(){return `<defs><marker id="mb" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#292923"/></marker><marker id="mr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#a74e37"/></marker><marker id="mk" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L5,2.5 L0,5 Z" fill="#292923"/></marker></defs>`}
 function svg(w,h,body){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="InnoDB 索引页与 B+ 树教学结构图">${markers()}${body}</svg>`}
 // The page glyph contains a header and ordered records. type=1 directory pages, type=0 leaf data pages.
 function page(x,y,w,h,label,vals,type=0,opt={}){
@@ -264,13 +264,13 @@ function pageDetail(){let a='';
  a+=text(34,37,'一、16KB 索引页：物理布局','svgtitle');
  const x=80,y=70,w=440;const regions=[['File Header','38 Bytes',52,'#d8e6ff'],['Page Header','56 Bytes',61,'#f3d7df'],['Infimum + Supremum','固定伪记录',52,'#e1efd8'],['User Records','用户记录区（增长）',205,'#fbe6d7'],['Free Space','空闲区域（缩小）',125,'#fff7e9'],['Page Directory','槽数组',60,'#dfecfb'],['File Trailer','8 Bytes',44,'#a8c7f3']];let yy=y;const bounds=[];
  regions.forEach((r,i)=>{a+=rect(x,yy,w,r[2],'', {fill:r[3],stroke:'#9eb2c7','stroke-width':1.2});a+=text(x+19,yy+24,r[0],i===3?'pagelabel':'bodytext');a+=text(x+w-18,yy+24,r[1],'tiny',{'text-anchor':'end'});bounds.push(yy);yy+=r[2]});
- if(step>=1){for(let i=0;i<6;i++){let ry=bounds[3]+29+i*29;a+=rect(x+35,ry,230,25,'page-row');a+=text(x+50,ry+17,`record-${i+1}   id=${i+1}`,'rec-mini');if(i<5)a+=line(`M${x+277} ${ry+12} V${ry+40}`,'blackptr',{'marker-end':'url(#mk)'})}a+=rect(x+25,bounds[3]+9,280,184,'',{fill:'none',stroke:'#ef5548','stroke-width':2.5,rx:6});}
+ if(step>=1){const recordYs=[];for(let i=0;i<6;i++){let ry=bounds[3]+15+i*33;recordYs.push(ry);a+=rect(x+35,ry,230,25,'page-row');a+=text(x+50,ry+17,`record-${i+1}   id=${i+1}`,'rec-mini')}for(let i=0;i<recordYs.length-1;i++)a+=line(`M${x+277} ${recordYs[i]+25} V${recordYs[i+1]-1}`,'blackptr',{'marker-end':'url(#mk)'});a+=rect(x+25,bounds[3]+9,280,196,'',{fill:'none',stroke:'#ef5548','stroke-width':2.5,rx:6});}
  if(step>=2){let sy=bounds[5];['Slot 0 → Infimum','Slot 1 → id=4','Slot 2 → Supremum'].forEach((s,i)=>{a+=rect(x+24+i*132,sy+10,123,34,'',{fill:'#fff',stroke:'#4878aa'});a+=text(x+29+i*132,sy+31,s,'tiny')});}
  a+=text(590,90,'二、记录与页目录的关系','svgtitle');
  const rx=610, ry=129; a+=rect(rx,ry,360,380,'diagram-panel');a+=text(rx+18,ry+35,'有序用户记录（next_record）','bodytext');
- for(let i=0;i<8;i++){let xx=rx+22+(i%4)*85, yy2=ry+65+Math.floor(i/4)*105;a+=rect(xx,yy2,70,54,'rec'+((step>=1)?' target':''));a+=text(xx+35,yy2+21,'id='+String(i+1),'rec-val',{'text-anchor':'middle'});a+=text(xx+35,yy2+40,'type=0','tiny',{'text-anchor':'middle'});if(i%4!==3)a+=line(`M${xx+70} ${yy2+25} H${xx+84}`,'blackptr',{'marker-end':'url(#mk)'})}
+ const recordPositions=[];for(let i=0;i<8;i++){let xx=rx+22+(i%4)*88, yy2=ry+65+Math.floor(i/4)*105;recordPositions.push({x:xx,y:yy2});a+=rect(xx,yy2,64,54,'rec'+((step>=1)?' target':''));a+=text(xx+32,yy2+21,'id='+String(i+1),'rec-val',{'text-anchor':'middle'});a+=text(xx+32,yy2+40,'type=0','tiny',{'text-anchor':'middle'})}for(let i=0;i<recordPositions.length;i++){if(i%4!==3){let p=recordPositions[i];a+=line(`M${p.x+64} ${p.y+25} H${p.x+87}`,'blackptr',{'marker-end':'url(#mk)'})}}
  a+=text(rx+18,ry+301,'Slot-0', 'bodytext');a+=text(rx+125,ry+301,'Slot-1','bodytext');a+=text(rx+232,ry+301,'Slot-2','bodytext');
- for(let i=0;i<3;i++){let sx=rx+18+i*110;a+=rect(sx,ry+311,95,42,'',{fill:'#f4dcd5',stroke:'#ad7f74'});a+=text(sx+48,ry+337,i===0?'Infimum':i===1?'id=4':'Supremum','tiny',{'text-anchor':'middle'})}if(step>=3)a+=line(`M${rx+165} ${ry+311} L${rx+165} ${ry+262} L${rx+260} ${ry+238}`,'route',{'marker-end':'url(#mr)'});
+ for(let i=0;i<3;i++){let sx=rx+18+i*110;a+=rect(sx,ry+311,95,42,'',{fill:'#f4dcd5',stroke:'#ad7f74'});a+=text(sx+48,ry+337,i===0?'Infimum':i===1?'id=4':'Supremum','tiny',{'text-anchor':'middle'})}if(step>=3)a+=line(`M${rx+165} ${ry+311} V${ry+148} L${rx+312} ${ry+127}`,'blackptr',{'marker-end':'url(#mk)'});
  a+=text(590,554,'Slot 通过页目录缩小搜索范围，记录仍靠链表顺序访问。','svgsub');
  return svg(1030,625,a);
 }
@@ -278,7 +278,7 @@ function slotView(){let a=text(45,39,'页内查询：Page Directory 二分 + 记
  a+=rect(145,py,740,310,'page');a+=rect(145,py,740,45,'pagehead');a+=text(515,py+29,'page(10)   ·   聚簇索引叶子页','pagelabel',{'text-anchor':'middle'});
  let xs=[];for(let i=0;i<10;i++){let xx=183+i*67;xs.push(xx);a+=rect(xx,py+82,55,50,i===0||i===9?'type':'rec'+((step>=3&&i===6)?' target':''));a+=text(xx+27,py+110,i===0?'Inf':i===9?'Sup':String(i),'rec-mini',{'text-anchor':'middle'});if(i>0&&i<9)a+=text(xx+27,py+153,'id='+i,'rec-val',{'text-anchor':'middle'});if(i<9)a+=line(`M${xx+55} ${py+106} H${xs[i]+66}`,'blackptr',{'marker-end':'url(#mk)'})}
  a+=text(170,py+205,'Page Directory / Slots（保存组内末记录的偏移）','bodytext');const slotxs=[215,420,625]; ['Slot-1 → id=3','Slot-2 → id=6','Slot-3 → Sup'].forEach((v,i)=>{a+=rect(slotxs[i],py+220,176,52,'',{fill:step>=1&&i===1?'#ffe0b9':'#e1eefa',stroke:step>=1&&i===1?'#ef5548':'#8aacd1','stroke-width':step>=1&&i===1?2.8:1});a+=text(slotxs[i]+88,py+251,v,'bodytext',{'text-anchor':'middle'})});
- [3,6,9].forEach((v,i)=>a+=line(`M${slotxs[i]+88} ${py+220} Q${xs[v]+28} ${py+184} ${xs[v]+28} ${py+139}`,'blueptr',{'stroke-dasharray':'5 5','marker-end':'url(#mb)'}));
+ [3,6,9].forEach((v,i)=>a+=line(`M${slotxs[i]+88} ${py+220} Q${xs[v]+28} ${py+184} ${xs[v]+28} ${py+137}`,'blackptr',{'marker-end':'url(#mk)'}));
  if(step>=2)a+=line(`M${xs[5]+28} ${py+75} H${xs[6]+24}`,'route',{'marker-end':'url(#mr)'});
  a+=text(175,py+290,'※ 简化分组：真实 Infimum / Supremum 的分组规则由 n_owned 等页内结构维护。','tiny');
  a+=text(65,475,'页内查询过程','svgtitle'); const labels=['目录 Slot 二分','锁定所属记录组','组内顺序遍历','找到 id=6'];labels.forEach((v,i)=>{const xx=73+i*236;a+=rect(xx,504,208,63,'',{fill:step>=i?'#e6f5ee':'#f2f5f9',stroke:step>=i?'#51ac87':'#c6d5e4'});a+=text(xx+104,530,v,'bodytext',{'text-anchor':'middle'});a+=text(xx+104,550,step>=i?'已完成':'待执行','tiny',{'text-anchor':'middle'});if(i<3)a+=line(`M${xx+208} 536 H${xx+232}`,'blueptr',{'marker-end':'url(#mb)'})});return svg(1030,610,a)}
