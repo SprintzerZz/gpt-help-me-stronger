@@ -69,9 +69,8 @@ header p { color: #756c5b; }
   color: #fffaf1;
 }
 .layout {
-  grid-template-columns: minmax(0, 1fr) minmax(310px, 360px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
-  align-items: start;
 }
 .panel, .side {
   border-color: var(--line);
@@ -80,7 +79,27 @@ header p { color: #756c5b; }
   box-shadow: 0 8px 26px #382a170d;
 }
 .panel { padding: 20px; }
-.side { padding: 22px; }
+.side {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "title title"
+    "sql sql"
+    "summary summary"
+    "step step"
+    "points-heading note"
+    "points note";
+  gap: 12px 24px;
+  align-items: start;
+  padding: 22px;
+}
+.side h2 { grid-area: title; margin: 0; }
+.side .sql { grid-area: sql; margin: 0; }
+.side .explain { grid-area: summary; margin: 0; }
+.side .stepbox { grid-area: step; margin: 0; }
+.side h3 { grid-area: points-heading; margin: 0; }
+.side ul { grid-area: points; margin: 0; }
+.side .note { grid-area: note; margin: 0; }
 .toolbar { gap: 9px; margin: 0 0 15px; }
 .toolbar button, .toolbar select {
   border-color: var(--line);
@@ -159,15 +178,6 @@ header p { color: #756c5b; }
 [style*="#b8d3f8"] { background: #65745c !important; }
 [style*="#fa8172"], [style*="#ef5548"] { background: #c76c4e !important; }
 [style*="#e7f1e2"] { background: #e8ecdf !important; }
-@media (max-width: 1120px) {
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  .side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 22px; }
-  .side h2, .side .sql, .side .explain, .side .stepbox, .side h3, .side ul, .side .note { margin-top: 0; }
-  .side h2, .side .sql, .side .explain, .side .stepbox { grid-column: 1 / -1; }
-  .side h3 { align-self: end; }
-  .side ul { grid-column: 1; }
-  .side .note { grid-column: 2; align-self: start; }
-}
 @media (max-width: 640px) {
   header { padding: 22px 18px; }
   header p { font-size: .9rem; }
@@ -180,10 +190,19 @@ header p { color: #756c5b; }
   .toolbar .small { flex-basis: 100%; }
   .wide svg { min-width: 820px; }
   .diagram-hint { display: block; }
-  .side { display: block; }
-  .side h2, .side h3 { margin-top: 18px; }
-  .side h2:first-child { margin-top: 0; }
-  .side .sql, .side .explain, .side .stepbox, .side ul, .side .note { margin-top: 12px; }
+  .side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "sql"
+      "summary"
+      "step"
+      "points-heading"
+      "points"
+      "note";
+    gap: 12px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
@@ -246,32 +265,32 @@ function slotView(){let a=text(45,39,'页内查询：Page Directory 二分 + 记
  a+=text(65,475,'页内查询过程','svgtitle'); const labels=['目录 Slot 二分','锁定所属记录组','组内顺序遍历','找到 id=6'];labels.forEach((v,i)=>{const xx=73+i*236;a+=rect(xx,504,208,63,'',{fill:step>=i?'#e6f5ee':'#f2f5f9',stroke:step>=i?'#51ac87':'#c6d5e4'});a+=text(xx+104,530,v,'bodytext',{'text-anchor':'middle'});a+=text(xx+104,550,step>=i?'已完成':'待执行','tiny',{'text-anchor':'middle'});if(i<3)a+=line(`M${xx+208} 536 H${xx+232}`,'blueptr',{'marker-end':'url(#mb)'})});return svg(1030,610,a)}
 // A whole 3 level tree; coordinates scaled to space.
 function tree(x,y,wscale=1,leafType=0,opts={}){
- let s='';const xx=n=>x+n*wscale;const yy=n=>y+n;const W=220*wscale,H=104;
+ let s='';const xx=n=>x+n*wscale;const yy=n=>y+n;const W=220*wscale,H=126;
  const root={x:xx(390),y:yy(0)},middle=[{x:xx(150),y:yy(165)},{x:xx(635),y:yy(165)}];
  const leaves=[{x:xx(20),y:yy(365),k:'page(10)',v:leafType===0?['1','2','4']:['A:2','B:10','D:66']},{x:xx(265),y:yy(365),k:'page(26)',v:leafType===0?['5','12','15']:['F:26','K:15','M:55']},{x:xx(510),y:yy(365),k:'page(8)',v:leafType===0?['21','22','25']:['N:5','O:12','P:21']},{x:xx(755),y:yy(365),k:'page(21)',v:leafType===0?['35','55','61']:['R:35','T:61','Z:2']}];
  const leafW=195*wscale,midW=245*wscale,rootW=245*wscale;
  // lines behind nodes
- middle.forEach((m,i)=>{s+=line(`M${root.x+rootW/2} ${root.y+104} L${m.x+midW/2} ${m.y}`,'blueptr',{'marker-end':'url(#mb)'})});
- const pairs=[[0,1,2],[3]];pairs.forEach((ary,j)=>ary.forEach(k=>{let m=middle[j],l=leaves[k];s+=line(`M${m.x+midW/2} ${m.y+104} L${l.x+leafW/2} ${l.y}`,'blueptr',{'marker-end':'url(#mb)'})}));
+ middle.forEach((m,i)=>{s+=line(`M${root.x+rootW/2} ${root.y+H} L${m.x+midW/2} ${m.y}`,'blueptr',{'marker-end':'url(#mb)'})});
+ const pairs=[[0,1,2],[3]];pairs.forEach((ary,j)=>ary.forEach(k=>{let m=middle[j],l=leaves[k];s+=line(`M${m.x+midW/2} ${m.y+H} L${l.x+leafW/2} ${l.y}`,'blueptr',{'marker-end':'url(#mb)'})}));
  for(let i=0;i<leaves.length-1;i++){let l=leaves[i],r=leaves[i+1];let ylink=l.y+78; s+=line(`M${l.x+leafW} ${ylink-10} H${r.x}`,'leaflink',{'marker-end':'url(#mr)'});s+=line(`M${r.x} ${ylink+10} H${l.x+leafW}`,'leaflink',{'marker-end':'url(#mr)'})}
- s+=page(root.x,root.y,rootW,104,'page(38)',leafType===0?['1/40','35/32']:['A/40','R/32'],1,{active:opts.active?.includes('root')});
- middle.forEach((m,i)=>{s+=page(m.x,m.y,midW,104,i===0?'page(40)':'page(32)',leafType===0?(i===0?['1/10','5/26','21/8']:['35/21']):(i===0?['A/10','F/26','N/8']:['R/21']),1,{active:opts.active?.includes(i===0?'middle':'othermiddle')})});
- leaves.forEach((l,i)=>{s+=page(l.x,l.y,leafW,104,l.k,l.v,0,{active:opts.active?.includes('leaf'+i),target:i===1&&opts.active?.includes('record')?3:-1})});
- if(opts.active?.includes('root'))s+=rect(root.x-5,root.y-5,rootW+10,114,'',{fill:'none',stroke:'#ef5548','stroke-width':2.4,rx:8});
- if(opts.active?.includes('route1'))s+=line(`M${root.x+rootW/2} ${root.y+104} L${middle[0].x+midW/2} ${middle[0].y}`,'route',{'marker-end':'url(#mr)'});
- if(opts.active?.includes('route2'))s+=line(`M${middle[0].x+midW/2} ${middle[0].y+104} L${leaves[1].x+leafW/2} ${leaves[1].y}`,'route',{'marker-end':'url(#mr)'});
+ s+=page(root.x,root.y,rootW,H,'page(38)',leafType===0?['1/40','35/32']:['A/40','R/32'],1,{active:opts.active?.includes('root')});
+ middle.forEach((m,i)=>{s+=page(m.x,m.y,midW,H,i===0?'page(40)':'page(32)',leafType===0?(i===0?['1/10','5/26','21/8']:['35/21']):(i===0?['A/10','F/26','N/8']:['R/21']),1,{active:opts.active?.includes(i===0?'middle':'othermiddle')})});
+ leaves.forEach((l,i)=>{s+=page(l.x,l.y,leafW,H,l.k,l.v,0,{active:opts.active?.includes('leaf'+i),target:i===1&&opts.active?.includes('record')?3:-1})});
+ if(opts.active?.includes('root'))s+=rect(root.x-5,root.y-5,rootW+10,H+10,'',{fill:'none',stroke:'#ef5548','stroke-width':2.4,rx:8});
+ if(opts.active?.includes('route1'))s+=line(`M${root.x+rootW/2} ${root.y+H} L${middle[0].x+midW/2} ${middle[0].y}`,'route',{'marker-end':'url(#mr)'});
+ if(opts.active?.includes('route2'))s+=line(`M${middle[0].x+midW/2} ${middle[0].y+H} L${leaves[1].x+leafW/2} ${leaves[1].y}`,'route',{'marker-end':'url(#mr)'});
  return s;
 }
-function treeView(){let a=text(40,40,'三层聚簇索引 PRIMARY：根页 → 目录页 → 数据页','svgtitle');a+=rect(10,62,1000,140,'levelband');a+=rect(10,208,1000,161,'levelband');a+=rect(10,375,1000,216,'levelband');a+=text(25,85,'根目录层 · record_type=1','levellabel');a+=text(25,230,'中间目录层 · record_type=1','levellabel');a+=text(25,395,'叶子数据层 · record_type=0','levellabel');let active=[];if(step>=0)active.push('root');if(step>=1)active.push('middle','route1');if(step>=2)active.push('leaf1','route2');if(step>=3)active.push('record');a+=tree(12,104,.97,0,{active});a+=text(40,632,'蓝线：父页指向子页  ·  橙线：同层页双向链接  ·  红线：当前查询路径','svgsub');return svg(1030,663,a)}
+function treeView(){let a=text(40,40,'三层聚簇索引 PRIMARY：根页 → 目录页 → 数据页','svgtitle');a+=rect(10,62,1000,168,'levelband');a+=rect(10,237,1000,160,'levelband');a+=rect(10,404,1000,216,'levelband');a+=text(25,85,'根目录层 · record_type=1','levellabel');a+=text(25,260,'中间目录层 · record_type=1','levellabel');a+=text(25,427,'叶子数据层 · record_type=0','levellabel');let active=[];if(step>=0)active.push('root');if(step>=1)active.push('middle','route1');if(step>=2)active.push('leaf1','route2');if(step>=3)active.push('record');a+=tree(12,104,.97,0,{active});a+=text(40,632,'蓝线：父页指向子页  ·  橙线：同层页双向链接  ·  红线：当前查询路径','svgsub');return svg(1030,663,a)}
 function smallTree(x,y,kind,progress,variant){const scale=.46;let a='';const rootX=x+190,rootY=y+30,middleX=x+115,middleY=y+160,leafX=x+98,leafY=y+295;
  // two branch diagrams, path should be readable
- a+=line(`M${rootX+55} ${rootY+82} L${middleX+110} ${middleY}`,'blueptr',{'marker-end':'url(#mb)'});
- a+=line(`M${middleX+110} ${middleY+82} L${leafX+115} ${leafY}`,'blueptr',{'marker-end':'url(#mb)'});
- a+=page(rootX,rootY,145,85,'page(38)',kind==='primary'?['1/40','35/32']:variant.joint===true?['A/40','R/32']:['A/40','R/32'],1,{active:progress>=1});
- a+=page(middleX,middleY,233,85,'page(40)',kind==='primary'?['1/10','5/26','21/8']:['A/10','F/26','N/8'],1,{active:progress>=2});
- a+=page(leafX,leafY,270,100,'page(26)',kind==='primary'?['5','12','15']:variant.joint===true?['F,73,26','K,96,15','M,55,4']:['F,26','K,15','M,55'],0,{active:progress>=3,target:progress>=3?2:-1});
- if(progress>=2)a+=line(`M${rootX+55} ${rootY+82} L${middleX+110} ${middleY}`,'route',{'marker-end':'url(#mr)'});
- if(progress>=3)a+=line(`M${middleX+110} ${middleY+82} L${leafX+115} ${leafY}`,'route',{'marker-end':'url(#mr)'});
+ a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY}`,'blueptr',{'marker-end':'url(#mb)'});
+ a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY}`,'blueptr',{'marker-end':'url(#mb)'});
+ a+=page(rootX,rootY,145,126,'page(38)',kind==='primary'?['1/40','35/32']:variant.joint===true?['A/40','R/32']:['A/40','R/32'],1,{active:progress>=1});
+ a+=page(middleX,middleY,233,126,'page(40)',kind==='primary'?['1/10','5/26','21/8']:['A/10','F/26','N/8'],1,{active:progress>=2});
+ a+=page(leafX,leafY,270,126,'page(26)',kind==='primary'?['5','12','15']:variant.joint===true?['F,73,26','K,96,15','M,55,4']:['F,26','K,15','M,55'],0,{active:progress>=3,target:progress>=3?2:-1});
+ if(progress>=2)a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY}`,'route',{'marker-end':'url(#mr)'});
+ if(progress>=3)a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY}`,'route',{'marker-end':'url(#mr)'});
  a+=text(x+30,y+12,kind==='primary'?'聚簇索引 PRIMARY':'二级索引 '+(variant.joint===true?'idx_name_age':'idx_name'),'svgtitle');
  a+=text(x+30,y+443,kind==='primary'?'叶子节点：主键 → 完整行':'叶子节点：索引字段 → 主键 id','svgsub');
  return a;
