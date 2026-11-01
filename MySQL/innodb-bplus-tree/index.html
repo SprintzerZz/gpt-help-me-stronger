@@ -262,17 +262,17 @@ function page(x,y,w,h,label,vals,type=0,opt={}){
 }
 function pageDetail(){let a='';
  a+=text(34,37,'一、16KB 索引页：物理布局（区域高度不按比例）','svgtitle');
- const x=80,y=70,w=440;const regions=[['File Header','38 Bytes',52,'#d8e6ff'],['Page Header','56 Bytes',61,'#f3d7df'],['Infimum + Supremum','26 Bytes',52,'#e1efd8'],['User Records','记录区（可变）',205,'#fbe6d7'],['Free Space','空闲区（可变）',125,'#fff7e9'],['Page Directory','2 Bytes / Slot',60,'#dfecfb'],['File Trailer','8 Bytes',44,'#a8c7f3']];let yy=y;const bounds=[];
+ const x=80,y=70,w=440;const regions=[['File Header','38 Bytes',52,'#d8e6ff'],['Page Header','56 Bytes',61,'#f3d7df'],['Infimum + Supremum','26 Bytes',52,'#e1efd8'],['User Records','记录区（可变）',205,'#fbe6d7'],['Free Space','空闲区（可变）',90,'#fff7e9'],['Page Directory','2 Bytes / Slot',42,'#dfecfb'],['File Trailer','8 Bytes',44,'#a8c7f3']];let yy=y;const bounds=[];
  regions.forEach((r,i)=>{a+=rect(x,yy,w,r[2],'', {fill:r[3],stroke:'#9eb2c7','stroke-width':1.2});a+=text(x+19,yy+24,r[0],i===3?'pagelabel':'bodytext');a+=text(x+w-18,yy+24,r[1],'tiny',{'text-anchor':'end'});bounds.push(yy);yy+=r[2]});
  for(let i=0;i<8;i++){let ry=bounds[3]+30+i*21;a+=rect(x+20,ry,295,18,'page-row');a+=text(x+30,ry+13,`record-${i+1}`,'rec-mini');a+=text(x+305,ry+13,`id=${i+1} · type=0`,'tiny',{'text-anchor':'end'})}
  if(step>=1){a+=rect(x+12,bounds[3]+27,w-24,174,'',{fill:'none',stroke:'#ef5548','stroke-width':2.5,rx:6});}
- if(step>=2){let sy=bounds[5];['0 · Infimum','1 · id=4','2 · id=8','3 · Sup'].forEach((s,i)=>{a+=rect(x+14+i*103,sy+32,96,22,'',{fill:'#fff',stroke:'#4878aa'});a+=text(x+19+i*103,sy+47,s,'tiny')});}
+ if(step>=2){let sy=bounds[5];['0 · Infimum','1 · id=4','2 · id=8','3 · Sup'].forEach((s,i)=>{a+=rect(x+14+i*103,sy+9,96,22,'',{fill:'#fff',stroke:'#4878aa'});a+=text(x+19+i*103,sy+24,s,'tiny')});}
  a+=text(590,90,'二、记录与页目录的关系','svgtitle');
  const rx=610, ry=129; a+=rect(rx,ry,360,380,'diagram-panel');a+=text(rx+18,ry+35,'有序用户记录（next_record）','bodytext');
  const recordPositions=[];for(let i=0;i<8;i++){let xx=rx+22+(i%4)*88, yy2=ry+65+Math.floor(i/4)*105;recordPositions.push({x:xx,y:yy2});a+=rect(xx,yy2,64,54,'rec'+((step>=1)?' target':''));a+=text(xx+32,yy2+21,'id='+String(i+1),'rec-val',{'text-anchor':'middle'});a+=text(xx+32,yy2+40,'type=0','tiny',{'text-anchor':'middle'})}for(let i=0;i<recordPositions.length;i++){if(i%4!==3){let p=recordPositions[i];a+=line(`M${p.x+64} ${p.y+25} H${p.x+87}`,'blackptr',{'marker-end':'url(#mk)'})}}
  for(let i=0;i<4;i++){let sx=rx+14+i*82;a+=text(sx+35,ry+301,`Slot-${i}`,'tiny',{'text-anchor':'middle'});a+=rect(sx,ry+311,72,42,'',{fill:'#f4dcd5',stroke:'#ad7f74'});a+=text(sx+36,ry+337,['Infimum','id=4','id=8','Supremum'][i],'tiny',{'text-anchor':'middle'})}if(step>=3)a+=line(`M${rx+165} ${ry+311} V${ry+148} L${rx+312} ${ry+127}`,'blackptr',{'marker-end':'url(#mk)'});
  a+=text(590,554,'Slot 通过页目录缩小搜索范围，记录仍靠链表顺序访问。','svgsub');
- return svg(1030,625,a);
+ return svg(1030,635,a);
 }
 function slotView(){let a=text(45,39,'页内查询：Page Directory 二分 + 记录链表遍历','svgtitle');let py=96;
  a+=rect(145,py,740,310,'page');a+=rect(145,py,740,45,'pagehead');a+=text(515,py+29,'page(10)   ·   聚簇索引叶子页','pagelabel',{'text-anchor':'middle'});
