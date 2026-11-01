@@ -166,10 +166,26 @@ header p { color: #756c5b; }
 .rec.target { fill: #f4d8c8; stroke: var(--terracotta-dark); }
 .rec-mini, .rec-val { fill: var(--ink); }
 .type { fill: #f1e2d7; stroke: #c9957d; }
-.blueptr { stroke: var(--olive); }
-.leaflink { stroke: var(--terracotta); }
-.blackptr { stroke: #756c5b; }
-.route { stroke: var(--terracotta); filter: drop-shadow(0 0 1px #a74e37); }
+.blueptr {
+  stroke: var(--olive-deep);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+}
+.leaflink {
+  stroke: var(--terracotta-dark);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.blackptr {
+  stroke: #514d42;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.route {
+  stroke: var(--terracotta-dark);
+  stroke-width: 5;
+  filter: drop-shadow(0 1px 1px #382a1740);
+}
 .callout { fill: var(--panel); stroke: #c9bdab; }
 .levelband { fill: #eee8dc; stroke: #c9bdab; }
 .levellabel { fill: var(--olive-deep); }
@@ -222,7 +238,7 @@ function e(tag,attrs={},children=''){let a=Object.entries(attrs).map(([k,v])=>`$
 function text(x,y,s,cls='bodytext',extra={}){return e('text',{x,y,class:cls,...extra},String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'))}
 function rect(x,y,w,h,cls,extra={}){return e('rect',{x,y,width:w,height:h,rx:3,class:cls,...extra})}
 function line(d,cls='blackptr',extra={}){return e('path',{d,class:cls,...extra})}
-function markers(){return `<defs><marker id="mb" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#3466cd"/></marker><marker id="mr" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ed6152"/></marker><marker id="mk" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#283d4c"/></marker></defs>`}
+function markers(){return `<defs><marker id="mb" markerWidth="13" markerHeight="13" refX="11" refY="6.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L13,6.5 L0,13 Z" fill="#4a5842"/></marker><marker id="mr" markerWidth="13" markerHeight="13" refX="11" refY="6.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L13,6.5 L0,13 Z" fill="#a74e37"/></marker><marker id="mk" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L11,5.5 L0,11 Z" fill="#514d42"/></marker></defs>`}
 function svg(w,h,body){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="InnoDB 索引页与 B+ 树教学结构图">${markers()}${body}</svg>`}
 // The page glyph contains a header and ordered records. type=1 directory pages, type=0 leaf data pages.
 function page(x,y,w,h,label,vals,type=0,opt={}){
@@ -266,8 +282,8 @@ function slotView(){let a=text(45,39,'页内查询：Page Directory 二分 + 记
 // A whole 3 level tree; coordinates scaled to space.
 function tree(x,y,wscale=1,leafType=0,opts={}){
  let s='';const xx=n=>x+n*wscale;const yy=n=>y+n;const W=220*wscale,H=126;
- const root={x:xx(390),y:yy(0)},middle=[{x:xx(150),y:yy(165)},{x:xx(635),y:yy(165)}];
- const leaves=[{x:xx(20),y:yy(365),k:'page(10)',v:leafType===0?['1','2','4']:['A:2','B:10','D:66']},{x:xx(265),y:yy(365),k:'page(26)',v:leafType===0?['5','12','15']:['F:26','K:15','M:55']},{x:xx(510),y:yy(365),k:'page(8)',v:leafType===0?['21','22','25']:['N:5','O:12','P:21']},{x:xx(755),y:yy(365),k:'page(21)',v:leafType===0?['35','55','61']:['R:35','T:61','Z:2']}];
+ const root={x:xx(390),y:yy(0)},middle=[{x:xx(150),y:yy(200)},{x:xx(635),y:yy(200)}];
+ const leaves=[{x:xx(20),y:yy(430),k:'page(10)',v:leafType===0?['1','2','4']:['A:2','B:10','D:66']},{x:xx(265),y:yy(430),k:'page(26)',v:leafType===0?['5','12','15']:['F:26','K:15','M:55']},{x:xx(510),y:yy(430),k:'page(8)',v:leafType===0?['21','22','25']:['N:5','O:12','P:21']},{x:xx(755),y:yy(430),k:'page(21)',v:leafType===0?['35','55','61']:['R:35','T:61','Z:2']}];
  const leafW=195*wscale,midW=245*wscale,rootW=245*wscale;
  // lines behind nodes
  middle.forEach((m,i)=>{s+=line(`M${root.x+rootW/2} ${root.y+H} L${m.x+midW/2} ${m.y}`,'blueptr',{'marker-end':'url(#mb)'})});
@@ -281,9 +297,8 @@ function tree(x,y,wscale=1,leafType=0,opts={}){
  if(opts.active?.includes('route2'))s+=line(`M${middle[0].x+midW/2} ${middle[0].y+H} L${leaves[1].x+leafW/2} ${leaves[1].y}`,'route',{'marker-end':'url(#mr)'});
  return s;
 }
-function treeView(){let a=text(40,40,'三层聚簇索引 PRIMARY：根页 → 目录页 → 数据页','svgtitle');a+=rect(10,62,1000,168,'levelband');a+=rect(10,237,1000,160,'levelband');a+=rect(10,404,1000,216,'levelband');a+=text(25,85,'根目录层 · record_type=1','levellabel');a+=text(25,260,'中间目录层 · record_type=1','levellabel');a+=text(25,427,'叶子数据层 · record_type=0','levellabel');let active=[];if(step>=0)active.push('root');if(step>=1)active.push('middle','route1');if(step>=2)active.push('leaf1','route2');if(step>=3)active.push('record');a+=tree(12,104,.97,0,{active});a+=text(40,632,'蓝线：父页指向子页  ·  橙线：同层页双向链接  ·  红线：当前查询路径','svgsub');return svg(1030,663,a)}
-function smallTree(x,y,kind,progress,variant){const scale=.46;let a='';const rootX=x+190,rootY=y+30,middleX=x+115,middleY=y+160,leafX=x+98,leafY=y+295;
- // two branch diagrams, path should be readable
+function treeView(){let a=text(40,40,'三层聚簇索引 PRIMARY：根页 → 目录页 → 数据页','svgtitle');a+=rect(10,62,1000,180,'levelband');a+=rect(10,258,1000,185,'levelband');a+=rect(10,458,1000,218,'levelband');a+=text(25,85,'根目录层 · record_type=1','levellabel');a+=text(25,285,'中间目录层 · record_type=1','levellabel');a+=text(25,485,'叶子数据层 · record_type=0','levellabel');let active=[];if(step>=0)active.push('root');if(step>=1)active.push('middle','route1');if(step>=2)active.push('leaf1','route2');if(step>=3)active.push('record');a+=tree(12,104,.97,0,{active});a+=text(40,700,'橄榄色箭头：父页指向子页  ·  陶土色箭头：叶子页双向链接  ·  红色虚线：当前查询路径','svgsub');return svg(1030,730,a)}
+function smallTree(x,y,kind,progress,variant){let a='';const rootX=x+190,rootY=y+30,middleX=x+115,middleY=y+220,leafX=x+98,leafY=y+410;
  a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY}`,'blueptr',{'marker-end':'url(#mb)'});
  a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY}`,'blueptr',{'marker-end':'url(#mb)'});
  a+=page(rootX,rootY,145,126,'page(38)',kind==='primary'?['1/40','35/32']:variant.joint===true?['A/40','R/32']:['A/40','R/32'],1,{active:progress>=1});
@@ -292,16 +307,16 @@ function smallTree(x,y,kind,progress,variant){const scale=.46;let a='';const roo
  if(progress>=2)a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY}`,'route',{'marker-end':'url(#mr)'});
  if(progress>=3)a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY}`,'route',{'marker-end':'url(#mr)'});
  a+=text(x+30,y+12,kind==='primary'?'聚簇索引 PRIMARY':'二级索引 '+(variant.joint===true?'idx_name_age':'idx_name'),'svgtitle');
- a+=text(x+30,y+443,kind==='primary'?'叶子节点：主键 → 完整行':'叶子节点：索引字段 → 主键 id','svgsub');
+ a+=text(x+30,y+565,kind==='primary'?'叶子节点：主键 → 完整行':'叶子节点：索引字段 → 主键 id','svgsub');
  return a;
 }
-function backView(joint=false){let a='';a+=rect(10,52,497,494,'diagram-panel');a+=rect(522,52,498,494,'diagram-panel');
+function backView(joint=false){let a='';a+=rect(10,52,497,620,'diagram-panel');a+=rect(522,52,498,620,'diagram-panel');
  const leftProg=step>=0?(step===0?1:step===1?2:3):0; const rightProg=step>=4?step===4?1:step===5?2:3:0;
  a+=smallTree(30,75,'secondary',leftProg,{joint});a+=smallTree(542,75,'primary',rightProg,{joint});
- if(step>=3){a+=line('M380 420 C510 380 535 320 675 125','route',{'marker-end':'url(#mr)'});a+=rect(455,287,136,42,'',{fill:'#fff2e8',stroke:'#ed5548','stroke-width':2});a+=text(523,314,'id = 15 → 回表','pagelabel',{'text-anchor':'middle'});}
+ if(step>=3){a+=line('M400 535 C520 500 540 330 690 170','route',{'marker-end':'url(#mr)'});a+=rect(448,320,150,46,'',{fill:'#fff2e8',stroke:'#a74e37','stroke-width':2.5});a+=text(523,349,'id = 15 → 回表','pagelabel',{'text-anchor':'middle'});}
  a+=text(40,40,joint?'联合索引 (name, age) → 主键索引的两棵 B+ 树':'普通索引 (name) → 主键索引的两棵 B+ 树','svgtitle');
- a+=text(36,591,joint?'查到 (K,96,id=15)，但 SELECT * 仍需要聚簇索引中的其他列。':'查到 (K,id=15)，但 SELECT * 需要完整行，因此进入 PRIMARY 再查一次。','svgsub');
- a+=text(36,617,'红色虚线路径为跨树回表；图示是逻辑查找过程，不代表物理文件之间的直连指针。','svgsub');return svg(1030,650,a)}
+ a+=text(36,700,joint?'查到 (K,96,id=15)，但 SELECT * 仍需要聚簇索引中的其他列。':'查到 (K,id=15)，但 SELECT * 需要完整行，因此进入 PRIMARY 再查一次。','svgsub');
+ a+=text(36,728,'红色虚线路径为跨树回表；图示是逻辑查找过程，不代表物理文件之间的直连指针。','svgsub');return svg(1030,760,a)}
 function render(){let t=topics[tab];$('nav').innerHTML=topics.map((x,i)=>`<button data-i="${i}" class="${i===tab?'active':''}">${x.name}</button>`).join('');document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{stop();tab=+b.dataset.i;step=0;render()});
  $('sideTitle').textContent=t.name;$('sql').textContent=t.sql;$('summary').textContent=t.summary;$('bullet').innerHTML=t.bullets.map(x=>`<li>${x}</li>`).join('');$('note').textContent=t.note;
  $('stepCounter').textContent=`步骤 ${step+1} / ${t.steps.length}`;$('stepText').textContent=t.steps[step];
