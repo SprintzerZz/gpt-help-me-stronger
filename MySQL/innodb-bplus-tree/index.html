@@ -167,21 +167,22 @@ header p { color: #756c5b; }
 .rec-mini, .rec-val { fill: var(--ink); }
 .type { fill: #f1e2d7; stroke: #c9957d; }
 .blueptr {
-  stroke: var(--olive-deep);
-  stroke-width: 4.2;
+  stroke: #292923;
+  stroke-width: 2.2;
   stroke-linecap: round;
   fill: none;
 }
 .leaflink {
-  stroke: var(--terracotta-dark);
-  stroke-width: 4;
+  stroke: #292923;
+  stroke-width: 2.2;
   stroke-linecap: round;
   fill: none;
 }
 .blackptr {
-  stroke: #514d42;
-  stroke-width: 2.4;
+  stroke: #292923;
+  stroke-width: 1.6;
   stroke-linecap: round;
+  fill: none;
 }
 .route {
   stroke: var(--terracotta-dark);
@@ -225,7 +226,7 @@ header p { color: #756c5b; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
-</style></head><body><header><div class="page-topline"><a href="../../index.html">← 学习资料索引</a><span>MYSQL · DATABASE</span></div><h1>InnoDB B+ 树 · 数据页 · 回表过程</h1><p>参考你上传的五张结构图，重画“页内部 → 页目录 → 三层 B+ 树 → 普通索引回表 → 联合索引回表”。点击下一步或自动播放，红色路径会逐步高亮。</p></header><main class="shell"><div class="nav" id="nav"></div><div class="layout"><section class="panel"><div class="toolbar" id="toolbar"></div><div class="visual wide" id="visual"></div><p class="diagram-hint">结构图支持横向滚动，拖动或使用 Shift + 鼠标滚轮查看完整内容。</p><div class="legend" id="legend"><span><b style="background:#b8d3f8"></b>树的父子指针</span><span><b style="background:#fa8172"></b>同层/叶子页双向链表</span><span><b style="background:#ef5548"></b>正在执行的查询路径</span><span><b style="background:#e7f1e2"></b>InnoDB 索引页（示意）</span></div><p class="footer">说明：用简化数据记录和页编号表现实际原理；并非真实页布局的逐字节复刻。页面记录、槽、目录指针和层级关系均用示意模型表达。</p></section><aside class="side"><h2 id="sideTitle"></h2><div class="sql" id="sql"></div><p class="explain" id="summary"></p><div class="stepbox"><div class="stephead" id="stepCounter"></div><div class="steptext" id="stepText"></div></div><h3>理解要点</h3><ul id="bullet"></ul><div class="note" id="note"></div></aside></div></main>
+</style></head><body><header><div class="page-topline"><a href="../../index.html">← 学习资料索引</a><span>MYSQL · DATABASE</span></div><h1>InnoDB B+ 树 · 数据页 · 回表过程</h1><p>参考你上传的五张结构图，重画“页内部 → 页目录 → 三层 B+ 树 → 普通索引回表 → 联合索引回表”。点击下一步或自动播放，红色路径会逐步高亮。</p></header><main class="shell"><div class="nav" id="nav"></div><div class="layout"><section class="panel"><div class="toolbar" id="toolbar"></div><div class="visual wide" id="visual"></div><p class="diagram-hint">结构图支持横向滚动，拖动或使用 Shift + 鼠标滚轮查看完整内容。</p><div class="legend" id="legend"><span><b style="background:#292923"></b>树的父子指针</span><span><b style="background:#292923"></b>同层/叶子页双向链表</span><span><b style="background:#ef5548"></b>正在执行的查询路径</span><span><b style="background:#e7f1e2"></b>InnoDB 索引页（示意）</span></div><p class="footer">说明：用简化数据记录和页编号表现实际原理；并非真实页布局的逐字节复刻。页面记录、槽、目录指针和层级关系均用示意模型表达。</p></section><aside class="side"><h2 id="sideTitle"></h2><div class="sql" id="sql"></div><p class="explain" id="summary"></p><div class="stepbox"><div class="stephead" id="stepCounter"></div><div class="steptext" id="stepText"></div></div><h3>理解要点</h3><ul id="bullet"></ul><div class="note" id="note"></div></aside></div></main>
 <script>
 const NS='http://www.w3.org/2000/svg';
 const topics=[{name:'① 数据页内部',sql:'InnoDB INDEX Page（16 KB 默认页大小）',summary:'先看一页内部：File Header / Page Header / Infimum+Supremum / User Records / Free Space / Page Directory / File Trailer。',bullets:['User Records 通过 record header 的 next_record 偏移形成逻辑有序单向链表。','Infimum 和 Supremum 是每个索引页中的伪记录，分别标识最小/最大边界。','Page Directory 的 Slot 指向某组记录的最后一条（组内最大），用于页内二分定位。'],note:'InnoDB 页通常为 16 KiB（可配置）。Free Space 和用户记录区域大小随记录插入变化。',steps:['观察数据页的七个主要区域。','定位 User Records：每条记录有记录头并按键值逻辑相连。','定位 Page Directory：Slot 指向各记录分组的最后一条。','页内查找：先二分 Slot，再顺序遍历对应分组中的记录。']},
@@ -240,7 +241,7 @@ function e(tag,attrs={},children=''){let a=Object.entries(attrs).map(([k,v])=>`$
 function text(x,y,s,cls='bodytext',extra={}){return e('text',{x,y,class:cls,...extra},String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'))}
 function rect(x,y,w,h,cls,extra={}){return e('rect',{x,y,width:w,height:h,rx:3,class:cls,...extra})}
 function line(d,cls='blackptr',extra={}){return e('path',{d,class:cls,...extra})}
-function markers(){return `<defs><marker id="mb" markerWidth="13" markerHeight="13" refX="11" refY="6.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L13,6.5 L0,13 Z" fill="#4a5842"/></marker><marker id="mr" markerWidth="13" markerHeight="13" refX="11" refY="6.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L13,6.5 L0,13 Z" fill="#a74e37"/></marker><marker id="mk" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L11,5.5 L0,11 Z" fill="#514d42"/></marker></defs>`}
+function markers(){return `<defs><marker id="mb" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#292923"/></marker><marker id="mr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="#a74e37"/></marker><marker id="mk" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L6,3 L0,6 Z" fill="#292923"/></marker></defs>`}
 function svg(w,h,body){return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="InnoDB 索引页与 B+ 树教学结构图">${markers()}${body}</svg>`}
 // The page glyph contains a header and ordered records. type=1 directory pages, type=0 leaf data pages.
 function page(x,y,w,h,label,vals,type=0,opt={}){
@@ -288,26 +289,26 @@ function tree(x,y,wscale=1,leafType=0,opts={}){
  const leaves=[{x:xx(20),y:yy(430),k:'page(10)',v:leafType===0?['1','2','4']:['A:2','B:10','D:66']},{x:xx(265),y:yy(430),k:'page(26)',v:leafType===0?['5','12','15']:['F:26','K:15','M:55']},{x:xx(510),y:yy(430),k:'page(8)',v:leafType===0?['21','22','25']:['N:5','O:12','P:21']},{x:xx(755),y:yy(430),k:'page(21)',v:leafType===0?['35','55','61']:['R:35','T:61','Z:2']}];
  const leafW=195*wscale,midW=245*wscale,rootW=245*wscale;
  // lines behind nodes
- middle.forEach((m,i)=>{s+=line(`M${root.x+rootW/2} ${root.y+H} L${m.x+midW/2} ${m.y-14}`,'blueptr',{'marker-end':'url(#mb)'})});
- const pairs=[[0,1,2],[3]];pairs.forEach((ary,j)=>ary.forEach(k=>{let m=middle[j],l=leaves[k];s+=line(`M${m.x+midW/2} ${m.y+H} L${l.x+leafW/2} ${l.y-14}`,'blueptr',{'marker-end':'url(#mb)'})}));
- for(let i=0;i<leaves.length-1;i++){let l=leaves[i],r=leaves[i+1];let ylink=l.y+78; s+=line(`M${l.x+leafW} ${ylink-10} H${r.x-14}`,'leaflink',{'marker-end':'url(#mr)'});s+=line(`M${r.x} ${ylink+10} H${l.x+leafW+14}`,'leaflink',{'marker-end':'url(#mr)'})}
+ middle.forEach((m,i)=>{s+=line(`M${root.x+rootW/2} ${root.y+H} L${m.x+midW/2} ${m.y-1}`,'blueptr',{'marker-end':'url(#mb)'})});
+ const pairs=[[0,1,2],[3]];pairs.forEach((ary,j)=>ary.forEach(k=>{let m=middle[j],l=leaves[k];s+=line(`M${m.x+midW/2} ${m.y+H} L${l.x+leafW/2} ${l.y-1}`,'blueptr',{'marker-end':'url(#mb)'})}));
+ for(let i=0;i<leaves.length-1;i++){let l=leaves[i],r=leaves[i+1];let ylink=l.y+78; s+=line(`M${l.x+leafW} ${ylink-10} H${r.x-1}`,'leaflink',{'marker-end':'url(#mb)'});s+=line(`M${r.x} ${ylink+10} H${l.x+leafW+1}`,'leaflink',{'marker-end':'url(#mb)'})}
  s+=page(root.x,root.y,rootW,H,'page(38)',leafType===0?['1/40','35/32']:['A/40','R/32'],1,{active:opts.active?.includes('root')});
  middle.forEach((m,i)=>{s+=page(m.x,m.y,midW,H,i===0?'page(40)':'page(32)',leafType===0?(i===0?['1/10','5/26','21/8']:['35/21']):(i===0?['A/10','F/26','N/8']:['R/21']),1,{active:opts.active?.includes(i===0?'middle':'othermiddle')})});
  leaves.forEach((l,i)=>{s+=page(l.x,l.y,leafW,H,l.k,l.v,0,{active:opts.active?.includes('leaf'+i),target:i===1&&opts.active?.includes('record')?3:-1})});
  if(opts.active?.includes('root'))s+=rect(root.x-5,root.y-5,rootW+10,H+10,'',{fill:'none',stroke:'#ef5548','stroke-width':2.4,rx:8});
- if(opts.active?.includes('route1'))s+=line(`M${root.x+rootW/2} ${root.y+H} L${middle[0].x+midW/2} ${middle[0].y-14}`,'route',{'marker-end':'url(#mr)'});
- if(opts.active?.includes('route2'))s+=line(`M${middle[0].x+midW/2} ${middle[0].y+H} L${leaves[1].x+leafW/2} ${leaves[1].y-14}`,'route',{'marker-end':'url(#mr)'});
+ if(opts.active?.includes('route1'))s+=line(`M${root.x+rootW/2} ${root.y+H} L${middle[0].x+midW/2} ${middle[0].y-1}`,'route',{'marker-end':'url(#mr)'});
+ if(opts.active?.includes('route2'))s+=line(`M${middle[0].x+midW/2} ${middle[0].y+H} L${leaves[1].x+leafW/2} ${leaves[1].y-1}`,'route',{'marker-end':'url(#mr)'});
  return s;
 }
-function treeView(){let a=text(40,40,'三层聚簇索引 PRIMARY：根页 → 目录页 → 数据页','svgtitle');a+=rect(10,62,1000,180,'levelband');a+=rect(10,258,1000,185,'levelband');a+=rect(10,458,1000,218,'levelband');a+=text(25,85,'根目录层 · record_type=1','levellabel');a+=text(25,285,'中间目录层 · record_type=1','levellabel');a+=text(25,485,'叶子数据层 · record_type=0','levellabel');let active=[];if(step>=0)active.push('root');if(step>=1)active.push('middle','route1');if(step>=2)active.push('leaf1','route2');if(step>=3)active.push('record');a+=tree(12,104,.97,0,{active});a+=text(40,700,'橄榄色箭头：父页指向子页  ·  陶土色箭头：叶子页双向链接  ·  红色虚线：当前查询路径','svgsub');return svg(1030,730,a)}
+function treeView(){let a=text(40,40,'三层聚簇索引 PRIMARY：根页 → 目录页 → 数据页','svgtitle');a+=rect(10,62,1000,180,'levelband');a+=rect(10,258,1000,185,'levelband');a+=rect(10,458,1000,218,'levelband');a+=text(25,85,'根目录层 · record_type=1','levellabel');a+=text(25,285,'中间目录层 · record_type=1','levellabel');a+=text(25,485,'叶子数据层 · record_type=0','levellabel');let active=[];if(step>=0)active.push('root');if(step>=1)active.push('middle','route1');if(step>=2)active.push('leaf1','route2');if(step>=3)active.push('record');a+=tree(12,104,.97,0,{active});a+=text(40,700,'黑色实线箭头：父页指向子页与叶子页双向链接  ·  红色虚线：当前查询路径','svgsub');return svg(1030,730,a)}
 function smallTree(x,y,kind,progress,variant){let a='';const rootX=x+190,rootY=y+30,middleX=x+115,middleY=y+220,leafX=x+98,leafY=y+410;
- a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY-14}`,'blueptr',{'marker-end':'url(#mb)'});
- a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY-14}`,'blueptr',{'marker-end':'url(#mb)'});
+ a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY-1}`,'blueptr',{'marker-end':'url(#mb)'});
+ a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY-1}`,'blueptr',{'marker-end':'url(#mb)'});
  a+=page(rootX,rootY,145,126,'page(38)',kind==='primary'?['1/40','35/32']:variant.joint===true?['A/40','R/32']:['A/40','R/32'],1,{active:progress>=1});
  a+=page(middleX,middleY,233,126,'page(40)',kind==='primary'?['1/10','5/26','21/8']:['A/10','F/26','N/8'],1,{active:progress>=2});
  a+=page(leafX,leafY,270,126,'page(26)',kind==='primary'?['5','12','15']:variant.joint===true?['F,73,26','K,96,15','M,55,4']:['F,26','K,15','M,55'],0,{active:progress>=3,target:progress>=3?2:-1});
- if(progress>=2)a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY-14}`,'route',{'marker-end':'url(#mr)'});
- if(progress>=3)a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY-14}`,'route',{'marker-end':'url(#mr)'});
+ if(progress>=2)a+=line(`M${rootX+55} ${rootY+126} L${middleX+110} ${middleY-1}`,'route',{'marker-end':'url(#mr)'});
+ if(progress>=3)a+=line(`M${middleX+110} ${middleY+126} L${leafX+115} ${leafY-1}`,'route',{'marker-end':'url(#mr)'});
  a+=text(x+30,y+12,kind==='primary'?'聚簇索引 PRIMARY':'二级索引 '+(variant.joint===true?'idx_name_age':'idx_name'),'svgtitle');
  a+=text(x+30,y+565,kind==='primary'?'叶子节点：主键 → 完整行':'叶子节点：索引字段 → 主键 id','svgsub');
  return a;
