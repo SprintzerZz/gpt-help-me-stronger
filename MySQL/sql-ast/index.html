@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="通过交互示例学习 SQL 词法分析、语法树 AST、语义检查与参数化查询。"><title>SQL 解析过程与 AST 交互教学</title>
+<style>
+:root{--bg:#f4f7fd;--ink:#17243c;--muted:#667690;--border:#dce5f3;--blue:#326cf4;--purple:#7a4bdf;--green:#169865;--orange:#d38a18;--red:#d14957;--shadow:0 12px 36px #243b6310}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(155deg,#e8f0ff 0,#f7f9ff 300px,#f4f7fd 100%);color:var(--ink);font-family:Inter,'Microsoft YaHei',system-ui,sans-serif;line-height:1.6}button,input{font:inherit}button{cursor:pointer}main{max-width:1160px;margin:auto;padding:34px 22px 70px}.hero{padding:26px 30px;background:linear-gradient(120deg,#fff,#e9f1ff);border:1px solid #dbe6ff;border-radius:23px;box-shadow:var(--shadow)}h1{margin:0;font-size:clamp(28px,4vw,44px);letter-spacing:-.8px}h2{font-size:23px;margin:0 0 14px}h3{margin:0 0 8px;font-size:17px}p{margin:6px 0 12px}.subtitle{color:var(--muted);font-size:16px;margin:9px 0 0}.pill{display:inline-flex;align-items:center;gap:6px;background:#e8efff;color:#275ac4;font-weight:700;font-size:12px;border-radius:40px;padding:4px 12px;margin-bottom:8px}.section{margin-top:22px;background:white;border:1px solid var(--border);border-radius:20px;padding:23px;box-shadow:var(--shadow)}.muted{color:var(--muted)}.flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.step{border:1.5px solid #dbe5f5;border-radius:15px;padding:15px;text-align:left;background:#f9fbff;transition:.18s;min-height:125px}.step:hover{transform:translateY(-2px)}.step.active{border-color:var(--blue);background:#eef4ff;box-shadow:0 0 0 3px #326cf415}.step:nth-child(2).active{border-color:var(--purple);background:#f5efff}.step:nth-child(3).active{border-color:var(--green);background:#ebf9f2}.number{display:inline-grid;place-items:center;width:29px;height:29px;background:#326cf4;color:white;border-radius:50%;margin-right:6px}.step:nth-child(2) .number{background:var(--purple)}.step:nth-child(3) .number{background:var(--green)}.step small{display:block;margin-top:10px;color:var(--muted);line-height:1.5}.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:20px 0 14px}.btn{border:0;background:var(--blue);color:#fff;border-radius:10px;padding:10px 17px;font-weight:700}.btn.secondary{background:#e9effc;color:#2353aa}.btn.ghost{background:#fff;color:#486080;border:1px solid #dce5f3}.btn:focus-visible,.step:focus-visible,input:focus-visible{outline:3px solid #8cb3ff;outline-offset:2px}.label{font-size:13px;color:#59718f;font-weight:800}.code{background:#172235;color:#f6f8ff;border-radius:12px;padding:15px 17px;overflow:auto;font:15px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.kw{color:#dd9cff}.field{color:#8ec8ff}.val{color:#ffe09a}.stage{background:linear-gradient(120deg,#f6f9ff,#fff);border:1px solid var(--border);border-radius:15px;padding:21px}.stage[data-stage="1"]{border-color:#e0d4ff;background:linear-gradient(120deg,#f9f6ff,#fff)}.stage[data-stage="2"]{border-color:#c9ebdc;background:linear-gradient(120deg,#f4fcf8,#fff)}.stitle{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:800}.badge{font-size:12px;border-radius:50px;padding:3px 10px;background:#e7efff;color:#2f67dd}.stage[data-stage="1"] .badge{background:#eee4ff;color:#7045cd}.stage[data-stage="2"] .badge{background:#dff7e9;color:#138b59}.hint{background:#fff8e9;border-left:4px solid #e6aa43;border-radius:8px;padding:10px 14px;margin-top:16px}.tokenrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.token{border-radius:8px;background:#e9eef7;border:1px solid #d9e0ed;padding:8px 11px;font:700 14px ui-monospace,Consolas,monospace;animation:pop .2s both}.token.keyword{background:#ede2ff;color:#7440c3;border-color:#dbc5ff}.token.op{background:#fff0d8;color:#986314}.token .type{display:block;text-align:center;color:#7b899b;font:11px system-ui,sans-serif;margin-top:3px}.token-hidden{opacity:.25;filter:grayscale(.7)}@keyframes pop{from{transform:translateY(5px);opacity:0}to{transform:translateY(0);opacity:1}}.treearea{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(230px,1fr);gap:16px;margin-top:14px}.svgwrap{border:1px solid #dfe6f4;background:#fff;border-radius:13px;padding:8px;overflow:auto}.tree-svg{width:100%;min-width:420px;height:auto}.tree-svg line,.tree-svg path{stroke:#7186aa;stroke-width:2.3;fill:none}.tree-svg rect{stroke-width:1.6}.tree-svg text{font-family:Consolas,monospace;text-anchor:middle;dominant-baseline:middle;font-weight:700;fill:#263859;font-size:15px}.tree-svg g{transition:opacity .25s,transform .25s}.node-dim{opacity:.22}.note{background:#eaf2ff;color:#31568c;border-radius:9px;padding:9px 12px;margin-top:14px;font-size:14px}.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.check{background:#fff;border:1px solid #dcece4;padding:10px 12px;border-radius:10px}.check strong{color:var(--green)}.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}.compare{border:1px solid #e5eaf3;border-radius:14px;padding:17px;background:#fff}.compare.bad{border-color:#f3cdd4;background:#fff7f8}.compare.good{border-color:#bee6d4;background:#f5fff9}.compare p{font-size:14px}.inputrow{display:flex;gap:8px;flex-wrap:wrap}.inputrow input{min-width:200px;flex:1;padding:11px;border:1px solid #cbd9ec;border-radius:10px;background:#fff}.danger{color:#b93447}.success{color:#118b59}.res{background:#f7f9fc;padding:12px;border-radius:10px;margin-top:12px;font-size:14px}.quizrow{border-bottom:1px solid #edf0f6;padding:13px 0}.answer{display:none;padding:11px;background:#eef8ff;border-radius:9px;margin-top:9px}.answer.visible{display:block}.footer{margin-top:20px;border-radius:15px;padding:17px;background:#fff5de;color:#835612;font-weight:800;text-align:center}.small{font-size:13px;color:#7e8ca1}.hidden{display:none!important}@media(max-width:700px){main{padding:14px 12px 48px}.hero,.section{padding:17px}.flow,.two,.treearea,.checks{grid-template-columns:1fr}.step{min-height:0}h2{font-size:20px}.code{font-size:13px}.tree-svg{min-width:400px}}
+</style>
+<style>/* Vintage learning theme */
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --ink: #292923;
+  --muted: #777267;
+  --border: #ded5c7;
+  --blue: #c76c4e;
+  --purple: #65745c;
+  --green: #65745c;
+  --orange: #b58a44;
+  --red: #a74e37;
+  --shadow: 0 12px 36px #382a1712;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+body { background: var(--bg); color: var(--ink); }
+main { max-width: 1160px; }
+.home-link { display: inline-block; margin-bottom: 14px; color: var(--muted); text-decoration: none; }
+.home-link:hover { color: var(--blue); }
+.hero { background: var(--bg); border-color: var(--border); border-radius: 12px; box-shadow: none; }
+h1, h2, h3, .stitle { font-family: Georgia, "Noto Serif SC", "Songti SC", serif; }
+h1 { color: var(--ink); }
+.subtitle, .muted, .small { color: var(--muted); }
+.pill { background: #e8ecdf; color: #4c5d43; }
+.section { background: #fbf8f1; border-color: var(--border); border-radius: 12px; box-shadow: none; }
+.step { background: #f7f3ea; border-color: var(--border); border-radius: 10px; }
+.step.active, .step:nth-child(2).active, .step:nth-child(3).active { border-color: var(--blue); background: #f4e5dc; box-shadow: 0 0 0 2px #c76c4e1c; }
+.number, .step:nth-child(2) .number, .step:nth-child(3) .number { background: var(--blue); color: #fffaf3; }
+.btn { background: var(--blue); color: #fffaf3; }
+.btn.secondary { background: #e8ecdf; color: #43533b; }
+.btn.ghost { background: #fbf8f1; color: var(--ink); border-color: var(--border); }
+.btn:focus-visible, .step:focus-visible, input:focus-visible { outline-color: #a74e37; }
+.label { color: #59664f; }
+.code { background: #292923; color: #f8f3e9; }
+.kw { color: #e0ad91; }
+.field { color: #c7d0ac; }
+.val { color: #f0d09a; }
+.stage, .stage[data-stage="1"], .stage[data-stage="2"] { background: #fbf8f1; border-color: var(--border); border-radius: 10px; }
+.badge, .stage[data-stage="1"] .badge, .stage[data-stage="2"] .badge { background: #e8ecdf; color: #4c5d43; }
+.hint { background: #f5ead5; border-left-color: #b58a44; color: #665536; }
+.token { background: #f0ebe1; border-color: #ded5c7; color: var(--ink); }
+.token.keyword { background: #e8ecdf; border-color: #cad3bd; color: #43533b; }
+.token.op { background: #f5ead5; color: #795b27; }
+.token.literal { background: #f4e5dc; color: #8d503c; }
+.svgwrap { background: #fbf8f1; border-color: var(--border); }
+.tree-svg line, .tree-svg path { stroke: #65745c; }
+.tree-svg text { fill: #292923; }
+.note { background: #e8ecdf; color: #43533b; }
+.check { background: #fbf8f1; border-color: #d7ddce; }
+.check strong, .success { color: #536447; }
+.compare { border-color: var(--border); background: #fbf8f1; }
+.compare.bad { border-color: #e2c6bb; background: #fbf1eb; }
+.compare.good { border-color: #d0d9c6; background: #f3f5ec; }
+.danger { color: #a74e37; }
+.inputrow input { border-color: var(--border); background: #fbf8f1; color: var(--ink); }
+.res { background: #f0ebe1; }
+.answer.visible { background: #e8ecdf; }
+.quizrow { border-color: #e6dfd3; }
+.footer { background: #e8ecdf; color: #4c5d43; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body><main><a class="home-link" href="../../index.html">← 学习资料索引</a>
+<header class="hero"><div class="pill">MySQL 面试 · 可交互教学</div><h1>SQL 的语法树解析（AST）</h1><p class="subtitle">一条 SQL 如何从文本变成结构化表示？通过三个阶段、教学示例和可点击语法树理解解析过程。</p></header>
+<section class="section"><h2>① SQL 解析全过程</h2><p class="muted">点击下面的阶段卡片，查看该步骤如何处理同一条 SQL。</p><div class="flow" id="steps"><button class="step active" data-i="0"><b><span class="number">1</span>词法分析 Lexer</b><small>把字符串拆成 Token，认出关键字、标识符、符号和常量。</small></button><button class="step" data-i="1"><b><span class="number">2</span>语法分析 Parser</b><small>验证语法规则，把 Token 组织为抽象语法树 AST。</small></button><button class="step" data-i="2"><b><span class="number">3</span>语义分析</b><small>检查表、字段、类型及访问权限等信息。</small></button></div><div class="toolbar"><button class="btn secondary" id="prev">← 上一步</button><button class="btn" id="next">下一步 →</button><button class="btn ghost" id="reset">重新演示</button><span class="small" id="progress">阶段 1 / 3</span></div><div class="label">示例 SQL</div><div class="code"><span class="kw">SELECT</span> <span class="field">id, name</span> <span class="kw">FROM</span> users <span class="kw">WHERE</span> <span class="field">age</span> &gt; <span class="val">18</span>;</div>
+<div id="stage0" class="stage" data-stage="0" style="margin-top:15px"><div class="stitle"><span class="badge">STEP 1</span> 词法分析：拆成单词</div><p>数据库的词法分析器按规则扫描 SQL，输出带类型的 Token。</p><div class="tokenrow" id="tokens"></div><div class="note">输出：Token 序列。此处仅展示关键 Token；空白和注释未逐一呈现，实际解析细节取决于数据库实现。</div></div>
+<div id="stage1" class="stage hidden" data-stage="1" style="margin-top:15px"><div class="stitle"><span class="badge">STEP 2</span> 语法分析：组装 AST</div><p>语法分析器根据 SQL 语法规则形成树。点击树中的 <b>SELECT / COLUMNS / FROM / WHERE</b> 节点查看含义。</p><div class="treearea"><div class="svgwrap"><svg class="tree-svg" viewBox="0 0 600 390" role="img" aria-label="抽象语法树，根节点 SELECT，子节点 COLUMNS FROM WHERE"><g stroke-linecap="round"><path d="M300 67 V92 H106 V128 M300 92 V128 M300 92 H488 V128"/><path d="M106 177 V210 H55 V238 M106 210 H158 V238"/><path d="M300 177 V238"/><path d="M488 177 V238"/><path d="M488 287 V327"/></g><g class="node" data-node="select"><rect x="234" y="18" width="132" height="49" rx="11" fill="#eddfff" stroke="#8e5fe3"/><text x="300" y="42">SELECT</text></g><g class="node" data-node="columns"><rect x="35" y="128" width="142" height="49" rx="11" fill="#e2f0ff" stroke="#4484dc"/><text x="106" y="152">COLUMNS</text></g><g class="node" data-node="from"><rect x="248" y="128" width="104" height="49" rx="11" fill="#e0f8ed" stroke="#31a779"/><text x="300" y="152">FROM</text></g><g class="node" data-node="where"><rect x="430" y="128" width="116" height="49" rx="11" fill="#fff0d9" stroke="#d9a049"/><text x="488" y="152">WHERE</text></g><g class="node" data-node="columns"><rect x="19" y="238" width="72" height="49" rx="9" fill="#f1f5fb" stroke="#afbdd3"/><text x="55" y="262">id</text><rect x="120" y="238" width="76" height="49" rx="9" fill="#f1f5fb" stroke="#afbdd3"/><text x="158" y="262">name</text></g><g class="node" data-node="from"><rect x="247" y="238" width="106" height="49" rx="9" fill="#f1f5fb" stroke="#afbdd3"/><text x="300" y="262">users</text></g><g class="node" data-node="where"><rect x="405" y="238" width="166" height="49" rx="9" fill="#eee5ff" stroke="#9066da"/><text x="488" y="262">CONDITION</text><rect x="418" y="327" width="140" height="46" rx="9" fill="#f1f5fb" stroke="#afbdd3"/><text x="488" y="350">age &gt; 18</text></g></svg></div><div><div class="label">结构化文本</div><div class="code">SELECT
+├── COLUMNS
+│   ├── id
+│   └── name
+├── FROM
+│   └── users
+└── WHERE
+    └── age &gt; 18</div><div id="nodeinfo" class="note">SELECT：查询语句的根节点，下面包含投影列、数据来源和过滤条件。</div><p class="small">这是教学用简化 AST，不代表 MySQL 内部实际节点类型和完整树结构。</p></div></div></div>
+<div id="stage2" class="stage hidden" data-stage="2" style="margin-top:15px"><div class="stitle"><span class="badge">STEP 3</span> 语义分析：能否正确解释</div><p>语法正确，不代表语句能被正确执行。数据库还要进行名称解析、类型处理和权限检查等工作（实际内部处理顺序因数据库版本而异）。</p><div class="checks"><div class="check"><strong>✓ 表检查</strong><div>users 是否存在？</div></div><div class="check"><strong>✓ 列检查</strong><div>id、name、age 是否存在？</div></div><div class="check"><strong>✓ 类型处理</strong><div>age &gt; 18 的类型是否可比较？</div></div><div class="check"><strong>✓ 权限检查</strong><div>当前账号是否有相应访问权限？</div></div></div><div class="hint"><b>典型错误：</b><div class="code" style="margin-top:8px">SELECT id, name FROM users WHERE no_such_col &gt; 18;</div>如果列不存在，MySQL 可能报：<code>ERROR 1054 (42S22): Unknown column 'no_such_col' in 'where clause'</code>。</div><p class="small">注意：<code>age &gt; 'eighteen'</code> 不一定直接报“INT 与 STRING 不匹配”；MySQL 有隐式类型转换，实际行为取决于上下文和 SQL 模式。</p></div></section>
+<section class="section"><h2>② 为什么 AST 与 SQL 注入有关？</h2><p class="muted">AST 本身不会自动防注入；关键在于参数化查询将 SQL 结构与输入值分开处理。</p><div class="two"><div class="compare bad"><h3 class="danger">✕ 危险：拼接 SQL 字符串</h3><div class="code">"SELECT * FROM users WHERE name = '" + input + "'"</div><p>如果把用户输入直接拼进 SQL 文本，可能把输入解释成新的 SQL 语法。</p></div><div class="compare good"><h3 class="success">✓ 推荐：参数化查询</h3><div class="code">SELECT * FROM users WHERE name = ?;</div><p>用户输入作为绑定参数中的数据处理，不能把它变成新的 WHERE、OR 或注释结构。</p></div></div><div style="margin-top:18px"><label class="label" for="userInput">试着输入一个用户名，观察两种 SQL 的区别</label><div class="inputrow" style="margin-top:7px"><input id="userInput" value="' OR '1'='1" aria-label="模拟用户输入"><button id="apply" class="btn">观察对比</button><button id="example" class="btn secondary">还原注入样例</button></div><div class="two" style="margin-top:14px"><div><div class="label danger">拼接后 SQL（文本发生改变）</div><div class="code" id="unsafeSql"></div></div><div><div class="label success">参数化 SQL（结构不变）</div><div class="code" id="safeSql"></div></div></div><div class="res">这只是 SQL 字符串层面的教学模拟，不会连接数据库或执行查询。真实代码请使用 JDBC <code>PreparedStatement</code>、MyBatis <code>#{}</code> 等安全参数绑定；不要用 <code>${}</code> 拼接不可信输入。</div></div></section>
+<section class="section"><h2>③ 面试怎么回答？</h2><div class="res" style="font-size:16px;background:#f4f1ff">“SQL 解析一般可以从三个阶段理解：先做<b>词法分析</b>，将 SQL 字符串拆成 Token；再做<b>语法分析</b>，校验语法并形成抽象语法树 AST；然后做<b>语义相关检查</b>，例如表和字段是否存在、类型是否合理、权限是否满足。之后优化器会根据查询结构和统计信息选择执行计划。<b>AST 并不是防 SQL 注入的直接手段</b>，防注入的关键是使用预处理语句和绑定参数，把输入当作数据，而不是拼接进 SQL 语法。”</div><button id="copy" class="btn secondary" style="margin-top:12px">复制面试回答</button><span id="copystatus" class="small" aria-live="polite"></span></section>
+<section class="section"><h2>④ 三道面试快问快答</h2><div class="quizrow"><b>Q1：词法分析和语法分析的区别是什么？</b><div><button class="btn ghost qa" style="margin-top:8px">查看答案</button><div class="answer">词法分析是“拆词”；语法分析是“按语法规则把词组成树”。</div></div></div><div class="quizrow"><b>Q2：AST 生成后，SQL 就能直接执行了吗？</b><div><button class="btn ghost qa" style="margin-top:8px">查看答案</button><div class="answer">不能。后续还需要名称解析、权限及类型检查、优化和执行计划生成等流程。不同数据库内部阶段可能交织。</div></div></div><div class="quizrow" style="border:0"><b>Q3：为什么 PreparedStatement 有助于防止 SQL 注入？</b><div><button class="btn ghost qa" style="margin-top:8px">查看答案</button><div class="answer">因为 SQL 的结构和参数值分开处理，绑定的值不会被当成 SQL 关键字或操作符重新解析；但表名、排序字段等动态 SQL 结构仍要使用白名单。</div></div></div></section>
+<div class="footer">💡 记忆口诀：先拆词，再成树；检查语义，优化执行。</div>
+</main>
+<script>
+const tokens=[['SELECT','keyword','关键字'],['id','','列名'],[',','op','分隔符'],['name','','列名'],['FROM','keyword','关键字'],['users','','表名'],['WHERE','keyword','关键字'],['age','','列名'],['>','op','运算符'],['18','literal','\u6570\u5b57\u5b57\u9762\u91cf'],[';','op','结束符']];
+const tokenRoot=document.getElementById('tokens');tokens.forEach(([t,c,label],i)=>{const el=document.createElement('span');el.className='token '+c;el.style.animationDelay=i*35+'ms';el.textContent=t;const sub=document.createElement('span');sub.className='type';sub.textContent=label;el.appendChild(sub);tokenRoot.appendChild(el)});
+let current=0;function show(n){current=Math.max(0,Math.min(2,n));document.querySelectorAll('.step').forEach((b,i)=>{b.classList.toggle('active',i===current);b.setAttribute('aria-pressed',String(i===current))});[0,1,2].forEach(i=>document.getElementById('stage'+i).classList.toggle('hidden',i!==current));document.getElementById('progress').textContent=`阶段 ${current+1} / 3`;document.getElementById('prev').disabled=current===0;document.getElementById('next').disabled=current===2;document.getElementById('prev').style.opacity=current===0?'.45':'1';document.getElementById('next').style.opacity=current===2?'.45':'1'}
+document.querySelectorAll('.step').forEach(b=>b.addEventListener('click',()=>show(+b.dataset.i)));document.getElementById('prev').onclick=()=>show(current-1);document.getElementById('next').onclick=()=>show(current+1);document.getElementById('reset').onclick=()=>show(0);show(0);
+const desc={select:'SELECT：查询语句的根节点，包含列、数据来源和过滤条件。',columns:'COLUMNS：需要返回的列，这里是 id 和 name。',from:'FROM：数据来自哪个表，这里是 users。',where:'WHERE：数据筛选条件，这里要求 age > 18。'};document.querySelectorAll('.node').forEach(node=>{node.style.cursor='pointer';node.addEventListener('click',()=>{const k=node.dataset.node;document.getElementById('nodeinfo').textContent=desc[k];document.querySelectorAll('.node').forEach(n=>n.classList.toggle('node-dim',n.dataset.node!==k))})});
+function renderInjection(){const input=document.getElementById('userInput').value;document.getElementById('unsafeSql').textContent="SELECT * FROM users WHERE name = '"+input+"';";document.getElementById('safeSql').textContent='SELECT * FROM users WHERE name = ?;\n-- 绑定参数值: '+JSON.stringify(input)}document.getElementById('apply').onclick=renderInjection;document.getElementById('example').onclick=()=>{document.getElementById('userInput').value="' OR '1'='1";renderInjection()};renderInjection();
+document.querySelectorAll('.qa').forEach(b=>b.addEventListener('click',()=>{const a=b.nextElementSibling;const open=a.classList.toggle('visible');b.textContent=open?'收起答案':'查看答案'}));document.getElementById('copy').onclick=async()=>{const t=document.querySelector('.section:nth-last-of-type(2) .res').innerText;try{await navigator.clipboard.writeText(t);document.getElementById('copystatus').textContent=' 已复制'}catch(e){document.getElementById('copystatus').textContent=' 浏览器限制复制，请手动选中文字'}};
+</script></body></html>
