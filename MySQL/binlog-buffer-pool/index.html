@@ -118,9 +118,21 @@ a:focus-visible, button:focus-visible, [role="button"]:focus-visible {
   color: var(--text);
 }
 .arch-flow, .arch-down, .arch-return { color: #59664f; }
-.arch-info > div { border-color: var(--line); }
+.arch-info > div {
+  border-color: var(--line);
+  background: #fbf8f1;
+  color: var(--ink);
+  box-shadow: 0 4px 14px #382a170d;
+}
+.arch-info > div h3 { color: var(--ink); }
 .arch-conclusion p { color: #514d42; }
 .arch-conclusion b { color: #59664f !important; }
+.arch-return {
+  border: 1px solid #9ba78f;
+  border-radius: 10px;
+  background: #e8ecdf;
+  color: #394435;
+}
 .detail .callout {
   border-left-color: #a77a31;
   background: #f1e8d6;
