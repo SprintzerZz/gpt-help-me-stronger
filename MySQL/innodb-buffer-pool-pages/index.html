@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Interactive guide to InnoDB Buffer Pool pages, clustered and secondary index pages, and index lookup behavior."><title>InnoDB Buffer Pool · 16KB 数据页与索引页交互教学</title>
+<style>
+:root{color-scheme:dark;--bg:#090f1d;--panel:#121e32;--panel2:#182840;--text:#e8f1ff;--muted:#a6bbd1;--line:#2b4160;--blue:#68b8ff;--green:#5ae0b0;--purple:#b6a1ff;--amber:#ffca7a;--red:#ff8b91}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -30%,#18365f 0%,var(--bg) 58%);font:15px/1.65 system-ui,-apple-system,"Microsoft YaHei",sans-serif;color:var(--text)}button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid var(--amber);outline-offset:3px}.wrap{max-width:1200px;margin:auto;padding:38px 22px 80px}.eyebrow{letter-spacing:.17em;text-transform:uppercase;color:var(--green);font-size:12px;font-weight:800}.hero h1{font-size:clamp(27px,4.2vw,48px);letter-spacing:-.03em;line-height:1.25;margin:10px 0 14px}.hero p{color:var(--muted);max-width:930px;font-size:16px}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:23px}.pill{border:1px solid #365473;background:#142841;padding:6px 14px;border-radius:100px;color:#cce3ff;font-size:13px}.section{margin-top:35px;background:linear-gradient(145deg,#15253d,#101a2c);border:1px solid var(--line);border-radius:20px;padding:25px;box-shadow:0 15px 40px #02081633}.section h2{font-size:24px;margin:0 0 7px}.desc{color:var(--muted);margin:0 0 22px}.row{display:grid;grid-template-columns:1fr 1fr;gap:18px}.box{border:1px solid #36506f;border-radius:15px;background:#0e1a2e;padding:18px}.box h3{font-size:17px;margin:0 0 13px}.architecture{display:grid;grid-template-columns:1fr 2fr;gap:16px}.node{border:1px solid var(--line);border-radius:12px;padding:13px;margin:9px 0;background:var(--panel2)}.small{font-size:13px;color:var(--muted)}.branch{margin-left:18px;padding-left:18px;border-left:2px dashed #38587b}.green{color:var(--green)}.purple{color:var(--purple)}.blue{color:var(--blue)}.amber{color:var(--amber)}.tabbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:18px}.tab{border:1px solid #3a5776;background:#192c46;color:#cfe4ff;padding:9px 15px;border-radius:10px}.tab.active{background:#236596;border-color:#73c7ff;color:white}.page-grid{display:grid;grid-template-columns:minmax(240px,390px) 1fr;gap:22px;align-items:start}.page{border:2px solid #6688aa;border-radius:16px;background:#0d192b;padding:12px;box-shadow:inset 0 0 0 6px #14233a}.page-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.size{border:1px solid #58b9e8;background:#123b60;color:#bfe9ff;border-radius:100px;padding:2px 10px;font-weight:800}.segment{border-radius:8px;padding:9px 12px;margin:6px 0;border:1px solid #ffffff21;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}.segment span{font-size:11px;opacity:.8}.seg-header{background:#244467}.seg-meta{background:#493f6f}.seg-records{background:#173e37;border-color:#3a9c79;display:block;padding:12px}.seg-free{background:#4b3927}.seg-dir{background:#224e62}.seg-footer{background:#313d5f}.record{background:#0c302c;border:1px solid #3f967c;border-radius:6px;margin:6px 0;padding:6px 9px;font-family:ui-monospace,Consolas,monospace;font-size:13px}.record.purple-record{background:#2e284e;border-color:#7664c1}.record.blue-record{background:#17344e;border-color:#427cab}.info-card{border:1px solid #344e6a;background:#0d1a2d;border-radius:13px;padding:17px;margin-bottom:13px}.info-card h3{margin:0 0 7px;font-size:18px}.info-card p{margin:8px 0;color:var(--muted)}.sql{background:#070f1c;border:1px solid #2e4564;border-radius:10px;padding:13px 16px;overflow-x:auto;font:13px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;color:#b7e4fc;white-space:pre}.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:13px;color:var(--muted)}.dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px}.btrees{display:grid;grid-template-columns:1fr 1fr;gap:18px}.tree{border:1px solid #354f70;border-radius:14px;padding:18px;background:#0c182b}.tree-title{text-align:center;font-weight:800;font-size:17px}.tree-root{border:1px solid #4b8cb6;background:#1b3b59;border-radius:9px;text-align:center;padding:10px 8px;width:68%;margin:15px auto 0}.tree-arrow{text-align:center;color:var(--blue);font-size:25px;margin:0;line-height:1.5}.tree-leaves{display:flex;gap:7px;justify-content:space-evenly}.leaf{border:1px solid #3b8f76;border-radius:10px;background:#14392f;flex:1;padding:10px 6px;text-align:center;font-size:12px}.tree.purple-tree .leaf{background:#2a2651;border-color:#8270c9}.leaf b{display:block;margin-bottom:4px}.leaf div{font-family:ui-monospace,Consolas,monospace}.stepbar{display:flex;gap:8px;flex-wrap:wrap}.step{flex:1;min-width:110px;border:1px solid #3b5473;background:#172841;color:#c6ddf2;border-radius:9px;padding:10px}.step.active{background:#1e664d;border-color:#56d5a4;color:white}.trace{border-left:3px solid var(--green);padding:15px 18px;margin-top:16px;background:#10283a;border-radius:0 10px 10px 0;min-height:130px}.trace h3{margin:0 0 5px}.trace p{margin:6px 0}.buttons{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.primary{border:0;border-radius:10px;padding:10px 20px;color:#031726;background:var(--green);font-weight:750}.secondary{border:1px solid #48678b;border-radius:10px;padding:10px 20px;color:var(--text);background:#1b2e48}table{border-collapse:collapse;width:100%;min-width:650px}td,th{padding:12px;text-align:left;border-bottom:1px solid #2c415d}th{color:#a8d8ff;background:#1d3552}td{color:#d2e3f5}.table-scroll{overflow-x:auto}.quiz{display:grid;gap:11px}.choice{width:100%;text-align:left;border:1px solid #3a5471;background:#14273f;border-radius:10px;color:var(--text);padding:11px 14px}.choice.correct{border-color:var(--green);background:#174638}.choice.wrong{border-color:var(--red);background:#4a2935}.answer{min-height:26px;color:var(--green);font-weight:700;margin-top:8px}.callout{background:#15352f;border:1px solid #387a69;padding:17px;border-radius:12px;margin-top:16px}.foot{margin-top:25px;color:var(--muted);font-size:13px}.hidden{display:none}.toggle-label{display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--muted);font-size:13px}input[type=checkbox]{accent-color:#5ae0b0} @media(max-width:850px){.row,.architecture,.page-grid,.btrees{grid-template-columns:1fr}.section{padding:18px}.wrap{padding:22px 12px 55px}.tree-leaves{gap:5px}.leaf{font-size:11px}}
+</style>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --panel: #fbf8f1;
+  --panel2: #ebe3d5;
+  --text: #292923;
+  --muted: #777267;
+  --line: #ded5c7;
+  --blue: #a74e37;
+  --green: #65745c;
+  --purple: #786252;
+  --amber: #9a702c;
+  --red: #a74e37;
+}
+body {
+  background: linear-gradient(180deg, #f8f4ec 0, var(--bg) 360px, var(--bg) 100%);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+h1, h2, h3 { font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif; }
+.hero h1 { color: var(--text); }
+.hero p, .desc, .small, .foot, .toggle-label { color: var(--muted); }
+.section {
+  border-color: var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px #382a170a;
+}
+.box, .info-card, .tree {
+  border-color: var(--line);
+  border-radius: 13px;
+  background: #f7f2e9;
+}
+.node {
+  border-color: var(--line);
+  background: var(--panel);
+}
+.branch { border-left-color: #b7ad9e; }
+.pill {
+  border-color: var(--line);
+  background: var(--panel2);
+  color: var(--text);
+}
+.blue { color: var(--terracotta-dark, #a74e37); }
+.green { color: var(--olive, #65745c); }
+.purple { color: #786252; }
+.amber { color: #8a692c; }
+.tab {
+  border-color: var(--line);
+  background: var(--panel2);
+  color: var(--ink, #292923);
+  border-radius: 10px;
+}
+.tab.active {
+  border-color: #c76c4e;
+  background: #c76c4e;
+  color: #fffaf1;
+}
+button:focus-visible, input:focus-visible {
+  outline: 3px solid #c76c4e80;
+  outline-offset: 3px;
+}
+.page {
+  border-color: #817663;
+  background: #292923;
+  box-shadow: inset 0 0 0 6px #3a3932;
+}
+.page-top { color: #f3eee4; }
+.size {
+  border-color: #a58c64;
+  background: #514638;
+  color: #f3eee4;
+}
+.segment { border-color: #ffffff2b; }
+.seg-header { background: #56644e; color: #fbf8f1; }
+.seg-meta { background: #514638; color: #fbf8f1; }
+.seg-records { background: #344434; border-color: #829477; color: #fbf8f1; }
+.seg-free { background: #6b4936; color: #fbf8f1; }
+.seg-dir { background: #46504f; color: #fbf8f1; }
+.seg-footer { background: #3a3932; color: #fbf8f1; }
+.record {
+  border-color: #829477;
+  background: #26352a;
+  color: #fbf8f1;
+}
+.record.purple-record {
+  border-color: #ab8d74;
+  background: #493c32;
+}
+.record.blue-record {
+  border-color: #a88963;
+  background: #4a4030;
+}
+.callout {
+  border-color: #cdd7c3;
+  background: #e8ecdf;
+  color: #394334;
+}
+.tree-root {
+  border-color: #c76c4e;
+  background: #f1e2d7;
+  color: #292923;
+}
+.tree-arrow { color: #a74e37; }
+.leaf, .tree.purple-tree .leaf {
+  border-color: #aeb9a3;
+  background: #e8ecdf;
+  color: #292923;
+}
+.tree.purple-tree .leaf {
+  border-color: #d3bda9;
+  background: #f1e8dc;
+}
+.step {
+  border-color: var(--line);
+  background: var(--panel2);
+  color: var(--text);
+}
+.step.active {
+  border-color: #65745c;
+  background: #e8ecdf;
+  color: #394334;
+}
+.trace {
+  border-left-color: #65745c;
+  background: #f1f3eb;
+  color: var(--text);
+}
+.trace p { color: var(--muted); }
+.primary {
+  background: #c76c4e;
+  color: #fffaf1;
+}
+.secondary {
+  border-color: var(--line);
+  background: var(--panel2);
+  color: var(--text);
+}
+table { color: var(--text); }
+td, th { border-color: var(--line); color: var(--text); }
+th { background: #ebe3d5; color: #4a5842; }
+td { background: #fbf8f1; }
+.choice {
+  border-color: var(--line);
+  background: #f7f2e9;
+  color: var(--text);
+}
+.choice.correct {
+  border-color: #aeb9a3;
+  background: #e8ecdf;
+}
+.choice.wrong {
+  border-color: #d7ad9f;
+  background: #f1e2d7;
+}
+.answer { color: #4a5842; }
+input[type=checkbox] { accent-color: #65745c; }
+@media (max-width: 520px) {
+  .tab { flex: 1 1 145px; }
+  .page { padding: 10px; }
+  .section { padding: 16px; }
+}
+</style>
+</head><body><main class="wrap">
+<header class="hero"><div class="eyebrow">MySQL · InnoDB · 交互演示</div><h1>Buffer Pool 里的 <span class="blue">数据页</span> 和 <span class="purple">索引页</span><br>到底长什么样？</h1><p>从 InnoDB 内存结构到 B+ 树，再把一个默认 <b>16KB</b> 的页面“拆开”观察。点选不同页类型、模拟二级索引查询与回表，最后做几道面试题。</p><div class="pills"><div class="pill">✓ 聚簇索引叶子页 = 完整行数据</div><div class="pill">✓ 二级索引叶子页 = 索引列 + 主键</div><div class="pill">✓ 两者默认都是 16KB</div></div></header>
+<section class="section"><h2>01 / 先建立正确的层次关系</h2><p class="desc">InnoDB 不等于 Buffer Pool + Log Buffer；它们只是内存结构中的两个重要组件。</p><div class="architecture"><div class="box"><h3>InnoDB 存储引擎</h3><div class="node"><b class="blue">内存结构</b><div class="branch"><div class="node"><b>Buffer Pool</b><div class="small">按页缓存数据和索引等</div></div><div class="node"><b>Log Buffer</b><div class="small">暂存 Redo 日志记录</div></div><div class="small">还有其他内存结构</div></div></div><div class="node"><b class="amber">磁盘结构 + 后台线程</b><div class="small">表空间、Redo Log 等</div></div></div><div class="box"><h3>Buffer Pool 里缓存哪些页面？</h3><div class="row"><div class="node"><b class="green">聚簇索引页</b><p class="small">非叶子页：主键 + 子页定位信息</p><p class="small">叶子页：完整行记录（常称“数据页”）</p></div><div class="node"><b class="purple">二级索引页</b><p class="small">非叶子页：索引键 + 子页定位信息</p><p class="small">叶子页：索引列 + 主键值</p></div></div><div class="node"><b>其他缓存页</b><span class="small"> 例如 Undo 页</span></div><div class="callout">💡 <b>核心：</b>Buffer Pool 缓存的是“页”，不是只缓存某一行。它本身也不是 B+ 树，而是内存缓存池。</div></div></div></section>
+<section class="section" id="pageSection"><h2>02 / 动手拆开一个 16KB 页面</h2><p class="desc">下方四个按钮分别展示：聚簇索引叶子页、二级索引叶子页、聚簇索引非叶子页、二级索引非叶子页。页的“外壳”基本一致，<b>记录内容</b>不一样。</p><div class="tabbar" role="tablist" aria-label="选择页面类型"><button class="tab active" role="tab" aria-selected="true" data-type="clusterLeaf">① 聚簇索引·叶子页</button><button class="tab" role="tab" aria-selected="false" data-type="secondaryLeaf">② 二级索引·叶子页</button><button class="tab" role="tab" aria-selected="false" data-type="clusterInternal">③ 聚簇索引·非叶子页</button><button class="tab" role="tab" aria-selected="false" data-type="secondaryInternal">④ 二级索引·非叶子页</button></div><div class="page-grid"><div class="page" aria-live="polite"><div class="page-top"><b id="pageName">聚簇索引·叶子页</b><span class="size">默认 16KB</span></div><div class="segment seg-header"><b>File Header</b><span>页号、LSN、校验和等</span></div><div class="segment seg-meta"><b>Page Header</b><span>页内管理元信息</span></div><div class="segment seg-meta"><b>Infimum / Supremum</b><span>最小/最大伪记录</span></div><div class="segment seg-records"><b>User Records · 页内记录</b><div id="records"><div class="record">id=1 | name=张三 | age=20</div><div class="record">id=2 | name=李四 | age=25</div><div class="record">id=3 | name=王五 | age=30</div></div></div><div class="segment seg-free"><b>Free Space</b><span>可用空间</span></div><div class="segment seg-dir"><b>Page Directory</b><span>页内记录槽目录</span></div><div class="segment seg-footer"><b>File Trailer</b><span>页尾校验信息</span></div></div><div><div class="info-card"><h3 id="infoTitle" class="green">存储完整行记录</h3><p id="infoText">聚簇索引的叶子页保存整行数据，所以在 InnoDB 的语境下，通常把它称为“数据页”。</p></div><div class="info-card"><b>示例表</b><pre class="sql">CREATE TABLE users (
+  id BIGINT PRIMARY KEY,
+  name VARCHAR(50),
+  age INT,
+  INDEX idx_age (age)
+);</pre></div><div class="info-card"><b>记忆关键点</b><p id="infoKey">数据页不是“一张 16KB 的大表”。一张表通常有大量页；一个页包含多条记录和各种页管理信息。</p></div><div class="legend"><span><i class="dot" style="background:#244467"></i>页头/页尾</span><span><i class="dot" style="background:#173e37"></i>记录区域</span><span><i class="dot" style="background:#4b3927"></i>空闲空间</span><span><i class="dot" style="background:#224e62"></i>页目录</span></div></div></div><p class="small">注：结构按逻辑区块示意，未按实际字节位置或比例绘制；不同页面默认大小相同，但实际记录内容、记录大小和数量不同。InnoDB 通常使用 FIL_PAGE_INDEX 类型承载上述 B+ 树节点。</p></section>
+<section class="section"><h2>03 / 两棵 B+ 树：节点为什么不同？</h2><p class="desc">还是上面的 users 表：主键 id 构成一棵 B+ 树，idx_age(age) 又构成另一棵 B+ 树。图里的每个节点代表一个页，并不是“一个节点只保存一条记录”。</p><div class="btrees"><div class="tree"><div class="tree-title green">聚簇索引 B+ 树 · PRIMARY</div><div class="tree-root">非叶子页：id 分隔键 + 子页引用</div><div class="tree-arrow">↙ &nbsp;&nbsp; ↓ &nbsp;&nbsp; ↘</div><div class="tree-leaves"><div class="leaf"><b>叶子数据页 A</b><div>1, 张三, 20</div><div>2, 李四, 25</div></div><div class="leaf"><b>叶子数据页 B</b><div>3, 王五, 30</div><div>4, 小赵, 35</div></div></div><p class="small">✅ 叶子记录里有 id、name、age 等整行列值。</p></div><div class="tree purple-tree"><div class="tree-title purple">二级索引 B+ 树 · idx_age</div><div class="tree-root">非叶子页：age + id 等定位键 + 子页引用</div><div class="tree-arrow">↙ &nbsp;&nbsp; ↓ &nbsp;&nbsp; ↘</div><div class="tree-leaves"><div class="leaf"><b>叶子索引页 A</b><div>(20, 1)</div><div>(25, 2)</div></div><div class="leaf"><b>叶子索引页 B</b><div>(30, 3)</div><div>(35, 4)</div></div></div><p class="small">✅ 叶子记录中保存 age 和 id，通常不包含 name。</p></div></div><div class="callout">🔍 <b>纠正常见误区：</b>“索引页 = 非叶子页，数据页 = 叶子页”只是一种过度简化。<b>二级索引也有叶子页</b>，而且聚簇索引的叶子数据页，在物理页类型上也属于 INDEX 页。</div></section>
+<section class="section"><h2>04 / 点击演示：二级索引查询为什么可能回表？</h2><p class="desc">模拟执行以下 SQL。每点一次“下一步”，观察数据从哪棵树找到。</p><pre class="sql">SELECT name FROM users WHERE age = 25;</pre><div class="stepbar" id="steps"><button class="step active" data-step="0">1 · 查二级索引</button><button class="step" data-step="1">2 · 取得主键 id</button><button class="step" data-step="2">3 · 回表查询</button><button class="step" data-step="3">4 · 返回结果</button></div><div class="trace" aria-live="polite"><h3 id="stepTitle">① 查二级索引 idx_age</h3><p id="stepBody">以 age=25 在二级索引 B+ 树中查找，定位到对应的叶子索引页。</p><p id="stepDetail" class="amber">当前读到：(age=25, id=2)</p></div><div class="buttons"><button class="primary" id="nextStep">下一步 →</button><button class="secondary" id="resetStep">↺ 重新演示</button></div><label class="toggle-label"><input id="covering" type="checkbox"> 改成覆盖索引查询：SELECT id FROM users WHERE age = 25</label><div id="coverTip" class="small">未勾选：查询 name，需要回表。</div></section>
+<section class="section"><h2>05 / 面试对照表</h2><div class="table-scroll"><table><thead><tr><th>比较</th><th>聚簇索引叶子页</th><th>二级索引叶子页</th><th>非叶子页</th></tr></thead><tbody><tr><td>默认大小</td><td>16KB</td><td>16KB</td><td>16KB</td></tr><tr><td>物理结构</td><td>索引页（INDEX Page）</td><td>索引页（INDEX Page）</td><td>索引页（INDEX Page）</td></tr><tr><td>记录内容</td><td>完整行记录</td><td>索引列 + 主键值</td><td>分隔/索引键 + 子页引用</td></tr><tr><td>是否在 Buffer Pool 缓存</td><td>是</td><td>是</td><td>是</td></tr><tr><td>主要用途</td><td>存储表数据</td><td>快速定位满足条件的主键</td><td>索引树导航</td></tr></tbody></table></div><p class="small">注意：16KB 是常见默认值，可在创建实例时配置 InnoDB 页大小；实际存放的行数取决于索引定义、行大小和页开销。页中还存在记录头、隐藏字段等实现细节。</p></section>
+<section class="section"><h2>06 / 三题快速自测</h2><p class="desc">点击选项可立即查看答案。</p><div class="quiz" id="quiz"><div class="box"><h3>Q1：二级索引的叶子页默认也有 16KB 吗？</h3><button class="choice" data-q="1" data-right="true">A. 是，默认也是 16KB</button><button class="choice" data-q="1">B. 否，只有聚簇索引页是 16KB</button><div class="answer" id="a1"></div></div><div class="box"><h3>Q2：二级索引 idx_age 的叶子页一般保存什么？</h3><button class="choice" data-q="2">A. 全部列 id、name、age</button><button class="choice" data-q="2" data-right="true">B. age 和主键 id</button><div class="answer" id="a2"></div></div><div class="box"><h3>Q3：Buffer Pool 本身是 B+ 树吗？</h3><button class="choice" data-q="3">A. 是，Buffer Pool 就是一棵 B+ 树</button><button class="choice" data-q="3" data-right="true">B. 不是，它缓存来自 B+ 树的页等内容</button><div class="answer" id="a3"></div></div></div><div class="callout"><b>面试背诵版：</b>InnoDB 的 Buffer Pool 以页为单位缓存数据和索引等内容，默认页大小 16KB。聚簇索引和二级索引都是 B+ 树：聚簇索引叶子页保存完整行记录，二级索引叶子页保存索引列与主键值，非叶子页主要负责导航。虽然存储内容不同，但它们通常采用相同的索引页物理结构。</div></section><p class="foot">教学示意 · 适用于理解 MySQL InnoDB 常见 COMPACT/DYNAMIC 行格式下的 B+ 树页面概念，非真实文件的逐字节转储。</p>
+</main><script>
+const pageTypes={clusterLeaf:{name:'聚簇索引·叶子页',title:'存储完整行记录',text:'聚簇索引 B+ 树的叶子页保存整行数据，通常称为“数据页”。',key:'页面包含很多行及页管理信息。一个表通常由大量 16KB 的页构成，不是“一张 16KB 的表”。',cls:'',records:['id=1 | name=张三 | age=20','id=2 | name=李四 | age=25','id=3 | name=王五 | age=30']},secondaryLeaf:{name:'二级索引·叶子页',title:'存储索引列 + 主键值',text:'例如 idx_age(age) 的叶子记录可表示为 (age, id)。不会因为它叫“索引页”就变成比 16KB 更小的页。',key:'查询 age=25 可得到 id=2；如果还需要 name，通常再通过聚簇索引回表。',cls:'purple-record',records:['age=20 | id=1','age=25 | id=2','age=30 | id=3']},clusterInternal:{name:'聚簇索引·非叶子页',title:'存储主键索引键 + 子页引用',text:'非叶子页帮助沿主键 B+ 树选择下一层页面，不直接承载完整行作为其普通节点记录。',key:'非叶子页也是一个实际的 InnoDB 页，默认 16KB；其中通常包含多条节点指针记录。',cls:'blue-record',records:['id=100 → 子页 P101','id=500 → 子页 P102','id=900 → 子页 P103']},secondaryInternal:{name:'二级索引·非叶子页',title:'存储二级索引键 + 子页引用',text:'非叶子页用索引排序键来导航。对于可能重复的 age，主键 id 也参与索引记录的区分和排序。',key:'为了让图易读，箭头代表指向子页的引用；不是指向某一行的内存指针。',cls:'blue-record',records:['(age=20,id=1) → 子页 P201','(age=30,id=3) → 子页 P202','(age=40,id=8) → 子页 P203']}};
+function showPage(k){const d=pageTypes[k];document.getElementById('pageName').textContent=d.name;document.getElementById('infoTitle').textContent=d.title;document.getElementById('infoTitle').className=k.includes('secondary')?'purple':'green';document.getElementById('infoText').textContent=d.text;document.getElementById('infoKey').textContent=d.key;document.getElementById('records').replaceChildren(...d.records.map(s=>{const x=document.createElement('div');x.className='record '+d.cls;x.textContent=s;return x}));document.querySelectorAll('[data-type]').forEach(b=>{const active=b.dataset.type===k;b.classList.toggle('active',active);b.setAttribute('aria-selected',active?'true':'false')})}document.querySelectorAll('[data-type]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.type)));
+let step=0;const normal=[['① 查二级索引 idx_age','以 age=25 在二级索引 B+ 树中查找，定位到对应叶子页。','找到 (age=25, id=2)'],['② 取到主键 id','二级索引叶子记录提供主键 id=2，但不包含本次需要的 name。','当前得到 id=2'],['③ 回到聚簇索引','根据 id=2，沿 PRIMARY B+ 树查找对应的聚簇索引叶子页。','找到完整记录 (2, 李四, 25)'],['④ 返回结果','从完整行中读取 name，并将查询结果返回。','最终结果：李四']];const covering=[['① 查二级索引 idx_age','以 age=25 在二级索引 B+ 树中查找。','找到 (age=25, id=2)'],['② 取得主键 id','这次 SELECT 只需要 id，二级索引叶子记录已经包含它。','当前得到 id=2'],['③ 无需回表','所需列都已由二级索引提供，因此这次演示中的回表步骤被跳过。','覆盖索引：省去聚簇索引查找'],['④ 返回结果','直接返回主键 id。','最终结果：2']];function renderStep(){const s=(document.getElementById('covering').checked?covering:normal)[step];document.getElementById('stepTitle').textContent=s[0];document.getElementById('stepBody').textContent=s[1];document.getElementById('stepDetail').textContent=s[2];document.querySelectorAll('[data-step]').forEach(b=>b.classList.toggle('active',Number(b.dataset.step)===step));document.getElementById('nextStep').textContent=step===3?'重新播放 ↺':'下一步 →'}document.getElementById('nextStep').addEventListener('click',()=>{step=(step+1)%4;renderStep()});document.getElementById('resetStep').addEventListener('click',()=>{step=0;renderStep()});document.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>{step=+b.dataset.step;renderStep()}));document.getElementById('covering').addEventListener('change',e=>{step=0;document.getElementById('coverTip').textContent=e.target.checked?'已勾选：只查 id，二级索引即可覆盖本次查询。':'未勾选：查询 name，需要回表。';document.querySelector('#pageSection');renderStep()});document.querySelectorAll('[data-q]').forEach(b=>b.addEventListener('click',()=>{const q=b.dataset.q;const yes=b.dataset.right==='true';document.querySelectorAll('[data-q="'+q+'"]').forEach(x=>{x.classList.remove('correct','wrong');if(x.dataset.right==='true')x.classList.add('correct')});if(!yes)b.classList.add('wrong');document.getElementById('a'+q).textContent=yes?'✓ 回答正确！':'✗ 再看绿色选项，复习上面的示意图。'}));
+</script></body></html>
