@@ -1,223 +1,429 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MySQL UPDATE 执行流程 · 交互教学</title>
-<style>
-:root{--bg:#f5f7fb;--ink:#17243b;--muted:#65748e;--line:#dbe4f0;--white:#fff;--blue:#2563eb;--lightblue:#eaf2ff;--purple:#7c3aed;--lav:#f1eaff;--orange:#e87924;--peach:#fff1e5;--green:#16845e;--mint:#e2f7ed;--red:#d84b52;--pink:#fff0f0;--shadow:0 10px 35px rgba(40,66,104,.07)}*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#eef4ff 0,#f6f8fc 340px,#f6f8fc 100%);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft Yahei",sans-serif;color:var(--ink)}button{font:inherit;cursor:pointer}button:disabled{opacity:.38;cursor:not-allowed}.wrap{max-width:1240px;margin:auto;padding:32px 24px 90px}.eyebrow{font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:800;color:var(--blue)}h1{font-size:clamp(29px,4vw,46px);line-height:1.25;letter-spacing:-1px;margin:10px 0 14px}h2{font-size:23px;letter-spacing:-.5px;margin:0 0 10px}h3{font-size:16px;margin:0 0 10px}p{margin:8px 0;color:var(--muted)}.hero{display:flex;justify-content:space-between;gap:30px;align-items:center;margin-bottom:30px}.hero p{max-width:760px;font-size:16px}.hero-mark{font-size:68px;border-radius:26px;background:white;padding:14px 26px;box-shadow:var(--shadow)}.tag{display:inline-flex;align-items:center;font-size:12px;font-weight:700;border-radius:99px;padding:5px 11px;background:#e7efff;color:#2855a2;margin-right:6px}.panel{background:white;border:1px solid var(--line);border-radius:19px;box-shadow:var(--shadow);padding:22px}.section{margin-top:25px}.sectionhead{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:16px}.secno{color:var(--blue);font-size:13px;font-weight:900;letter-spacing:1px}.sql{display:flex;gap:10px;align-items:center;justify-content:space-between;background:#17243b;color:#dbeaff;border-radius:13px;padding:15px 18px;font:13px/1.9 Consolas,"Courier New",monospace;overflow:auto}.sql b{color:#7dd3fc}.sql em{color:#fbbf76;font-style:normal}.sql button{flex-shrink:0;color:#cde3ff;background:#30435f;border:1px solid #51647c;border-radius:8px;padding:5px 11px}.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0}.btn{border:1px solid #ccd8eb;background:white;border-radius:10px;padding:9px 15px;font-weight:750;color:#334562}.btn.primary{background:var(--blue);border-color:var(--blue);color:white}.btn:hover:not(:disabled){filter:brightness(.97);transform:translateY(-1px)}.counter{margin-left:auto;color:var(--muted);font-size:13px;font-weight:700}.progress{height:7px;background:#e6edfa;border-radius:100px;overflow:hidden}.progress>div{height:100%;background:linear-gradient(90deg,#7aaeff,var(--blue));transition:width .3s}.layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(295px,1fr);gap:17px;margin-top:18px}.diagram{padding:18px;position:relative}.diagram-head{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px}.legend{color:#75849a;font-size:11px}.tiers{display:grid;gap:11px}.tier{border:1px dashed #d5e0f1;background:#fbfdff;border-radius:14px;padding:12px}.tier.server{background:#f5f9ff}.tier.engine{background:#f9f6ff}.tier.disk{background:#fffaf3}.tier-name{font-size:11px;letter-spacing:1px;font-weight:900;text-transform:uppercase;color:#8290a6;margin-bottom:8px;display:flex;justify-content:space-between}.nodegrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.nodegrid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.node{padding:10px 8px;border:1px solid #dce4f2;border-radius:11px;background:#fff;min-height:76px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all .22s;position:relative}.node .ico{font-size:22px;line-height:1.1}.node strong{font-size:12px;line-height:1.35}.node small{font-size:10px;color:#8793a7;line-height:1.3}.node[data-active=true]{border:2px solid var(--blue);background:#eaf2ff;box-shadow:0 0 0 4px #dbeaff;transform:translateY(-1px)}.node[data-done=true]{border-color:#a6dfc9;background:#f2fcf7}.node[data-active=true].purple{border-color:var(--purple);background:#f4edff;box-shadow:0 0 0 4px #e9dafa}.node[data-active=true].orange{border-color:var(--orange);background:#fff3e8;box-shadow:0 0 0 4px #ffdfc3}.node[data-active=true].green{border-color:var(--green);background:#eaf9f1;box-shadow:0 0 0 4px #d4f2e3}.node[data-active=true].red{border-color:var(--red);background:#fff1f2;box-shadow:0 0 0 4px #ffdfe2}.connector{text-align:center;color:#9bacbf;font-size:12px;font-weight:750;height:19px}.statebox{border:1px solid var(--line);border-radius:12px;padding:13px;background:#fff;margin-top:11px}.statetitle{font-size:11px;color:#7b89a1;letter-spacing:.3px;font-weight:800;margin-bottom:7px}.account{display:flex;gap:10px;align-items:center;justify-content:space-between}.money{font-weight:900;font-size:24px;color:var(--ink);letter-spacing:-.5px}.money.changed{color:var(--orange)}.pill{font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:#eef2f8;color:#69778e}.pill.purple{background:#f1e9ff;color:#7c3aed}.pill.orange{background:#ffead5;color:#b56514}.pill.green{background:#dcf6e9;color:#12815a}.pill.red{background:#ffe3e5;color:#c33e47}.panelright{display:flex;flex-direction:column;gap:13px}.stepbadge{display:inline-block;padding:4px 10px;border-radius:8px;background:#e9f0ff;color:var(--blue);font-size:12px;font-weight:800}.steptitle{font-size:22px;font-weight:850;margin:10px 0 5px;line-height:1.4}.explain{font-size:14px;color:#53627b;min-height:75px}.tip{padding:13px 14px;background:#f0f6ff;border-left:3px solid var(--blue);color:#35537b;border-radius:9px;font-size:13px}.minirow{display:grid;grid-template-columns:1fr 1fr;gap:9px}.mini{background:#f8fafc;border:1px solid #e5eaf2;border-radius:10px;padding:10px}.mini b{display:block;font-size:12px;color:#75839a}.mini .val{font-size:15px;font-weight:850;margin-top:5px}.track{display:flex;flex-direction:column;gap:7px}.trackitem{display:flex;align-items:center;gap:8px;background:#fafbfd;border:1px solid #e8edf5;border-radius:9px;padding:8px 11px;font-size:12px;color:#68778e}.trackitem strong{min-width:86px;color:#344258}.dot{height:8px;width:8px;background:#bac6d7;border-radius:100%}.dot.on{background:#ed912b}.dot.ok{background:#1f9d76}.matrix{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.logcard{border:1px solid #e4e9f3;border-radius:14px;padding:17px}.logcard:nth-child(1){background:#f7f2ff}.logcard:nth-child(2){background:#fff7ee}.logcard:nth-child(3){background:#f1f7ff}.logcard .sub{font-size:12px;font-weight:750;color:#8792a6}.logcard p{font-size:13px}.timeline{display:flex;align-items:stretch;gap:4px;margin:13px 0}.timebit{flex:1;border-radius:10px;padding:11px 5px;background:#edf2fa;color:#768399;font-size:11px;text-align:center;font-weight:750}.timebit.ready{background:#f4eaff;color:#753fd1}.timebit.complete{background:#e4f8ed;color:#13825b}.timebit.warn{background:#fff0df;color:#bb6b15}.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.case{border:1px solid #dce4ef;border-radius:14px;padding:17px;background:#fff}.case h3{display:flex;align-items:center;gap:7px}.case p{font-size:13px;min-height:60px}.case button{width:100%;border:1px solid #cad8e9;background:#f5f8ff;border-radius:9px;padding:8px;color:#31579a;font-weight:800}.case .out{display:none;margin-top:11px;padding:10px;border-radius:9px;font-size:13px;background:#eef7ff;color:#35527e}.case .out.show{display:block}.answer{padding:19px 22px;background:#f7faff;border:1px solid #dfe9fb;border-radius:14px;color:#394d69;line-height:1.95}.qa details{background:white;border:1px solid #e0e7f1;border-radius:11px;padding:13px 17px;margin:9px 0}.qa summary{cursor:pointer;font-weight:780}.qa p{font-size:14px;margin-top:8px}.foot{font-size:12px;text-align:center;margin-top:28px;color:#8996aa}.note{font-size:12px;color:#7b879c}.showcase{margin-top:13px;background:#fcfdff;border:1px solid #e7ecf5;border-radius:11px;padding:12px;font-size:12px;color:#65748c}.kbd{font:11px Consolas,monospace;border:1px solid #cbd5e1;border-radius:4px;padding:2px 5px;background:#f8fafc}a{color:#2563eb;text-decoration:none}@media(max-width:850px){.layout{grid-template-columns:1fr}.hero-mark{display:none}.matrix,.cases{grid-template-columns:1fr}.wrap{padding:22px 14px 70px}.node strong{font-size:11px}.node small{font-size:9px}.panel{padding:16px}.diagram{padding:13px}.counter{margin-left:0;width:100%}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
-</style>
-<style>
-:root {
-  color-scheme: light;
-  --bg: #f3eee4;
-  --ink: #292923;
-  --muted: #777267;
-  --line: #ded5c7;
-  --white: #fbf8f1;
-  --blue: #a74e37;
-  --lightblue: #f1e2d7;
-  --purple: #786252;
-  --lav: #f1e8dc;
-  --orange: #a86936;
-  --peach: #f5e8d8;
-  --green: #65745c;
-  --mint: #e8ecdf;
-  --red: #a74e37;
-  --pink: #f1e2d7;
-  --shadow: 0 18px 42px #382a1712;
-}
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MySQL 一条更新语句是如何执行的</title>
+  <style>
+    :root{
+      --ink:#172334; --muted:#64748b; --line:#e2e8f0; --card:#fff;
+      --blue:#2563eb; --blue-50:#eff6ff; --blue-100:#dbeafe;
+      --exec:#0ea5e9; --commit:#8b5cf6; --bg:#10b981;
+      --shadow:0 1px 2px rgba(15,23,42,.04),0 12px 32px rgba(15,23,42,.07);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1200px 400px at 20% -10%,#e0ecff 0,transparent 70%),#f6f8fc;font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink)}
+    .wrap{max-width:1360px;margin:0 auto;padding:32px 24px 64px}
+    .eyebrow{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+    h1{margin:6px 0 8px;font-size:32px;line-height:1.3;letter-spacing:-.4px}
+    p{margin:6px 0;color:var(--muted)}
+    .sql{display:inline-block;margin-top:10px;background:#0f1b2d;color:#dbe7f8;padding:10px 16px;border-radius:10px;font-family:Consolas,Monaco,monospace;font-size:14px}
+    .sql .kw{color:#7cc4ff}.sql .num{color:#fbbf77}
+    .grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start;margin-top:22px}
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+    .diagram{padding:18px}
+    .head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .sub{font-size:12px;color:#94a3b8;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+    h2{margin:2px 0 0;font-size:20px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .ctl{border:1px solid #d6e0ee;background:#fff;color:#334155;height:34px;min-width:34px;padding:0 12px;border-radius:10px;font-weight:700;cursor:pointer;transition:.15s}
+    .ctl:hover{border-color:var(--blue);color:var(--blue)}
+    .ctl.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    .ctl.primary:hover{background:#1d4ed8;color:#fff}
+    svg{display:block;width:100%;height:auto;background:linear-gradient(#fbfcfe,#f8fafd);border:1px solid #e8eef6;border-radius:14px}
+    svg text{font-family:inherit}
 
-body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
-}
-h1, h2, h3, .steptitle {
-  color: var(--ink);
-  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
-}
-p, .note, .foot { color: var(--muted); }
-.wrap { max-width: 1240px; }
-.hero-mark {
-  background: var(--white);
-  border: 1px solid var(--line);
-  color: var(--terracotta, #c76c4e);
-  box-shadow: var(--shadow);
-}
-.tag {
-  background: var(--paper-deep, #ebe3d5);
-  border: 1px solid var(--line);
-  color: var(--ink);
-}
-.panel {
-  border-color: var(--line);
-  border-radius: 16px;
-  background: var(--paper-light, #fbf8f1);
-  box-shadow: 0 4px 14px #382a170a;
-}
-.sql {
-  border: 1px solid #3e3a32;
-  background: #292923;
-  color: #f3eee4;
-}
-.sql b { color: #e6a184; }
-.sql em { color: #e2bd83; }
-.sql button {
-  border-color: #6b6254;
-  background: #454138;
-  color: #f3eee4;
-}
-.btn {
-  border-color: var(--line);
-  background: #ebe3d5;
-  color: var(--ink);
-  font-weight: 650;
-}
-.btn.primary {
-  border-color: #c76c4e;
-  background: #c76c4e;
-  color: #fffaf1;
-}
-.btn:focus-visible, .sql button:focus-visible, .case button:focus-visible {
-  outline: 3px solid #c76c4e80;
-  outline-offset: 3px;
-}
-.counter, .legend, .tier-name, .node small, .statetitle, .mini b,
-.trackitem, .showcase, .note, .foot { color: var(--muted); }
-.progress { background: #ebe3d5; }
-.progress > div { background: linear-gradient(90deg, #c76c4e, #d99572); }
-.tier {
-  border-color: var(--line);
-  background: #fbf8f1;
-}
-.tier.server { background: #f7f3eb; }
-.tier.engine { background: #f5f0e8; }
-.tier.disk { background: #f8f3e9; }
-.node {
-  border-color: var(--line);
-  background: #fffdf8;
-}
-.node[data-active=true] {
-  border-color: #c76c4e;
-  background: #fff3ed;
-  box-shadow: 0 0 0 3px #c76c4e20;
-}
-.node[data-done=true] {
-  border-color: #cdd7c3;
-  background: #e8ecdf;
-}
-.node[data-active=true].purple,
-.node[data-active=true].orange,
-.node[data-active=true].green,
-.node[data-active=true].red {
-  border-color: #c76c4e;
-  background: #fff3ed;
-  box-shadow: 0 0 0 3px #c76c4e20;
-}
-.connector { color: #91897c; }
-.statebox, .mini, .trackitem, .showcase {
-  border-color: var(--line);
-  background: #f7f2e9;
-}
-.money { color: var(--ink); }
-.money.changed { color: #a86936; }
-.pill {
-  border: 1px solid var(--line);
-  background: #ebe3d5;
-  color: #4a5842;
-}
-.pill.purple, .pill.orange, .pill.green, .pill.red {
-  background: #e8ecdf;
-  color: #4a5842;
-}
-.stepbadge {
-  background: #e8ecdf;
-  color: #4a5842;
-}
-.tip {
-  border-left-color: #c76c4e;
-  background: #f5e8df;
-  color: #514638;
-}
-.dot.on { background: #c76c4e; }
-.dot.ok { background: #65745c; }
-.logcard, .case, .qa details {
-  border-color: var(--line);
-  background: #fffdf8;
-}
-.logcard:nth-child(1), .logcard:nth-child(2), .logcard:nth-child(3) {
-  background: #f7f2e9;
-}
-.logcard .sub { color: var(--muted); }
-.timeline .timebit {
-  background: #ebe3d5;
-  color: #777267;
-}
-.timeline .timebit.ready,
-.timeline .timebit.warn,
-.timeline .timebit.complete {
-  background: #e8ecdf;
-  color: #4a5842;
-}
-.case button {
-  border-color: var(--line);
-  background: #ebe3d5;
-  color: var(--ink);
-}
-.case .out {
-  background: #e8ecdf;
-  color: #394334;
-}
-.answer {
-  border-color: var(--line);
-  background: #f7f2e9;
-  color: #514e45;
-}
-.qa details { background: #fffdf8; }
-.qa summary { color: var(--ink); }
-.qa p { color: var(--muted); }
-.foot { margin-bottom: 0; }
-.kbd {
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 1px 5px;
-  background: #ebe3d5;
-  color: var(--ink);
-}
-p[style*="color"] { color: var(--muted) !important; }
-@media (max-width: 520px) {
-  .hero-mark { width: 64px; height: 64px; padding: 8px; font-size: 2rem; }
-  .panel { padding: 16px; }
-}
-</style></head><body><main class="wrap">
-<div class="hero"><div><div class="eyebrow">MYSQL · 架构可视化 · 面试专题</div><h1>一条 UPDATE 语句<br>到底是如何执行的？</h1><p>跟随一笔余额更新，亲眼看见 SQL 如何经过 Server 层、InnoDB、Buffer Pool，以及 undo / redo / binlog 的两阶段提交。</p><span class="tag">MySQL 8.0 · InnoDB</span><span class="tag">逐步演示</span><span class="tag">宕机恢复实验</span></div><div class="hero-mark">🗄️</div></div>
-<section class="section"><div class="sectionhead"><div><div class="secno">01 · STEP BY STEP</div><h2>执行一条更新语句</h2><p>点击「下一步」，观察右侧说明、各个模块和账面数据如何变化。</p></div></div>
-<div class="panel"><div class="sql"><span><b>BEGIN;</b><br><b>UPDATE</b> account <b>SET</b> balance = balance <em>- 100</em> <b>WHERE</b> id = <em>1</em>;<br><b>COMMIT;</b></span><button id="copy">复制 SQL</button></div>
-<div class="toolbar"><button class="btn" id="prev">← 上一步</button><button class="btn primary" id="next">下一步 →</button><button class="btn" id="play">▶ 自动演示</button><button class="btn" id="reset">↺ 重置</button><span class="counter" id="counter">步骤 1 / 12</span></div><div class="progress"><div id="bar" style="width:8.33%"></div></div>
-<div class="layout"><div class="panel diagram"><div class="diagram-head"><b>MySQL 更新执行架构图</b><span class="legend">蓝色 = 当前步骤 · 绿色 = 已经过</span></div>
-<div class="tiers"><div class="tier"><div class="tier-name">CLIENT <span>MySQL 外部</span></div><div class="nodegrid two"><div class="node" id="n-client"><span class="ico">💻</span><strong>客户端</strong><small>BEGIN / UPDATE / COMMIT</small></div><div class="node" id="n-result"><span class="ico">✅</span><strong>返回执行结果</strong><small>事务提交成功</small></div></div></div><div class="connector">↓ SQL 请求 / ↑ 执行结果</div>
-<div class="tier server"><div class="tier-name">SERVER LAYER <span>解析 · 优化 · 执行 · binlog</span></div><div class="nodegrid"><div class="node" id="n-connect"><span class="ico">🔗</span><strong>连接器</strong><small>连接 / 身份 / 权限</small></div><div class="node" id="n-parser"><span class="ico">🔍</span><strong>解析器</strong><small>词法 / 语法分析</small></div><div class="node" id="n-optimizer"><span class="ico">⚙️</span><strong>优化器</strong><small>选择主键索引</small></div><div class="node" id="n-executor"><span class="ico">▶️</span><strong>执行器</strong><small>调用引擎 API</small></div></div><div style="height:8px"></div><div class="nodegrid two"><div class="node orange" id="n-bincache"><span class="ico">📦</span><strong>Binlog Cache</strong><small>事务事件暂存</small></div><div class="node orange" id="n-binlog"><span class="ico">📜</span><strong>Binlog 提交</strong><small>写文件 / 按策略 fsync</small></div></div></div><div class="connector">↕ 引擎接口 / 提交协调</div>
-<div class="tier engine"><div class="tier-name">INNODB ENGINE <span>事务 · 锁 · 缓存 · redo / undo</span></div><div class="nodegrid two"><div class="node purple" id="n-row"><span class="ico">🔒</span><strong>主键定位 / 行锁</strong><small>当前读 · 排他锁</small></div><div class="node purple" id="n-pool"><span class="ico">🧠</span><strong>Buffer Pool</strong><small>内存数据页 · 脏页</small></div><div class="node purple" id="n-undo"><span class="ico">↩️</span><strong>Undo Log</strong><small>回滚 / MVCC</small></div><div class="node purple" id="n-redo"><span class="ico">📝</span><strong>Redo Log</strong><small>WAL · Prepare / Commit</small></div></div></div><div class="connector">↕ 读页 / 日志持久化 / 脏页延迟刷盘</div>
-<div class="tier disk"><div class="tier-name">PHYSICAL STORAGE <span>磁盘文件</span></div><div class="nodegrid two"><div class="node green" id="n-disk"><span class="ico">💾</span><strong>InnoDB 数据页</strong><small>可能稍后刷盘</small></div><div class="node orange" id="n-logdisk"><span class="ico">🗂️</span><strong>日志文件</strong><small>Redo / Binlog 等</small></div></div></div></div>
-<div class="statebox"><div class="statetitle">账户 id = 1 · 更新前余额 1000</div><div class="account"><div><div style="font-size:11px;color:#8794a7">Buffer Pool · 当前页值</div><div class="money" id="memmoney">¥1,000</div></div><span class="pill" id="dirty">干净页</span><div><div style="font-size:11px;color:#8794a7">磁盘数据页值</div><div class="money" id="diskmoney">¥1,000</div></div></div></div></div>
-<div class="panelright"><div class="panel"><span class="stepbadge" id="stepbadge">STEP 01</span><div class="steptitle" id="steptitle">客户端发送 SQL</div><div class="explain" id="explain">客户端开启事务并向 MySQL 发送 UPDATE。示例假设余额为 1000 元、主键 id=1 命中一条记录。</div><div class="tip" id="tip">先记住三个日志的归属：binlog 属于 Server；undo / redo 属于 InnoDB。</div></div><div class="panel"><h3>实时状态监视器</h3><div class="minirow"><div class="mini"><b>事务状态</b><div class="val" id="tx">尚未开始</div></div><div class="mini"><b>行锁</b><div class="val" id="lock">未持有</div></div><div class="mini"><b>Redo 阶段</b><div class="val" id="redo">未产生</div></div><div class="mini"><b>Binlog 阶段</b><div class="val" id="binlog">未提交</div></div></div><div class="track" style="margin-top:12px"><div class="trackitem"><span class="dot" id="udot"></span><strong>Undo Log</strong><span id="ustat">尚未生成</span></div><div class="trackitem"><span class="dot" id="rdot"></span><strong>Redo Log</strong><span id="rstat">尚未生成</span></div><div class="trackitem"><span class="dot" id="bdot"></span><strong>Binlog</strong><span id="bstat">尚未生成</span></div></div></div><div class="showcase"><b>动画提示：</b><span id="footnote">第一步展示入口。后续选择下一步，模块高亮会随执行阶段移动。</span></div></div></div></div></section>
-<section class="section"><div class="sectionhead"><div><div class="secno">02 · TWO-PHASE COMMIT</div><h2>为什么需要两阶段提交？</h2><p>重点看事务提交时的三个检查点，它们不是 UPDATE 执行时的全部日志动作。</p></div></div><div class="panel"><div class="timeline"><div class="timebit">执行 UPDATE<br>产生 Undo / Redo</div><div class="timebit ready">① Redo Prepare<br>准备提交</div><div class="timebit warn">② Binlog 提交<br>写入完整事务</div><div class="timebit complete">③ Redo Commit<br>完成事务</div></div><div class="tip">如果先只提交一种日志就直接返回成功，宕机时可能出现「InnoDB 数据与 Binlog 记录不一致」。内部两阶段提交负责协调二者，恢复时可以识别处于 Prepare 状态的事务。</div><p class="note">图中的“提交”与“持久化到磁盘”应区分；下面宕机实验以相关日志完整、关键落盘条件满足为前提。</p></div></section>
-<section class="section"><div class="sectionhead"><div><div class="secno">03 · CRASH RECOVERY</div><h2>假设 MySQL 突然宕机？</h2><p>选择一个崩溃时间点，点击按钮查看恢复结果。</p></div></div><div class="cases"><div class="case"><h3>💥 场景 A：Prepare 前</h3><p>事务正在执行，尚未完成两阶段提交协调。</p><button data-case="a">模拟宕机恢复</button><div class="out" id="case-a"><b>结果：回滚未提交事务。</b><br>恢复时不会把它当作已提交事务；未提交的改动需要撤销。</div></div><div class="case"><h3>💥 场景 B：Prepare 后、Binlog 提交前</h3><p>Redo 已是 Prepare，但未发现完整提交的 Binlog 事务。</p><button data-case="b">模拟宕机恢复</button><div class="out" id="case-b"><b>结果：回滚。</b><br>对于未提交到 Binlog 的 prepared 事务，恢复阶段不应把它当作成功提交。</div></div><div class="case"><h3>💥 场景 C：Binlog 提交后、Redo Commit 前</h3><p>Redo 处于 Prepare，Binlog 已有完整可恢复的事务记录。</p><button data-case="c">模拟宕机恢复</button><div class="out" id="case-c"><b>结果：提交。</b><br>恢复流程可以根据已完成的 Binlog 事务判定 prepared 事务应提交，并利用 redo 恢复相关页更改。</div></div></div><p class="note">实际可靠性与 sync_binlog、innodb_flush_log_at_trx_commit、存储设备及故障类型有关。这里是典型崩溃恢复逻辑的教学模型。</p></section>
-<section class="section"><div class="sectionhead"><div><div class="secno">04 · LOG COMPARISON</div><h2>三种日志各司其职</h2></div></div><div class="matrix"><div class="logcard"><div class="sub">INNODB · 撤销</div><h2 style="color:#7c3aed">Undo Log</h2><p><b>记录怎样撤销这次修改</b>，用于事务回滚与 MVCC 旧版本读取。更新时产生 undo 记录，写入 undo 页的修改也会受到 redo 保护。</p><span class="pill purple">回滚 / MVCC</span></div><div class="logcard"><div class="sub">INNODB · 重做</div><h2 style="color:#d6751a">Redo Log</h2><p><b>记录物理页相关的更改</b>，支撑崩溃恢复与 WAL。数据页不必在每次事务提交时立即刷盘。</p><span class="pill orange">持久性 / 崩溃恢复</span></div><div class="logcard"><div class="sub">SERVER · 变更事件</div><h2 style="color:#2563eb">Binlog</h2><p><b>记录事务变更事件</b>，服务于主从复制和基于时间点恢复。可使用 ROW、STATEMENT、MIXED 等格式。</p><span class="pill">复制 / PITR</span></div></div></section>
-<section class="section"><div class="sectionhead"><div><div class="secno">05 · INTERVIEW NOTES</div><h2>面试 40 秒怎么回答？</h2></div></div><div class="answer">执行一条 UPDATE，MySQL 首先经过连接器、解析器和优化器，由执行器调用 InnoDB。引擎按照索引定位记录，必要时将数据页从磁盘加载到 Buffer Pool，并获取相应的行锁。修改前生成 Undo Log，用于回滚和 MVCC；随后修改内存中的数据页，将其标记为脏页，同时产生 Redo Log。<br><br>事务提交时，为了让 InnoDB 的 Redo Log 和 Server 层的 Binlog 保持一致，会进行内部两阶段提交：<b>Redo Prepare → Binlog 提交 → Redo Commit</b>。成功提交后释放事务持有的行锁并返回结果。脏页可以由后台异步刷盘，不要求每次提交立刻写回数据文件。</div></section>
-<section class="section qa"><div class="sectionhead"><div><div class="secno">06 · FOLLOW-UP QUESTIONS</div><h2>面试官继续追问</h2></div></div><details><summary>Q1：为什么更新了数据，却不立即刷盘？</summary><p>因为 InnoDB 使用 WAL（Write-Ahead Logging）。事务相关 redo 按持久化策略处理后，脏数据页可延迟刷盘，从而避免每次事务都随机写入数据页。注意：redo 写入内存、写到操作系统缓存和 fsync 到持久存储是不同概念。</p></details><details><summary>Q2：Buffer Pool 是不是 B+ 树？</summary><p>不是。B+ 树是索引组织结构；Buffer Pool 是内存缓冲池，存放从表空间读取的数据页 / 索引页等。定位记录时遍历 B+ 树涉及的页，如果缓存未命中，才从磁盘加载相应页。</p></details><details><summary>Q3：是不是先写 Redo Prepare，再修改 Buffer Pool？</summary><p>不是。Redo 是在事务执行过程中随着页面修改产生的；Prepare 指事务提交协调中的一个阶段。不能把“产生 redo”“把 redo 写入日志缓冲”“写入 redo 文件”“Prepare 状态”混为一谈。</p></details><details><summary>Q4：行锁什么时候释放？</summary><p>在典型事务性 UPDATE 中，InnoDB 持有必要的记录锁直到事务结束（COMMIT 或 ROLLBACK）。不是一修改完 Buffer Pool 就立即释放。实际锁范围与访问路径、隔离级别等有关。</p></details><details><summary>Q5：为什么 Binlog 和 Redo Log 不能合并？</summary><p>Redo 是 InnoDB 内部用于页级崩溃恢复的日志；Binlog 是 Server 层的变更事件日志，面向复制、归档和时间点恢复。两者粒度、使用范围与生命周期不同。</p></details></section>
-<div class="foot">教学示意 · MySQL 8.0 / InnoDB 典型路径 · 为易读性简化了内部 mini-transaction、group commit、Change Buffer、锁细节与崩溃恢复边界。<br>提示：可用 <span class="kbd">←</span> / <span class="kbd">→</span> 键切换步骤 · 本文件无需联网即可运行。</div></main>
+    /* diagram styling */
+    .frame{fill:none;stroke:#b8c2d3;stroke-width:1.5;stroke-dasharray:6 5}
+    .frame-title{font-size:15px;font-weight:800;fill:#7c5a3a;letter-spacing:1px}
+    .box{stroke-width:1.6;transition:stroke .25s,stroke-width .25s,filter .25s}
+    .t-main{font-weight:800;fill:#1e293b}
+    .t-sub{font-size:12px;fill:#64748b;font-weight:600}
+    .node,.edge{transition:opacity .3s}
+    svg.focus .node:not(.active), svg.focus .edge:not(.active){opacity:.25}
+    .node.active .box{stroke:var(--blue);stroke-width:3;filter:url(#glow)}
+    .edge .ln{fill:none;stroke:#7b8799;stroke-width:2.4;marker-end:url(#ah)}
+    .edge.bgflow .ln{stroke-dasharray:7 5}
+    .edge.active .ln{stroke:var(--blue);stroke-width:3.2;marker-end:url(#ahA);stroke-dasharray:10 6;animation:flow .8s linear infinite}
+    @keyframes flow{to{stroke-dashoffset:-16}}
+    .edge .num circle{fill:#fff;stroke:#7b8799;stroke-width:1.6}
+    .edge .num text{font-size:12px;font-weight:800;fill:#475569}
+    .edge.active .num circle{fill:var(--blue);stroke:var(--blue)}
+    .edge.active .num text{fill:#fff}
+    .edge .lbl{font-size:12.5px;font-weight:700;fill:#475569}
+    .edge.active .lbl{fill:#1d4ed8}
+    .page rect{fill:#fffaf0;stroke:#d4b26a;stroke-width:1.2;transition:fill .3s}
+    .page text{font-size:12px;font-weight:700;fill:#5b4a2a}
+    .page.dirty rect{fill:#fed7aa;stroke:#ea580c}
+    .page.dirty text{fill:#9a3412}
+    .state{font-size:12px;font-weight:800}
+
+    /* stepper */
+    .stepper{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin-top:14px}
+    .stp{position:relative;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:9px 6px 7px;cursor:pointer;text-align:center;transition:.15s;border-top:3px solid var(--c)}
+    .stp:hover{background:#f8fafc}
+    .stp .n{display:block;font-weight:900;font-size:15px;color:var(--c)}
+    .stp .s{display:block;font-size:12px;color:#475569;font-weight:700;line-height:1.35}
+    .stp.done{background:#f8fafc}
+    .stp.active{background:var(--c);border-color:var(--c)}
+    .stp.active .n,.stp.active .s{color:#fff}
+    .phases{display:grid;grid-template-columns:4fr 3fr 1fr;gap:6px;margin-top:6px;font-size:11.5px;font-weight:800;text-align:center}
+    .phases div{border-radius:6px;padding:3px 0}
+    .ph-exec{background:#e0f2fe;color:#0369a1}.ph-commit{background:#ede9fe;color:#6d28d9}.ph-bg{background:#d1fae5;color:#047857}
+    .progress{height:4px;background:#eef2f7;border-radius:4px;margin-top:12px;overflow:hidden}
+    .progress i{display:block;height:100%;background:linear-gradient(90deg,var(--exec),var(--commit),var(--bg));transition:width .35s}
+
+    /* side */
+    .side{padding:20px;position:sticky;top:16px}
+    .tags{display:flex;gap:6px;flex-wrap:wrap}
+    .tag{display:inline-block;padding:4px 10px;border-radius:999px;font-weight:800;font-size:12px}
+    .tag.no{background:var(--blue-50);color:var(--blue)}
+    .title{font-size:21px;font-weight:900;margin:12px 0 6px;line-height:1.4}
+    .path{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:12px 0}
+    .path span{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:3px 9px;font-size:13px;font-weight:700;color:#334155}
+    .path em{color:#94a3b8;font-style:normal;font-weight:900}
+    .item{border:1px solid #e9eef5;border-radius:12px;padding:10px 12px;background:#fbfcfe;margin-top:10px;font-size:14px}
+    .item b{display:block;font-size:12px;margin-bottom:3px;color:#475569}
+    .item.talk b{color:#2563eb}.item.wrong b{color:#dc2626}
+    .tip{margin-top:12px;padding:11px 13px;border-radius:12px;background:var(--blue-50);border-left:4px solid var(--blue);color:#1e3a8a;font-size:13px}
+    .note{margin-top:12px;font-size:12px;color:#94a3b8}
+
+    .section{margin-top:18px;padding:20px}
+    .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+    .card{border:1px solid #e8edf4;border-radius:14px;padding:16px;background:#fff}
+    .card h3{margin:0 0 6px;font-size:17px}
+    .pill{display:inline-block;margin-top:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800}
+    .p1{background:#f3e8ff;color:#7e22ce}.p2{background:#ffedd5;color:#c2410c}.p3{background:#dbeafe;color:#1d4ed8}
+    .table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+    .table th,.table td{border-bottom:1px solid #edf1f6;padding:10px 12px;vertical-align:top;text-align:left}
+    .table th{background:#f8fafc;color:#475569;font-size:13px}
+    .table td:first-child{white-space:nowrap;font-weight:700;color:#334155}
+    .foot{margin-top:20px;text-align:center;color:#94a3b8;font-size:12px}
+    kbd{border:1px solid #d6dde8;border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11px;background:#fff}
+    @media (max-width:1080px){.grid{grid-template-columns:1fr}.side{position:static}.cards{grid-template-columns:1fr}.stepper{grid-template-columns:repeat(4,1fr)}.phases{display:none}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <section>
+    <div class="eyebrow">MySQL · InnoDB · Update Flow</div>
+    <h1>一条更新语句是如何执行的？</h1>
+    <p>按步骤查看数据页读取、Undo/Redo 写入、两阶段提交和后台刷脏的完整路径。</p>
+    <div class="sql"><span class="kw">UPDATE</span> account <span class="kw">SET</span> balance = balance - <span class="num">100</span> <span class="kw">WHERE</span> id = <span class="num">1</span>;</div>
+  </section>
+
+  <section class="grid">
+    <div class="panel diagram">
+      <div class="head">
+        <div><div class="sub">01 · 执行路径</div><h2>客户端 → 执行器 → InnoDB → Page Cache → 磁盘</h2></div>
+        <div class="controls">
+          <button class="ctl" id="prev" title="上一步 (←)">‹</button>
+          <button class="ctl primary" id="play">▶ 自动播放</button>
+          <button class="ctl" id="next" title="下一步 (→)">›</button>
+        </div>
+      </div>
+
+      <svg id="dg" viewBox="0 0 1230 720" aria-label="MySQL update IO diagram">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7b8799"/></marker>
+          <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#2563eb"/></marker>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#2563eb" flood-opacity=".3"/></filter>
+          <filter id="sh" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity=".08"/></filter>
+        </defs>
+
+        <!-- frames -->
+        <rect class="frame" x="115" y="60" width="120" height="630" rx="14"/>
+        <text class="frame-title" x="175" y="45" text-anchor="middle">Server 层</text>
+        <rect class="frame" x="255" y="60" width="370" height="540" rx="14"/>
+        <text class="frame-title" x="440" y="45" text-anchor="middle">InnoDB 引擎（内存）</text>
+        <rect class="frame" x="660" y="320" width="160" height="370" rx="14"/>
+        <text class="frame-title" x="740" y="308" text-anchor="middle">操作系统</text>
+        <rect class="frame" x="870" y="60" width="340" height="640" rx="14"/>
+        <text class="frame-title" x="1040" y="45" text-anchor="middle">磁盘</text>
+
+        <!-- nodes -->
+        <g class="node" id="n-client">
+          <rect class="box" x="20" y="310" width="80" height="120" rx="10" fill="#e0f7fa" stroke="#5f9ea8" filter="url(#sh)"/>
+          <text class="t-main" x="60" y="350" text-anchor="middle" font-size="17">客</text>
+          <text class="t-main" x="60" y="375" text-anchor="middle" font-size="17">户</text>
+          <text class="t-main" x="60" y="400" text-anchor="middle" font-size="17">端</text>
+        </g>
+        <g class="node" id="n-exec">
+          <rect class="box" x="130" y="80" width="90" height="590" rx="12" fill="#fbe7e2" stroke="#b07f72" filter="url(#sh)"/>
+          <text class="t-main" x="175" y="345" text-anchor="middle" font-size="20">执</text>
+          <text class="t-main" x="175" y="373" text-anchor="middle" font-size="20">行</text>
+          <text class="t-main" x="175" y="401" text-anchor="middle" font-size="20">器</text>
+        </g>
+
+        <g class="node" id="n-bp">
+          <rect class="box" x="290" y="90" width="300" height="210" rx="10" fill="#dfe5fb" stroke="#6474a0" filter="url(#sh)"/>
+          <text class="t-main" x="440" y="124" text-anchor="middle" font-size="20">Buffer Pool</text>
+          <g class="page" id="page-target"><rect x="315" y="148" width="76" height="40" rx="6"/><text id="page-target-t" x="353" y="173" text-anchor="middle">缓存页</text></g>
+          <g class="page"><rect x="402" y="148" width="76" height="40" rx="6"/><text x="440" y="173" text-anchor="middle">缓存页</text></g>
+          <g class="page"><rect x="489" y="148" width="76" height="40" rx="6"/><text x="527" y="173" text-anchor="middle">缓存页</text></g>
+          <g class="page"><rect x="315" y="200" width="76" height="40" rx="6"/><text x="353" y="225" text-anchor="middle">缓存页</text></g>
+          <g class="page"><rect x="402" y="200" width="76" height="40" rx="6"/><text x="440" y="225" text-anchor="middle">缓存页</text></g>
+          <g class="page"><rect x="489" y="200" width="76" height="40" rx="6"/><text x="527" y="225" text-anchor="middle">缓存页</text></g>
+          <text class="t-sub" x="440" y="276" text-anchor="middle">数据页缓存 · 修改后成为脏页</text>
+        </g>
+
+        <g class="node" id="n-redobuf">
+          <rect class="box" x="290" y="340" width="300" height="80" rx="10" fill="#dfe5fb" stroke="#6474a0" filter="url(#sh)"/>
+          <text class="t-main" x="440" y="378" text-anchor="middle" font-size="19">Redo Log Buffer</text>
+          <text class="t-sub" x="440" y="402" text-anchor="middle">redo 日志的内存缓冲</text>
+        </g>
+
+        <g id="redo-param-card">
+          <rect x="290" y="440" width="300" height="130" rx="10" fill="#fff7ed" stroke="#f5c38f"/>
+          <text x="305" y="466" font-size="13.5" font-weight="800" fill="#c2410c">innodb_flush_log_at_trx_commit = 1</text>
+          <text x="305" y="492" font-size="12.5" font-weight="600" fill="#7c4a1e">0：每秒 write + fsync，可能丢 1 秒数据</text>
+          <text x="305" y="516" font-size="12.5" font-weight="600" fill="#7c4a1e">1：每次提交 write + fsync，最安全</text>
+          <text x="305" y="540" font-size="12.5" font-weight="600" fill="#7c4a1e">2：每次提交 write，每秒 fsync</text>
+          <text x="305" y="560" font-size="11.5" font-weight="600" fill="#b08968">控制 ⑤ 的刷盘时机</text>
+        </g>
+
+        <g class="node" id="n-pc">
+          <rect class="box" x="680" y="340" width="120" height="330" rx="10" fill="#d9f2ef" stroke="#5f9792" filter="url(#sh)"/>
+          <text class="t-main" x="740" y="505" text-anchor="middle" font-size="17">Page Cache</text>
+          <text class="t-sub" x="740" y="527" text-anchor="middle">内核文件缓存</text>
+        </g>
+
+        <g class="node" id="n-ibd">
+          <rect class="box" x="900" y="90" width="280" height="140" rx="10" fill="#f8ecb5" stroke="#c9a94f" filter="url(#sh)"/>
+          <text class="t-main" x="1040" y="118" text-anchor="middle" font-size="16">表空间文件 (.ibd)</text>
+          <g fill="#e6f7fb" stroke="#6b98a3" stroke-width="1.1">
+            <rect x="915" y="134" width="76" height="34" rx="5"/><rect x="1002" y="134" width="76" height="34" rx="5"/><rect x="1089" y="134" width="76" height="34" rx="5"/>
+            <rect x="915" y="178" width="76" height="34" rx="5"/><rect x="1002" y="178" width="76" height="34" rx="5"/><rect x="1089" y="178" width="76" height="34" rx="5"/>
+          </g>
+          <g font-size="12" font-weight="700" fill="#3f5560" text-anchor="middle">
+            <text x="953" y="156">数据页</text><text x="1040" y="156">数据页</text><text x="1127" y="156">数据页</text>
+            <text x="953" y="200">数据页</text><text x="1040" y="200">数据页</text><text x="1127" y="200">数据页</text>
+          </g>
+        </g>
+        <g class="node" id="n-undo">
+          <rect class="box" x="900" y="260" width="280" height="60" rx="10" fill="#f8ecb5" stroke="#c9a94f" filter="url(#sh)"/>
+          <text class="t-main" x="1040" y="296" text-anchor="middle" font-size="17">Undo Log</text>
+        </g>
+        <g class="node" id="n-redo">
+          <rect class="box" x="900" y="360" width="280" height="70" rx="10" fill="#f8ecb5" stroke="#c9a94f" filter="url(#sh)"/>
+          <text class="t-main" x="1040" y="392" text-anchor="middle" font-size="17">Redo Log</text>
+          <text class="state" id="redo-state" x="1040" y="414" text-anchor="middle"></text>
+        </g>
+        <g class="node" id="n-binlog">
+          <rect class="box" x="900" y="610" width="280" height="60" rx="10" fill="#f8ecb5" stroke="#c9a94f" filter="url(#sh)"/>
+          <text class="t-main" x="1040" y="646" text-anchor="middle" font-size="17">binlog</text>
+        </g>
+
+        <!-- client → executor -->
+        <line x1="100" y1="370" x2="128" y2="370" stroke="#475569" stroke-width="2.4" marker-end="url(#ah)"/>
+
+        <!-- edges -->
+        <g class="edge" id="e1">
+          <line class="ln" x1="900" y1="178" x2="592" y2="178"/>
+          <text class="lbl" x="745" y="162" text-anchor="middle">读取数据页（O_DIRECT）</text>
+          <g class="num"><circle cx="745" cy="178" r="11"/><text x="745" y="182" text-anchor="middle">1</text></g>
+        </g>
+        <g class="edge" id="e2">
+          <line class="ln" x1="590" y1="252" x2="898" y2="288"/>
+          <text class="lbl" x="745" y="252" text-anchor="middle">写入修改前数据</text>
+          <g class="num"><circle cx="680" cy="262.5" r="11"/><text x="680" y="266.5" text-anchor="middle">2</text></g>
+        </g>
+        <g class="edge" id="e3">
+          <line class="ln" x1="220" y1="210" x2="288" y2="210"/>
+          <text class="lbl" x="254" y="194" text-anchor="middle">更新内存</text>
+          <g class="num"><circle cx="254" cy="210" r="11"/><text x="254" y="214" text-anchor="middle">3</text></g>
+        </g>
+        <g class="edge" id="e4">
+          <line class="ln" x1="220" y1="380" x2="288" y2="380"/>
+          <text class="lbl" x="254" y="364" text-anchor="middle">写 redo</text>
+          <g class="num"><circle cx="254" cy="380" r="11"/><text x="254" y="384" text-anchor="middle">4</text></g>
+        </g>
+        <g class="edge" id="e5">
+          <line class="ln" x1="590" y1="380" x2="678" y2="380"/>
+          <text class="lbl" x="635" y="364" text-anchor="middle">write()</text>
+          <line class="ln" x1="800" y1="395" x2="898" y2="395"/>
+          <text class="lbl" x="850" y="383" text-anchor="middle">fsync()</text>
+          <g class="num"><circle cx="635" cy="380" r="11"/><text x="635" y="384" text-anchor="middle">5</text></g>
+        </g>
+        <g class="edge" id="e6">
+          <line class="ln" x1="220" y1="640" x2="678" y2="640"/>
+          <text class="lbl" x="470" y="628" text-anchor="middle">准备提交事务 · 写 binlog</text>
+          <text x="470" y="662" text-anchor="middle" font-size="12.5" font-weight="800" fill="#4f46e5">sync_binlog = 1（每次提交都 fsync）</text>
+          <line class="ln" x1="800" y1="640" x2="898" y2="640"/>
+          <text class="lbl" x="850" y="628" text-anchor="middle">fsync()</text>
+          <g class="num"><circle cx="300" cy="640" r="11"/><text x="300" y="644" text-anchor="middle">6</text></g>
+        </g>
+        <g class="edge" id="e7">
+          <line class="ln" x1="1040" y1="610" x2="1040" y2="432"/>
+          <text class="lbl" x="1060" y="512">写入 binlog 文件名</text>
+          <text class="lbl" x="1060" y="532">与 commit 标识</text>
+          <g class="num"><circle cx="1040" cy="520" r="11"/><text x="1040" y="524" text-anchor="middle">7</text></g>
+        </g>
+        <g class="edge bgflow" id="e8">
+          <line class="ln" x1="590" y1="112" x2="898" y2="112"/>
+          <text class="lbl" x="745" y="98" text-anchor="middle">后台线程异步刷脏页</text>
+          <g class="num"><circle cx="745" cy="112" r="11"/><text x="745" y="116" text-anchor="middle">8</text></g>
+        </g>
+      </svg>
+
+      <div class="stepper" id="stepper"></div>
+      <div class="phases"><div class="ph-exec">执行阶段</div><div class="ph-commit">提交阶段 · 两阶段提交</div><div class="ph-bg">后台</div></div>
+      <div class="progress"><i id="bar"></i></div>
+      <p class="note">快捷键：<kbd>←</kbd> <kbd>→</kbd> 切换步骤，<kbd>空格</kbd> 播放 / 暂停。</p>
+    </div>
+
+    <aside class="panel side">
+      <div class="tags"><span class="tag no" id="step-no"></span><span class="tag" id="step-phase"></span></div>
+      <div class="title" id="step-title"></div>
+      <p id="step-desc"></p>
+      <div class="path" id="step-path"></div>
+      <div class="item talk"><b>面试怎么讲</b><span id="step-talk"></span></div>
+      <div class="item wrong"><b>易错点</b><span id="step-wrong"></span></div>
+      <div class="tip" id="step-tip"></div>
+      <p class="note">这是教学示意图，突出主路径。真实实现还涉及组提交、doublewrite、checkpoint 等机制。</p>
+    </aside>
+  </section>
+
+  <section class="panel section">
+    <div class="sub">02 · 日志职责</div>
+    <h2>Undo、Redo、Binlog 分别做什么？</h2>
+    <div class="cards">
+      <div class="card"><h3>Undo Log</h3><p>InnoDB 层，保存修改前的数据，用于事务回滚，也支撑 MVCC 的旧版本读取。</p><span class="pill p1">回滚 / MVCC</span></div>
+      <div class="card"><h3>Redo Log</h3><p>InnoDB 层的物理日志，记录页的修改，保证崩溃恢复，让数据页可以延后刷盘。</p><span class="pill p2">持久性 / 崩溃恢复</span></div>
+      <div class="card"><h3>Binlog</h3><p>Server 层的逻辑日志，用于主从复制和基于时间点的恢复。</p><span class="pill p3">复制 / PITR</span></div>
+    </div>
+  </section>
+
+  <section class="panel section">
+    <div class="sub">03 · 面试总结</div>
+    <h2>40 秒回答模板</h2>
+    <table class="table">
+      <tr><th style="width:170px">阶段</th><th>对应步骤</th><th>可以这样说</th></tr>
+      <tr><td>1. 定位记录</td><td>①</td><td>执行器调用 InnoDB，通过索引定位记录，数据页不在内存时从 .ibd 读到 Buffer Pool。</td></tr>
+      <tr><td>2. 修改前保护</td><td>②</td><td>先记录 Undo Log，用于回滚和 MVCC。</td></tr>
+      <tr><td>3. 改内存页</td><td>③</td><td>在 Buffer Pool 中修改数据页，页被标记为脏页。</td></tr>
+      <tr><td>4. 写 Redo</td><td>④</td><td>同时生成 Redo，写入 Redo Log Buffer。</td></tr>
+      <tr><td>5. 两阶段提交</td><td>⑤ ⑥ ⑦</td><td>Redo prepare 刷盘 → 写 binlog 并刷盘 → Redo commit，保证 Redo 和 Binlog 一致。</td></tr>
+      <tr><td>6. 后台刷脏</td><td>⑧</td><td>提交成功后，脏页由后台线程异步刷回 .ibd，不在提交路径上。</td></tr>
+    </table>
+  </section>
+
+  <div class="foot">单文件 HTML · 浏览器直接打开 · 无需联网</div>
+</main>
+
 <script>
-const steps=[
-{title:'客户端发送 SQL',desc:'客户端开启事务并发送 UPDATE。假定 account 表中 id=1 的余额为 1000 元，最终要减去 100 元。',tip:'SQL 入口在客户端，但真正的数据更新发生在 InnoDB 引擎。',active:['client'],tx:'开始事务',lock:'未持有',redo:'未产生',binlog:'未提交',foot:'事务开始，数据尚未变化。'},
-{title:'连接器与解析器',desc:'连接器处理连接和身份认证。解析器完成词法、语法分析及相关名称解析；权限检查可能涉及多个阶段。',tip:'语法错误会在执行前被发现。MySQL 8.0 已移除查询缓存。',active:['connect','parser'],tx:'执行中',lock:'未持有',redo:'未产生',binlog:'未提交',foot:'此阶段仍未访问要修改的数据页。'},
-{title:'优化器选定主键访问路径',desc:'优化器选择合适的执行计划。WHERE id=1 可通过主键索引定位目标记录，而不必扫描整张表。',tip:'优化器决定访问路径；执行器再按计划与存储引擎交互。',active:['optimizer','executor'],tx:'执行中',lock:'未持有',redo:'未产生',binlog:'未提交',foot:'主键索引决定如何定位页和记录。'},
-{title:'InnoDB 定位数据并获取行锁',desc:'引擎通过 B+ 树索引访问相关页。若所需页尚不在 Buffer Pool 中，就从磁盘读取；UPDATE 属于当前读，需获取相应的排他锁。',tip:'加锁时间与实际读写路径相关；该示例抽象为定位记录并获得行锁。',active:['row','pool','disk'],tx:'执行中',lock:'已持有 X 锁',redo:'未产生',binlog:'未提交',foot:'内存中缓存数据页，id=1 记录目前仍为 1000。'},
-{title:'生成 Undo Log · 保存回滚信息',desc:'修改前，InnoDB 生成必要的 undo 记录，用于事务回滚，以及为 MVCC 提供旧版本读取能力。',tip:'Undo Log 不是简单地保存一份完整旧行；它包含支持撤销和版本链所需的信息。Undo 页本身的修改也受 Redo 保护。',active:['undo','row'],tx:'执行中',lock:'已持有 X 锁',redo:'开始产生',binlog:'暂存中',undo:1,redop:1,foot:'旧版本相关信息已记录；实际内部动作可交织进行。'},
-{title:'修改 Buffer Pool 中的数据页',desc:'InnoDB 将内存数据页里的余额从 1000 改为 900，产生必要的 redo 记录，并把被修改的页标记为脏页。',tip:'此时磁盘数据页仍可以是 1000。并不表示事务已提交，也不表示其他事务一定能读到 900。',active:['pool','redo'],tx:'尚未提交',lock:'已持有 X 锁',redo:'已产生',binlog:'暂存中',undo:1,redop:1,dirty:1,mem:900,foot:'内存：900 ｜ 磁盘数据页：1000。日志与数据页的持久化节奏不同。'},
-{title:'Server 层暂存 Binlog 事件',desc:'执行事务时，Server 层可以把需要记录的变更事件暂存到事务级 Binlog Cache，准备在提交时写入 Binlog 文件。',tip:'注意：Binlog Cache 与 InnoDB 的 Buffer Pool 完全不是一回事。',active:['bincache','executor'],tx:'待提交',lock:'已持有 X 锁',redo:'已产生',binlog:'Cache 暂存',undo:1,redop:1,binc:1,dirty:1,mem:900,foot:'先暂存事件，尚未完成 Binlog 提交。'},
-{title:'第一阶段：Redo Prepare',desc:'进入事务提交协调阶段。InnoDB 将该事务置为 prepared 状态；典型持久化配置下要确保相应日志满足提交所需的持久性要求。',tip:'Prepare 是两阶段提交的第一阶段，不是说直到现在才开始产生 Redo。',active:['redo','logdisk'],tx:'准备提交',lock:'已持有 X 锁',redo:'PREPARE',binlog:'尚未提交',undo:1,redop:2,binc:1,dirty:1,mem:900,foot:'关键检查点 A：Redo prepared，Binlog 事务还未完成。'},
-{title:'第二步：Server 提交 Binlog',desc:'Server 将事务 Binlog 事件从 Cache 写入 Binlog 文件，并按 sync_binlog 等配置进行同步；之后才进入 Redo Commit。',tip:'写文件（write）与刷盘（fsync）不是同一个动作。宕机恢复必须关注完整事务及实际持久性保证。',active:['binlog','bincache','logdisk'],tx:'提交协调中',lock:'已持有 X 锁',redo:'PREPARE',binlog:'已提交',undo:1,redop:2,binc:2,dirty:1,mem:900,foot:'关键检查点 B：Binlog 已完成，Redo 仍可处于 Prepare。'},
-{title:'第二阶段：Redo Commit',desc:'InnoDB 收到事务提交完成的协调结果，将 prepared 事务标记为 committed，完成引擎侧提交。',tip:'两阶段提交的核心顺序：Redo Prepare → Binlog 提交 → Redo Commit。',active:['redo','logdisk'],tx:'已提交',lock:'即将释放',redo:'COMMIT',binlog:'已提交',undo:1,redop:3,binc:2,dirty:1,mem:900,foot:'事务的提交状态已确认，数据页依然允许保持为脏页。'},
-{title:'释放行锁并返回成功',desc:'事务提交完成后，相应事务锁释放；Server 返回执行结果，客户端得知本次更新已成功。',tip:'事务提交成功 ≠ 修改过的数据页一定已立刻写回磁盘。',active:['result','row'],tx:'已提交',lock:'已释放',redo:'COMMIT',binlog:'已提交',undo:1,redop:3,binc:2,dirty:1,mem:900,foot:'事务已提交；脏页可以留在 Buffer Pool 里。'},
-{title:'后台刷脏页（异步发生）',desc:'InnoDB 后台线程在适当时机将脏数据页写回表空间。此时示例磁盘数据页里的余额也变为 900。刷盘不一定刚好发生在提交之后。',tip:'WAL 的关键价值：先保障日志条件，再让数据页批量或延迟写回，减少随机 I/O。',active:['pool','disk'],tx:'已提交',lock:'已释放',redo:'COMMIT',binlog:'已提交',undo:1,redop:3,binc:2,mem:900,disk:900,foot:'内存与磁盘数据页都显示 900。完整更新演示结束。'}
-];
-let step=0,timer=null;const $=id=>document.getElementById(id);const nodes=['client','result','connect','parser','optimizer','executor','bincache','binlog','row','pool','undo','redo','disk','logdisk'];const seen=new Set();function update(){let s=steps[step];nodes.forEach(n=>{let e=$('n-'+n);e.dataset.active=s.active.includes(n);e.dataset.done=!s.active.includes(n)&&steps.slice(0,step).some(x=>x.active.includes(n))});$('counter').textContent=`步骤 ${step+1} / ${steps.length}`;$('bar').style.width=`${(step+1)/steps.length*100}%`;$('stepbadge').textContent='STEP '+String(step+1).padStart(2,'0');$('steptitle').textContent=s.title;$('explain').textContent=s.desc;$('tip').textContent=s.tip;$('tx').textContent=s.tx;$('lock').textContent=s.lock;$('redo').textContent=s.redo;$('binlog').textContent=s.binlog;$('footnote').textContent=s.foot;$('memmoney').textContent='¥'+(s.mem||1000).toLocaleString('en-US');$('diskmoney').textContent='¥'+(s.disk||1000).toLocaleString('en-US');$('memmoney').classList.toggle('changed',!!s.mem);$('diskmoney').classList.toggle('changed',!!s.disk);$('dirty').textContent=s.dirty?'脏页 · 尚未刷盘':s.mem?'已刷盘 · 干净页':'干净页';$('dirty').className='pill '+(s.dirty?'orange':s.mem?'green':'');$('ustat').textContent=s.undo?'已生成 · 支持撤销':'尚未生成';$('rstat').textContent=['尚未生成','执行时已产生','PREPARE','COMMIT'][s.redop||0];$('bstat').textContent=['尚未生成','Binlog Cache','Binlog 已提交'][s.binc||0];['u','r','b'].forEach(k=>$(k+'dot').className='dot '+(k==='u'?(s.undo?'ok':''):k==='r'?(s.redop===3?'ok':s.redop?'on':''):(s.binc===2?'ok':s.binc?'on':'')));$('prev').disabled=step===0;$('next').disabled=step===steps.length-1;}function stop(){if(timer){clearInterval(timer);timer=null}$('play').textContent='▶ 自动演示'}function go(n){step=Math.min(Math.max(n,0),steps.length-1);update();if(step===steps.length-1)stop()}$('prev').onclick=()=>{stop();go(step-1)};$('next').onclick=()=>{stop();go(step+1)};$('reset').onclick=()=>{stop();go(0)};$('play').onclick=()=>{if(timer){stop();return}if(step===steps.length-1)go(0);$('play').textContent='Ⅱ 暂停演示';timer=setInterval(()=>go(step+1),1900)};$('copy').onclick=async()=>{let sql='BEGIN;\nUPDATE account SET balance = balance - 100 WHERE id = 1;\nCOMMIT;';try{await navigator.clipboard.writeText(sql);$('copy').textContent='已复制 ✓';setTimeout(()=>$('copy').textContent='复制 SQL',1300)}catch(e){$('copy').textContent='请手动复制'}};document.querySelectorAll('[data-case]').forEach(btn=>btn.onclick=()=>{const el=$('case-'+btn.dataset.case);el.classList.toggle('show');btn.textContent=el.classList.contains('show')?'收起恢复结果':'模拟宕机恢复'});document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;if(e.key==='ArrowRight'){stop();go(step+1)}if(e.key==='ArrowLeft'){stop();go(step-1)}});update();
-</script></body></html>
+  const PHASE = {
+    exec:{name:'执行阶段', c:'#0ea5e9', bg:'#e0f2fe', fg:'#0369a1'},
+    commit:{name:'两阶段提交', c:'#8b5cf6', bg:'#ede9fe', fg:'#6d28d9'},
+    bg:{name:'后台阶段', c:'#10b981', bg:'#d1fae5', fg:'#047857'}
+  };
+  const steps = [
+    { n:'①', short:'读数据页', phase:'exec', title:'① 从磁盘读页到 Buffer Pool',
+      desc:'执行器调用 InnoDB 定位 id = 1 的记录。如果所在数据页不在 Buffer Pool 中，就从 .ibd 文件把整页读入内存。',
+      path:['.ibd','Buffer Pool'], talk:'先定位记录，缺页时从 .ibd 读取数据页到 Buffer Pool。',
+      wrong:'读页只是准备阶段，和事务提交无关。', tip:'InnoDB 以“页”为单位读写，默认 16KB，不是只读一行。',
+      nodes:['n-exec','n-bp','n-ibd'], edges:['e1'] },
+    { n:'②', short:'写 Undo', phase:'exec', title:'② 记录 Undo Log',
+      desc:'修改前先把旧值（balance 原值）写入 Undo Log，供回滚和 MVCC 读取旧版本使用。',
+      path:['Buffer Pool','Undo Log'], talk:'更新前先生成 Undo，事务回滚时按 Undo 撤销修改。',
+      wrong:'Undo 不用于主从复制，它服务于回滚和 MVCC。', tip:'Undo 页本身也在 Buffer Pool 中，并受 Redo 保护。',
+      nodes:['n-bp','n-undo'], edges:['e2'] },
+    { n:'③', short:'改内存页', phase:'exec', title:'③ 更新 Buffer Pool 中的数据页',
+      desc:'在 Buffer Pool 中把 balance 减 100，该页变成脏页（内存与磁盘不一致）。此时磁盘上的 .ibd 还没变。',
+      path:['执行器','Buffer Pool'], talk:'执行器调用引擎接口修改内存中的数据页，并把页标记为脏页。',
+      wrong:'事务提交成功，不等于数据页已经刷盘。', tip:'图中橙色的页就是脏页。',
+      nodes:['n-exec','n-bp'], edges:['e3'] },
+    { n:'④', short:'写 Redo 缓冲', phase:'exec', title:'④ 生成 Redo 写入 Redo Log Buffer',
+      desc:'修改数据页的同时生成 Redo 记录，先写入内存中的 Redo Log Buffer。',
+      path:['执行器','Redo Log Buffer'], talk:'Redo 记录页的物理修改，是崩溃恢复的依据。',
+      wrong:'Redo 在执行过程中就产生，不是提交时才生成。', tip:'可以强调：执行时产生，提交时持久化。',
+      nodes:['n-exec','n-redobuf'], edges:['e4'] },
+    { n:'⑤', short:'Redo prepare', phase:'commit', title:'⑤ Redo 刷盘，进入 prepare',
+      desc:'提交开始：Redo Log Buffer 先 write() 到操作系统 Page Cache，再 fsync() 到 Redo Log 文件，事务标记为 prepare。刷盘时机由 innodb_flush_log_at_trx_commit 决定。',
+      path:['Redo Log Buffer','Page Cache','Redo Log'], talk:'两阶段提交第一步：Redo 以 prepare 状态落盘。',
+      wrong:'write() 到 Page Cache 不等于落盘，只有 fsync() 才写到稳定存储。', tip:'参数为 1 时每次提交都 fsync，宕机不丢已提交事务。',
+      nodes:['n-redobuf','n-pc','n-redo'], edges:['e5'] },
+    { n:'⑥', short:'写 binlog', phase:'commit', title:'⑥ 写 binlog 并刷盘',
+      desc:'Server 层把 binlog 写入 Page Cache，再按 sync_binlog 策略 fsync 到 binlog 文件。sync_binlog = 1 表示每次提交都刷盘。',
+      path:['执行器','Page Cache','binlog'], talk:'两阶段提交第二步：写 binlog，保证复制和时间点恢复可用。',
+      wrong:'binlog 是 Server 层日志，Redo 是 InnoDB 层日志，职责不同。', tip:'“双 1” 配置：innodb_flush_log_at_trx_commit = 1 且 sync_binlog = 1。',
+      nodes:['n-exec','n-pc','n-binlog'], edges:['e6'] },
+    { n:'⑦', short:'Redo commit', phase:'commit', title:'⑦ Redo commit，提交完成',
+      desc:'在 Redo Log 中写入 binlog 文件名和 commit 标识，事务从 prepare 变为 commit，两阶段提交完成，返回客户端成功。',
+      path:['binlog','Redo Log'], talk:'Redo prepare → 写 binlog → Redo commit。',
+      wrong:'崩溃恢复时，prepare 状态的事务会检查 binlog 是否完整：完整就提交，不完整就回滚。', tip:'这是整条更新语句最值得强调的一步。',
+      nodes:['n-binlog','n-redo','n-client','n-exec'], edges:['e7'] },
+    { n:'⑧', short:'后台刷脏', phase:'bg', title:'⑧ 后台异步刷脏页',
+      desc:'事务已经提交。Buffer Pool 中的脏页由后台线程在合适时机（checkpoint、内存不足、空闲时）刷回 .ibd，期间借助 doublewrite 防止页损坏。',
+      path:['Buffer Pool','.ibd'], talk:'数据页刷盘是异步的，有 Redo 兜底，所以不必在提交时同步写数据页。',
+      wrong:'刷脏页不在提交路径上，不影响事务响应时间。', tip:'这就是 WAL（先写日志，再写数据）的核心收益。',
+      nodes:['n-bp','n-ibd'], edges:['e8'] }
+  ];
+
+  const $ = id => document.getElementById(id);
+  const svg = $('dg'), stepper = $('stepper');
+  let cur = 0, timer = null;
+
+  steps.forEach((s,i)=>{
+    const b = document.createElement('button');
+    b.className = 'stp';
+    b.style.setProperty('--c', PHASE[s.phase].c);
+    b.innerHTML = `<span class="n">${s.n}</span><span class="s">${s.short}</span>`;
+    b.onclick = () => { stop(); render(i); };
+    stepper.appendChild(b);
+  });
+
+  function render(i){
+    cur = i;
+    const s = steps[i], ph = PHASE[s.phase];
+    svg.classList.add('focus');
+    svg.querySelectorAll('.node,.edge').forEach(el=>{
+      el.classList.toggle('active', s.nodes.includes(el.id) || s.edges.includes(el.id));
+    });
+
+    const dirty = i >= 2 && i <= 6;
+    $('page-target').classList.toggle('dirty', dirty);
+    $('page-target-t').textContent = dirty ? '脏页' : '缓存页';
+
+    const st = $('redo-state');
+    if (i === 4 || i === 5){ st.textContent = '状态：prepare'; st.setAttribute('fill','#c2410c'); }
+    else if (i >= 6){ st.textContent = '状态：commit'; st.setAttribute('fill','#15803d'); }
+    else st.textContent = '';
+
+    stepper.querySelectorAll('.stp').forEach((b,k)=>{
+      b.classList.toggle('active', k===i);
+      b.classList.toggle('done', k<i);
+    });
+    $('bar').style.width = ((i+1)/steps.length*100) + '%';
+
+    $('step-no').textContent = `步骤 ${i+1} / ${steps.length}`;
+    const tag = $('step-phase');
+    tag.textContent = ph.name; tag.style.background = ph.bg; tag.style.color = ph.fg;
+    $('step-title').textContent = s.title;
+    $('step-desc').textContent = s.desc;
+    $('step-path').innerHTML = s.path.map(p=>`<span>${p}</span>`).join('<em>→</em>');
+    $('step-talk').textContent = s.talk;
+    $('step-wrong').textContent = s.wrong;
+    $('step-tip').textContent = s.tip;
+  }
+
+  const go = d => render((cur + d + steps.length) % steps.length);
+  function stop(){ clearInterval(timer); timer = null; $('play').textContent = '▶ 自动播放'; }
+  function toggle(){
+    if (timer) return stop();
+    $('play').textContent = '❚❚ 暂停';
+    timer = setInterval(()=>go(1), 3000);
+  }
+  $('prev').onclick = () => { stop(); go(-1); };
+  $('next').onclick = () => { stop(); go(1); };
+  $('play').onclick = toggle;
+  document.addEventListener('keydown', e=>{
+    if (e.key === 'ArrowRight'){ stop(); go(1); }
+    else if (e.key === 'ArrowLeft'){ stop(); go(-1); }
+    else if (e.key === ' '){ e.preventDefault(); toggle(); }
+  });
+
+  render(0);
+</script>
+</body>
+</html>
