@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MySQL EXPLAIN type 交互教学</title>
+<style>
+:root{--bg:#0b1020;--panel:#151d32;--panel2:#1c2741;--line:#30405d;--text:#eaf1ff;--muted:#9cabc7;--blue:#61a5ff;--green:#40d6a2;--amber:#ffbd69;--red:#ff7187}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0%,#202e55 0%,var(--bg) 45%) fixed;font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;color:var(--text);line-height:1.65}
+.wrap{max-width:1150px;margin:auto;padding:32px 22px 80px}
+.eyebrow{font-size:12px;letter-spacing:3px;color:var(--green);font-weight:800}
+h1{font-size:clamp(28px,4vw,44px);margin:7px 0 8px;line-height:1.25}
+h2{font-size:23px;margin:0 0 15px}
+.desc{color:var(--muted);margin:0}
+.panel{background:rgba(21,29,50,.95);border:1px solid var(--line);border-radius:18px;padding:22px;margin:18px 0;box-shadow:0 16px 34px #0002;scroll-margin-top:12px}
+.level{display:flex;flex-wrap:wrap;gap:9px;align-items:stretch}
+.level .sep{align-self:center;color:var(--muted)}
+button{font:inherit;color:inherit}
+.chip,.tab,.btn,.choice{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:9px 14px;cursor:pointer;transition:.15s}
+.chip:hover,.tab:hover,.btn:hover,.choice:hover:not(:disabled){border-color:var(--blue);transform:translateY(-1px)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.chip{font-family:ui-monospace,Consolas,monospace;font-weight:700}
+.chip.active{background:#204777;color:#fff}
+.chip small{display:block;font-size:10px;color:var(--muted);font-family:system-ui,"Microsoft YaHei",sans-serif;font-weight:400}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+.grid>.panel{margin:0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.tag{border-radius:99px;padding:4px 10px;font-weight:700;font-size:12px;background:#164f46;color:#8ff3c8}
+.tag.info{background:#1e365a;color:#a9d5ff}.tag.warn{background:#64421c;color:#ffcf8b}.tag.bad{background:#5e2d39;color:#ff9aaa}
+.code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#090f1e;border:1px solid #293858;border-radius:12px;padding:16px;white-space:pre-wrap;overflow:auto;color:#d7e8ff;font-size:13px;margin:8px 0 14px}
+.sub{color:var(--muted);font-size:13px}
+.pill{display:inline-block;color:#a9d5ff;background:#1e365a;border-radius:7px;padding:2px 8px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.visual{min-height:235px;border:1px dashed #3c537a;border-radius:14px;padding:17px;background:#101a30}
+.lane-title{font-size:12px;color:var(--muted);margin-top:12px}
+.records{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+.record{font-size:12px;min-width:54px;text-align:center;padding:7px 8px;border:1px solid #426082;border-radius:8px;background:#203555;transition:.2s;line-height:1.35}
+.record b{display:block;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.record i{font-style:normal;font-size:10px;color:#b9c9e6}
+.record.hit{background:#0f766e;border-color:#61f0c5;color:#fff}
+.record.scan{background:#6b4318;border-color:#ffbe72}
+.record.dim{opacity:.37}
+.record.active{outline:2px solid #fff;outline-offset:2px;transform:translateY(-2px)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.counter{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.summary{font-size:14px;margin:10px 0 0;color:#c5d5f1}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%}
+.explain-table{min-width:620px}
+.cmp-table{min-width:520px}
+th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+.explain-table td,.explain-table th{font-family:ui-monospace,Consolas,monospace;font-size:13px;white-space:nowrap}
+th{color:#90add6;background:#1b2a48}
+td code{color:#a9d5ff}
+tr.focus td{background:#17294a}
+tr:last-child td{border-bottom:0}
+.quiz{margin:15px 0;padding:15px;background:#101a2d;border:1px solid var(--line);border-radius:12px}
+.quiz code{color:#d7e8ff;font-size:13px}
+.opts{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+.choice{font-family:ui-monospace,Consolas,monospace}
+.choice:disabled{cursor:default;opacity:.55}
+.choice.correct{background:#0f614f;border-color:var(--green);opacity:1}
+.choice.wrong{background:#6b2637;border-color:var(--red);opacity:1}
+.feedback{margin:9px 0 0;font-size:13px}
+.feedback.ok{color:var(--green)}.feedback.no{color:var(--amber)}
+.link{background:none;border:0;color:var(--blue);cursor:pointer;padding:0;text-decoration:underline}
+.btn{background:#2564b6;border-color:#477fca;font-weight:700}
+.mini{font-size:12px;color:var(--muted)}
+details{margin-top:6px}
+summary{cursor:pointer;color:#c5d5f1;font-weight:700}
+.footer{font-size:12px;color:var(--muted);margin-top:25px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.wrap{padding:22px 12px 50px}.panel{padding:16px}.chip{padding:8px 11px}.record{min-width:44px;padding:6px 5px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header>
+  <div class="eyebrow">MYSQL · EXPLAIN · INTERACTIVE</div>
+  <h1>7 种常见 type，一次讲明白</h1>
+  <p class="desc">点击访问类型，查看 SQL、EXPLAIN 示意结果和扫描过程动画，最后用练习巩固。纯本地 HTML，无须联网。键盘 ← → 可切换类型。</p>
+</header>
+
+<section class="panel">
+  <h2>访问效率等级 <small class="mini">（通常从优到劣）</small></h2>
+  <div class="level" id="level" role="toolbar" aria-label="选择访问类型"></div>
+  <p class="mini">注意：type 只表示访问方式，不是实际耗时排名。数据量、扫描行数、选择性、回表次数和覆盖索引都会影响性能。system 在 InnoDB 日常场景极少见。</p>
+</section>
+
+<section class="grid" id="detail">
+  <article class="panel">
+    <div class="row"><h2 id="name" style="margin:0;font-family:ui-monospace,Consolas,monospace"></h2><span id="badge" class="tag"></span></div>
+    <p id="meaning"></p>
+    <div class="row"><span class="sub">SQL 示例</span><button id="copy" class="tab" type="button">复制 SQL</button></div>
+    <pre id="sql" class="code"></pre>
+    <div class="sub">EXPLAIN 关键字段（示意）</div>
+    <div class="table-wrap">
+      <table class="explain-table">
+        <thead><tr><th>table</th><th>type</th><th>possible_keys</th><th>key</th><th>ref</th><th>rows</th><th>Extra</th></tr></thead>
+        <tbody id="result"></tbody>
+      </table>
+    </div>
+    <p class="mini" id="caveat"></p>
+  </article>
+
+  <article class="panel">
+    <h2>扫描过程演示</h2>
+    <div class="visual">
+      <div class="sub" id="visTitle"></div>
+      <div id="records" aria-hidden="true"></div>
+      <div class="legend"><span style="--c:#0f766e">返回</span><span style="--c:#6b4318">检查后丢弃</span><span style="--c:#203555">未访问</span></div>
+      <div class="counter"><span class="pill" id="cntScan"></span><span class="pill" id="cntHit"></span></div>
+      <p class="summary" id="visSummary"></p>
+      <p class="sr" aria-live="polite" id="live"></p>
+    </div>
+    <p id="explain" class="sub"></p>
+    <div class="actions">
+      <button class="tab" id="play" type="button">▶ 播放扫描</button>
+      <button class="tab" id="prev" type="button">← 上一种</button>
+      <button class="btn" id="next" type="button">下一种类型 →</button>
+    </div>
+  </article>
+</section>
+
+<section class="panel">
+  <h2>对比：最容易混淆的几组</h2>
+  <div class="table-wrap"><table class="cmp-table"><thead><tr><th>对比</th><th>关键区别</th></tr></thead><tbody>
+    <tr><td><code>const vs eq_ref</code></td><td>都是主键/唯一索引等值查找、最多一行。const 是单表与常量比较，在优化阶段就能读出结果；eq_ref 出现在 JOIN 中，对前表的每一行最多匹配本表一行。</td></tr>
+    <tr><td><code>eq_ref vs ref</code></td><td>eq_ref 每次关联最多找到一行；ref 用普通（非唯一）索引或唯一索引的最左前缀做等值匹配，可能返回多行。</td></tr>
+    <tr><td><code>range vs index</code></td><td>range 在索引中定位一个或多个区间再扫描；index 从头到尾扫描整个索引。</td></tr>
+    <tr><td><code>index vs ALL</code></td><td>index 扫描全部索引项，ALL 扫描全部数据行。覆盖索引时 index 通常读得更少，但并非所有数据分布下都必然更快。</td></tr>
+    <tr><td><code>type=index vs Extra: Using index</code></td><td>前者是"全索引扫描"这一访问方式；后者表示用了覆盖索引、不必回表。两者可以同时出现，也可以单独出现（例如 ref + Using index）。</td></tr>
+  </tbody></table></div>
+  <details>
+    <summary>其余 5 种 type（了解即可）</summary>
+    <div class="table-wrap"><table class="cmp-table"><thead><tr><th>type</th><th>含义与典型写法</th></tr></thead><tbody>
+      <tr><td><code>fulltext</code></td><td>使用 FULLTEXT 索引：<code>MATCH(title) AGAINST('mysql')</code>。</td></tr>
+      <tr><td><code>ref_or_null</code></td><td>类似 ref，额外查找 NULL：<code>WHERE age = 20 OR age IS NULL</code>。</td></tr>
+      <tr><td><code>index_merge</code></td><td>合并多个索引的结果，Extra 中会出现 Using union / intersect / sort_union：<code>WHERE a = 1 OR b = 2</code>（a、b 各有索引）。</td></tr>
+      <tr><td><code>unique_subquery</code></td><td><code>value IN (SELECT 主键 FROM t WHERE ...)</code> 形式的子查询，用唯一索引查找。</td></tr>
+      <tr><td><code>index_subquery</code></td><td>同上，但子查询使用非唯一索引。MySQL 8 中这两种子查询常被半连接等策略改写，较少见到。</td></tr>
+    </tbody></table></div>
+    <p class="mini">官方完整顺序（从优到劣）：system → const → eq_ref → ref → fulltext → ref_or_null → index_merge → unique_subquery → index_subquery → range → index → ALL。</p>
+  </details>
+</section>
+
+<section class="panel" id="quizPanel">
+  <div class="row"><h2 style="margin:0">面试自测</h2><span id="score" class="pill"></span></div>
+  <p class="sub">根据下方示例表结构，选择最典型的访问类型（真实优化器会根据统计信息做选择，不一定如此）。每题作答后锁定。</p>
+  <div id="quizzes"></div>
+  <div class="row"><button class="btn" id="reset" type="button">重新作答</button><strong id="total"></strong></div>
+</section>
+
+<section class="panel">
+  <h2>面试一句话总结</h2>
+  <p>通常要求查询至少达到 <strong style="color:var(--green)">range</strong>，等值查询争取 <strong style="color:var(--green)">ref</strong> 或更好。但评估 SQL 时还要结合 <code>key</code>、<code>key_len</code>、<code>rows</code>、<code>filtered</code>、<code>Extra</code>，必要时用 <code>EXPLAIN ANALYZE</code>（MySQL 8.0.18+）查看实际执行情况。</p>
+  <p class="mini">示例表结构：users(id PRIMARY KEY, name VARCHAR(50), age INT, INDEX idx_age(age))；orders(id PRIMARY KEY, user_id BIGINT, INDEX idx_user_id(user_id))。users.name 没有索引。</p>
+</section>
+
+<div class="footer">教学示意 · 针对 MySQL 8.x 常见 EXPLAIN 访问类型 · 所有结果均为示例，不是实时数据库查询，rows 为估算示意值。</div>
+</main>
+
+<script>
+const AGES=[18,19,20,20,20,23,26,30,33,41];
+const AGE_IDS=[7,2,4,9,1,6,3,10,5,8];
+const NAMES=['Amy','Bob','Cat','Tom','Dan','Eve','Fay','Gus','Ivy','Joe'];
+const ageIdx=()=>AGES.map((a,i)=>({k:'age='+a,s:'→ id '+AGE_IDS[i]}));
+const range=(a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
+
+const data=[
+{type:'system',lv:'info',badge:'特殊 · 极少见',color:'#26ce99',
+ meaning:'表中只有一行（系统表），是 const 的特例。常见于单行 MyISAM / MEMORY 表；InnoDB 表因行数统计是估算值，通常不会出现。',
+ sql:'-- 需要 MyISAM 单行表\nCREATE TABLE settings (id INT) ENGINE=MyISAM;\nINSERT INTO settings VALUES (1);\nEXPLAIN SELECT * FROM settings;',
+ rows:[{t:'settings',pk:'NULL',key:'NULL',ref:'NULL',r:1,x:'NULL'}],
+ caveat:'是否出现 system 由存储引擎与精确行数决定，不应当作日常优化目标。',
+ vis:{title:'整张表：1 行',cells:[{k:'id=1',s:'唯一行'}],order:[0],hit:[0]},
+ summary:'整张表只有 1 行，优化器直接把它当作常量。',
+ explain:'这是引擎与表行数决定的特殊情况，了解即可。'},
+{type:'const',lv:'',badge:'优秀 · 常量定位',color:'#30d39b',
+ meaning:'用主键或唯一索引的全部列与常量做等值匹配，最多读取一行，优化阶段即可把结果当常量。',
+ sql:'EXPLAIN SELECT *\nFROM users\nWHERE id = 3;',
+ rows:[{t:'users',pk:'PRIMARY',key:'PRIMARY',ref:'const',r:1,x:'NULL'}],
+ caveat:'如果常量在表中不存在，Extra 会显示 no matching row in const table，type 列为 NULL。',
+ vis:{title:'PRIMARY 聚簇索引（按 id 有序），B+ 树直接定位 id=3',cells:range(1,10).map(i=>({k:'id='+i,s:NAMES[i-1]})),order:[2],hit:[2]},
+ summary:'沿 B+ 树直达 id=3，不访问其他记录。',
+ explain:'条件必须覆盖唯一索引的全部列；只用联合唯一索引的一部分列时通常是 ref。'},
+{type:'eq_ref',lv:'',badge:'优秀 · JOIN 唯一匹配',color:'#51d6a9',join:true,
+ meaning:'关联查询时，对前一张表（驱动表）的每一行，通过本表的主键或非空唯一索引最多匹配一行。',
+ sql:'EXPLAIN SELECT o.id, u.name\nFROM orders o\nJOIN users u ON o.user_id = u.id;',
+ rows:[{t:'o',type:'index',pk:'idx_user_id',key:'idx_user_id',ref:'NULL',r:5,x:'Using index'},{t:'u',pk:'PRIMARY',key:'PRIMARY',ref:'db.o.user_id',r:1,x:'NULL',focus:true}],
+ caveat:'type 是针对每一张表的，JOIN 中不同表的 type 可以不同。优化器也可能改用 users 驱动、orders 走 ref。',
+ vis:{title:'驱动表 orders 的每一行 → users.PRIMARY 唯一查找',orders:[{k:'o.101',s:'user_id=3'},{k:'o.102',s:'user_id=1'},{k:'o.103',s:'user_id=3'},{k:'o.104',s:'user_id=7'},{k:'o.105',s:'user_id=5'}],ou:[3,1,3,7,5],users:range(1,8)},
+ summary:'每条订单按 user_id 到 users 主键中查找，最多命中 1 个用户。',
+ explain:'这里突出显示的是 u 表（被驱动表）的访问类型。o 表因只用到 id 和 user_id，可以全扫 idx_user_id 覆盖索引。'},
+{type:'ref',lv:'',badge:'良好 · 非唯一等值',color:'#64a8ff',
+ meaning:'使用普通（非唯一）索引，或唯一索引的最左前缀做等值查询，可能匹配多条记录。',
+ sql:'EXPLAIN SELECT *\nFROM users\nWHERE age = 20;',
+ rows:[{t:'users',pk:'idx_age',key:'idx_age',ref:'const',r:3,x:'NULL'}],
+ caveat:'如果该值命中表中大部分行，回表成本过高，优化器可能改选全表扫描。',
+ vis:{title:'二级索引 idx_age（按 age 有序），相同值相邻存放',cells:ageIdx(),order:[2,3,4,5],hit:[2,3,4]},
+ summary:'定位到第一个 age=20，向后读到第一个不等于 20 的项（age=23）就停止，再按 id 回表。',
+ explain:'ref 不保证只返回一行。同值记录越多，读取与回表的代价越高。'},
+{type:'range',lv:'info',badge:'可接受 · 索引范围',color:'#f9be6f',
+ meaning:'利用索引定位区间的起点，只扫描区间内的索引记录。',
+ sql:'EXPLAIN SELECT *\nFROM users\nWHERE age BETWEEN 20 AND 30;',
+ rows:[{t:'users',pk:'idx_age',key:'idx_age',ref:'NULL',r:6,x:'Using index condition'}],
+ caveat:'Extra 是否出现 Using index condition（索引条件下推）受查询列、索引结构和优化器开关影响。',
+ vis:{title:'idx_age 中只扫描 [20, 30] 区间',cells:ageIdx(),order:[2,3,4,5,6,7,8],hit:[2,3,4,5,6,7]},
+ summary:'从 age=20 开始顺序扫描，读到 age=33 越界后停止。',
+ explain:'>、<、BETWEEN、LIKE \'abc%\'、IN (...) 等条件都可能得到 range。'},
+{type:'index',lv:'warn',badge:'关注 · 全索引扫描',color:'#fa9e58',
+ meaning:'把整个索引从头到尾扫描一遍。如果索引覆盖了查询列，比扫描完整数据行读得少。',
+ sql:'EXPLAIN SELECT age\nFROM users;',
+ rows:[{t:'users',pk:'NULL',key:'idx_age',ref:'NULL',r:10,x:'Using index'}],
+ caveat:'possible_keys 为 NULL 但 key 有值，说明没有可用于过滤的索引，只是选了一个更小的覆盖索引来全扫。',
+ vis:{title:'扫描 idx_age 的全部索引项（不回表）',cells:ageIdx(),order:range(0,9),hit:range(0,9)},
+ summary:'虽然读的是索引，但仍要扫描全部索引记录。',
+ explain:'常见于只查询索引列且没有筛选条件，或 ORDER BY 能直接利用索引顺序时。'},
+{type:'ALL',lv:'bad',badge:'警惕 · 全表扫描',color:'#ff7187',
+ meaning:'逐行读取整张表（InnoDB 即全扫聚簇索引），检查每行是否符合条件。',
+ sql:"EXPLAIN SELECT *\nFROM users\nWHERE name = 'Tom';",
+ rows:[{t:'users',pk:'NULL',key:'NULL',ref:'NULL',r:10,x:'Using where'}],
+ caveat:'此时 filtered 通常较低（如 10.00），表示扫描的行中只有约 10% 满足条件。',
+ vis:{title:'name 没有索引：逐行扫描整张表',cells:range(1,10).map(i=>({k:'id='+i,s:NAMES[i-1]})),order:range(0,9),hit:[3]},
+ summary:'每一行都要检查，最终只有 Tom 满足条件。',
+ explain:'大表只取少量数据时应重点排查（加索引、改写条件）；小表或需要返回大部分行时，ALL 未必不合理。'}
+];
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let current=0,timer=null;
+
+function cell(c,cls){return `<span class="record ${cls}"><b>${esc(c.k)}</b><i>${esc(c.s)}</i></span>`}
+
+function drawVisual(step){
+  const d=data[current],v=d.vis,final=step==null;
+  let html='',scanned,returned;
+  if(d.join){
+    const n=final?v.orders.length:step;
+    const matched=new Set(v.ou.slice(0,n));
+    html+=`<div class="lane-title">orders（驱动表）</div><div class="records">`+v.orders.map((c,i)=>cell(c,(i<n?'hit':'dim')+(i===n-1&&!final?' active':''))).join('')+'</div>';
+    html+=`<div class="lane-title">users.PRIMARY（被驱动表）</div><div class="records">`+v.users.map(u=>cell({k:'id='+u,s:NAMES[u-1]},(matched.has(u)?'hit':'dim')+(!final&&n>0&&v.ou[n-1]===u?' active':''))).join('')+'</div>';
+    $('cntScan').textContent=`驱动表已处理 ${n} / ${v.orders.length} 行`;
+    $('cntHit').textContent=`users 唯一查找 ${n} 次，每次 ≤ 1 行`;
+    $('live').textContent=final?'':`处理第 ${n} 条订单`;
+  }else{
+    const n=final?v.order.length:step,done=v.order.slice(0,n),active=!final&&n>0?v.order[n-1]:-1;
+    html+='<div class="records">'+v.cells.map((c,i)=>cell(c,(done.includes(i)?(v.hit.includes(i)?'hit':'scan'):'dim')+(i===active?' active':''))).join('')+'</div>';
+    scanned=done.length;returned=done.filter(i=>v.hit.includes(i)).length;
+    $('cntScan').textContent=`已访问 ${scanned} / ${v.cells.length} 项`;
+    $('cntHit').textContent=`返回 ${returned} 行`;
+    $('live').textContent=final?'':`已访问 ${scanned} 项，返回 ${returned} 行`;
+  }
+  $('records').innerHTML=html;
+}
+
+function stopPlay(){clearInterval(timer);timer=null;$('play').textContent='▶ 播放扫描'}
+function play(){
+  if(timer){stopPlay();drawVisual();return}
+  const d=data[current],total=d.join?d.vis.orders.length:d.vis.order.length;
+  let step=0;drawVisual(0);$('play').textContent='■ 停止';
+  timer=setInterval(()=>{step++;if(step>total){stopPlay();drawVisual();return}drawVisual(step)},d.vis.cells&&d.vis.cells.length>8&&total>6?280:550);
+}
+
+function render(){
+  stopPlay();
+  const d=data[current];
+  $('level').innerHTML=data.map((e,i)=>(i?'<span class="sep" aria-hidden="true">›</span>':'')+`<button type="button" class="chip ${current===i?'active':''}" data-i="${i}" aria-pressed="${current===i}" style="${current===i?'border-color:'+e.color:''}">${e.type}<small>${e.badge.split(' · ')[0]}</small></button>`).join('');
+  document.querySelectorAll('.chip').forEach(x=>x.onclick=()=>go(+x.dataset.i));
+  $('name').textContent=d.type;$('name').style.color=d.color;
+  $('badge').textContent=d.badge;$('badge').className='tag '+d.lv;
+  $('meaning').textContent=d.meaning;
+  $('sql').textContent=d.sql;
+  $('result').innerHTML=d.rows.map(r=>{const t=r.type||d.type,f=r.focus||d.rows.length===1;return `<tr class="${f?'focus':''}"><td>${esc(r.t)}</td><td><strong style="color:${f?d.color:'inherit'}">${esc(t)}</strong></td><td>${esc(r.pk)}</td><td><code>${esc(r.key)}</code></td><td>${esc(r.ref)}</td><td>${r.r}</td><td>${esc(r.x)}</td></tr>`}).join('');
+  $('caveat').textContent='说明：'+d.caveat;
+  $('visTitle').textContent=d.vis.title;
+  $('visSummary').textContent=d.summary;
+  $('explain').textContent=d.explain;
+  drawVisual();
+  if(location.hash!=='#'+d.type)history.replaceState(null,'','#'+d.type);
+}
+function go(i,scroll){
+  current=(i+data.length)%data.length;render();
+  if(scroll&&$('detail').getBoundingClientRect().top<0)$('detail').scrollIntoView({block:'start'});
+}
+
+$('next').onclick=()=>go(current+1,true);
+$('prev').onclick=()=>go(current-1,true);
+$('play').onclick=play;
+document.addEventListener('keydown',e=>{
+  if(e.altKey||e.ctrlKey||e.metaKey||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+  if(e.key==='ArrowRight')go(current+1);else if(e.key==='ArrowLeft')go(current-1);
+});
+window.addEventListener('hashchange',()=>{const i=data.findIndex(d=>'#'+d.type===location.hash);if(i>=0&&i!==current)go(i)});
+
+let copyTimer;
+$('copy').onclick=async()=>{
+  const s=data[current].sql;let ok=true;
+  try{await navigator.clipboard.writeText(s)}catch(e){
+    const t=document.createElement('textarea');t.value=s;t.style.position='fixed';t.style.opacity='0';document.body.append(t);t.select();
+    try{ok=document.execCommand('copy')}catch(_){ok=false}t.remove();
+  }
+  $('copy').textContent=ok?'已复制 ✓':'复制失败，请手动选择';
+  clearTimeout(copyTimer);copyTimer=setTimeout(()=>$('copy').textContent='复制 SQL',1400);
+};
+
+const quiz=[
+ {q:'SELECT * FROM users WHERE id = 10',opts:['const','ref','range','ALL'],a:'const',why:'id 是主键且与常量等值比较，最多匹配一行。'},
+ {q:'SELECT * FROM users WHERE age > 25',opts:['const','ref','range','index'],a:'range',why:'age 有普通索引，范围条件走索引范围扫描。'},
+ {q:'SELECT * FROM users WHERE age = 18',opts:['eq_ref','ref','range','ALL'],a:'ref',why:'age 是非唯一普通索引，等值查找可能命中多行。'},
+ {q:"SELECT * FROM users WHERE name = 'Tom'",opts:['const','ref','index','ALL'],a:'ALL',why:'name 没有索引，只能扫描全表。'},
+ {q:'SELECT o.id FROM orders o JOIN users u ON o.user_id = u.id（问 u 表的 type）',opts:['ref','eq_ref','range','index'],a:'eq_ref',why:'每条订单按 users 主键关联，最多匹配一个用户。'},
+ {q:'SELECT age FROM users',opts:['range','index','ALL','ref'],a:'index',why:'没有过滤条件，但 age 列被 idx_age 覆盖，全扫这个更小的索引即可。'},
+ {q:'SELECT * FROM users WHERE age IN (18, 25)',opts:['ref','range','index_merge','ALL'],a:'range',why:'IN 多个值在索引上是多个等值区间，EXPLAIN 显示为 range。'}
+];
+let answers={};
+function drawQuiz(){
+  $('quizzes').innerHTML=quiz.map((q,i)=>{
+    const ans=answers[i],done=ans!==undefined,ok=ans===q.a,target=data.findIndex(d=>d.type===q.a);
+    return `<div class="quiz"><strong>${i+1}. <code>${esc(q.q)}</code></strong><div class="opts">${q.opts.map(o=>`<button type="button" class="choice ${done&&o===q.a?'correct':done&&o===ans?'wrong':''}" data-q="${i}" data-v="${o}" ${done?'disabled':''}>${o}</button>`).join('')}</div>${done?`<p class="feedback ${ok?'ok':'no'}">${ok?'✓ 回答正确。':'✗ 正确答案：'+q.a+'。'}${esc(q.why)}${target>=0?` <button type="button" class="link" data-go="${target}">查看 ${q.a} 讲解</button>`:''}</p>`:''}</div>`;
+  }).join('');
+  document.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{answers[+b.dataset.q]=b.dataset.v;drawQuiz()});
+  document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{go(+b.dataset.go);$('detail').scrollIntoView({block:'start'})});
+  const count=Object.keys(answers).length,right=quiz.filter((q,i)=>answers[i]===q.a).length;
+  $('score').textContent=`已答 ${count} / ${quiz.length} · 答对 ${right}`;
+  $('total').textContent=count===quiz.length?(right===quiz.length?'全部答对 🎉':`答对 ${right} / ${quiz.length} 题，可点"查看讲解"复习`):'';
+}
+$('reset').onclick=()=>{answers={};drawQuiz()};
+
+const start=data.findIndex(d=>'#'+d.type===location.hash);
+current=start>=0?start:0;
+render();drawQuiz();
+</script>
+</body>
+</html>
