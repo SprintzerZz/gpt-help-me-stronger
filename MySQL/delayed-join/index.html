@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MySQL 深分页：普通 JOIN 与延迟关联交互演示</title><style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#151e32;--panel2:#1b2941;--line:#35445e;--text:#edf3ff;--muted:#aabbd3;--blue:#5da9ff;--green:#53d7a1;--amber:#ffca78;--red:#ff7f8e}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#152442,var(--bg) 60%);color:var(--text);font-family:Inter,system-ui,'Microsoft YaHei',sans-serif;line-height:1.6}.wrap{max-width:1260px;margin:auto;padding:24px}h1{margin:6px 0;font-size:clamp(24px,3vw,36px)}h2{font-size:21px;margin:0 0 12px}h3{font-size:16px;margin:0 0 8px}.sub{color:var(--muted);margin:4px 0 18px}.badge{display:inline-block;background:#24446d;color:#c1e1ff;border:1px solid #4271a6;padding:3px 10px;border-radius:24px;font-size:12px}.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:20px 0}.ctrl{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:13px}.ctrl input{width:112px;background:#091427;border:1px solid var(--line);color:var(--text);font:inherit;padding:8px;border-radius:8px}button{cursor:pointer;border:1px solid #4b75ad;border-radius:10px;background:#203e64;color:var(--text);padding:9px 16px;font-weight:650}button.primary{background:#266bb8;border-color:#4c93de}button:hover{filter:brightness(1.15)}button:disabled{opacity:.4;cursor:not-allowed}.panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}.panel,.info{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:17px;min-width:0}.panel.active{border-color:#77adfa;box-shadow:0 0 0 1px #5e9ce96a}.sql{background:#080f1e;border:1px solid #2b3a52;border-radius:10px;padding:13px;font:12px/1.7 Consolas,Monaco,monospace;color:#d8e9ff;white-space:pre-wrap;word-break:break-word;min-height:134px}.flow{display:flex;flex-direction:column;gap:7px;margin-top:15px}.step{padding:10px;border:1px solid #35445e;background:#101a2e;border-radius:10px;display:grid;grid-template-columns:34px 1fr;gap:10px;opacity:.52;transition:.2s}.step.on{opacity:1;border-color:var(--blue);background:#192d4a}.step.done{opacity:1;border-color:#397f70;background:#13352f}.circle{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#334964;font-weight:750}.step.on .circle{background:#3265a3}.step.done .circle{background:#226851}.step small{display:block;color:var(--muted);font-size:12px;margin-top:2px}.meter{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:15px 0}.metric{padding:11px;background:var(--panel2);border-radius:10px;text-align:center}.metric b{display:block;font-size:clamp(18px,2.4vw,27px);font-variant-numeric:tabular-nums}.metric span{color:var(--muted);font-size:11px}.diagram{background:#0a1425;border:1px solid #2b3a52;padding:12px;border-radius:10px;min-height:100px}.rowbar{display:flex;gap:3px;flex-wrap:wrap}.chip{font:12px/1.5 Consolas,monospace;padding:4px 7px;border-radius:5px;background:#29405c;border:1px solid #496786}.chip.skip{background:#3a2933;border-color:#7e4b5a;color:#ffc4ce}.chip.target{background:#194537;border-color:#41aa83;color:#a9ffe0}.chip.hit{background:#193c60;border-color:#438fd1;color:#b7ddff}.diagram p{font-size:12px;color:var(--muted);margin:8px 0 0}.status{margin-top:12px;min-height:70px;border-radius:10px;background:#24324b;padding:11px;color:#e8f1ff}.info{margin-top:16px}.note{color:var(--muted);font-size:13px}.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:12px;margin-bottom:9px}.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px}.callout{padding:12px;border-radius:10px;background:#183449;border:1px solid #315b73}.callout b{color:#8be3ff}.warning{border-left:3px solid var(--amber);padding-left:12px;margin:15px 0;color:#e8dfcf}.progress{height:6px;background:#283750;border-radius:10px;overflow:hidden;margin-bottom:14px}.progress div{height:100%;background:linear-gradient(90deg,#439aff,#51d6a2);transition:width .2s}.foot{font-size:12px;color:#93a9c8;margin-top:20px}table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;border-bottom:1px solid #2c3f59;padding:9px}th{color:#b9d6fb}.highlight{color:var(--green)}@media(max-width:800px){.panels,.comparison{grid-template-columns:1fr}.wrap{padding:14px}.sql{min-height:auto}}
+</style></head><body><main class="wrap"><span class="badge">MySQL · 深分页 · 动画教学</span><h1>普通 JOIN vs 延迟关联：到底快在哪里？</h1><p class="sub">用同一份逻辑数据，逐步模拟 <code>ORDER BY e.id LIMIT 1000,20</code> 的两种查询策略。左边演示一种可能的高开销执行计划，右边演示先分页 ID 再 JOIN。</p>
+<div class="controls"><label class="ctrl">OFFSET（跳过多少行）<input id="offset" type="number" min="0" max="10000000" value="1000"></label><label class="ctrl">LIMIT（每页条数）<input id="limit" type="number" min="1" max="200" value="20"></label><button id="reset">↺ 重新开始</button><button id="next" class="primary">下一步 →</button><button id="play">▶ 自动播放</button><button id="all">显示全部</button></div>
+<div class="progress"><div id="progressbar" style="width:0%"></div></div>
+<div class="panels"><section class="panel" id="panel0"><h2>① 原始写法：直接 JOIN 再分页</h2><pre class="sql" id="sql0"></pre><div class="flow" id="steps0"></div><div class="meter"><div class="metric"><b id="scan0">0</b><span>员工索引扫描数</span></div><div class="metric"><b id="full0">0</b><span>可能读取的员工完整行</span></div><div class="metric"><b id="join0">0</b><span>可能的部门关联次数</span></div></div><div class="diagram"><h3>数据流（抽样显示）</h3><div class="rowbar" id="chips0"></div><p id="label0"></p></div><div class="status" id="status0">点击“下一步”开始演示。</div></section>
+<section class="panel" id="panel1"><h2>② 延迟关联：先分页主键再 JOIN</h2><pre class="sql" id="sql1"></pre><div class="flow" id="steps1"></div><div class="meter"><div class="metric"><b id="scan1">0</b><span>员工索引扫描数</span></div><div class="metric"><b id="full1">0</b><span>读取的员工完整行</span></div><div class="metric"><b id="join1">0</b><span>部门关联次数</span></div></div><div class="diagram"><h3>数据流（抽样显示）</h3><div class="rowbar" id="chips1"></div><p id="label1"></p></div><div class="status" id="status1">点击“下一步”开始演示。</div></section></div>
+<section class="info"><h2>结果解读</h2><div class="comparison"><div class="callout" id="explain0"></div><div class="callout" id="explain1"></div></div><p class="warning"><strong>关键严谨性提醒：</strong>这是展示“延迟关联能解决什么”的教学模型，并非 MySQL 必然的物理执行顺序。原始 SQL 可能被优化器利用索引、LIMIT 等优化成更高效的执行计划，不一定会对前 OFFSET + LIMIT 条数据全部回表和 JOIN。执行真实 SQL 后应使用 <code>EXPLAIN ANALYZE</code> 核对扫描行数和 JOIN 次数。</p><table><tr><th>项目</th><th>直接 JOIN（示例模型）</th><th>延迟关联</th></tr><tr><td>是否仍要跳过 OFFSET 条记录</td><td>是</td><td>是</td></tr><tr><td>大 OFFSET 是否完全解决</td><td>否</td><td>否</td></tr><tr><td>主要节省</td><td>—</td><td>提前读取完整行和执行 JOIN 的成本</td></tr><tr><td>数据一致性/排序</td><td colspan="2">都应确保稳定的 ORDER BY；此处按唯一主键 id 排序</td></tr></table></section><p class="foot">附注：employees.id 视为主键，department.id 视为索引列；本模拟为便于理解，将取行、JOIN 等成本按记录数计数，不代表真实耗时或磁盘 IO 次数。若 employees 为 InnoDB 聚簇主键索引，SELECT id 的扫描读取的是主键索引叶子页，并非“完全不读取数据页”。</p></main>
+<script>
+const $=id=>document.getElementById(id);let step=0,timer=null;const titles=[['按照员工 id 扫描排序数据','获取足以完成 OFFSET 和 LIMIT 的候选记录'],['读取员工完整行','示例假设：在完成分页前需要取得候选记录的非索引字段'],['关联 department 表','示例假设：对候选员工进行部门匹配，拿到 details'],['应用 LIMIT 过滤','丢弃 OFFSET 条记录，只展示 LIMIT 条'],['返回最终结果','输出这一页员工及部门信息']];const delayed=[['扫描主键索引','在子查询中按 id 顺序寻找 OFFSET + LIMIT 个 ID'],['在子查询里执行 LIMIT','跳过 OFFSET 个 ID，只保留 LIMIT 个 ID'],['用 ID 查询员工完整行','外层 JOIN employees，只读取该页的完整行'],['关联 department 表','只对当前页的员工关联部门信息'],['返回最终结果','保留 ORDER BY sub.id，输出当前页']];
+function val(){return {o:Math.max(0,Math.min(1e7,parseInt($('offset').value)||0)),l:Math.max(1,Math.min(200,parseInt($('limit').value)||20))}}function fmt(n){return n.toLocaleString('zh-CN')}
+function sql(){let {o,l}=val();$('sql0').textContent=`SELECT e.id, e.name, d.details\nFROM employees e\nJOIN department d\n  ON e.department_id = d.id\nORDER BY e.id\nLIMIT ${o}, ${l};`;$('sql1').textContent=`SELECT e.id, e.name, d.details\nFROM (\n  SELECT id FROM employees\n  ORDER BY id LIMIT ${o}, ${l}\n) AS sub\nJOIN employees e ON sub.id = e.id\nJOIN department d ON e.department_id = d.id\nORDER BY sub.id;`}
+function makeSteps(){for(let p=0;p<2;p++)$("steps"+p).innerHTML=(p?delayed:titles).map(([a,b],i)=>`<div class="step" id="s${p}_${i}"><div class="circle">${i+1}</div><div><strong>${a}</strong><small>${b}</small></div></div>`).join('')}
+function drawChips(p,display){let {o,l}=val();let arr=[];if(!display){$('chips'+p).innerHTML='';$('label'+p).textContent='尚未产生记录';return}let pre=Math.min(o,7),fin=Math.min(l,7);for(let j=0;j<pre;j++)arr.push(`<span class="chip skip">ID ${j+1}</span>`);if(o>7)arr.push(`<span class="chip skip">…前 ${fmt(o)} 条</span>`);for(let j=0;j<fin;j++)arr.push(`<span class="chip target">ID ${fmt(o+j+1)}</span>`);if(l>7)arr.push(`<span class="chip target">…${fmt(l)} 条</span>`);$('chips'+p).innerHTML=arr.join('');$('label'+p).textContent= p===1?'灰红色的 ID 只在索引扫描中跳过，没有对它们执行外层 JOIN':'灰红色代表最终跳过的候选员工；蓝绿区域代表当前页'}
+function draw(){sql();let {o,l}=val(),n=o+l;for(let p=0;p<2;p++){for(let i=0;i<5;i++)$('s'+p+'_'+i).className='step '+(step>i?'done':step===i+1?'on':'');let scan=step>=1?n:0;let full=p===0?(step>=2?n:0):(step>=3?l:0);let join=p===0?(step>=3?n:0):(step>=4?l:0);$('scan'+p).textContent=fmt(scan);$('full'+p).textContent=fmt(full);$('join'+p).textContent=fmt(join);drawChips(p,step>=1);let desc=(p?delayed:titles)[Math.max(0,step-1)];$('status'+p).innerHTML=step?`<b>阶段 ${step}/5：</b>${desc[0]}。<br><span style="color:#b6c8df;font-size:13px">${desc[1]}</span>`:'点击“下一步”开始演示。';$('panel'+p).classList.toggle('active',step>0&&step<5)}$('explain0').innerHTML=`<b>普通 JOIN（展示高开销情况）</b><br>候选 ${fmt(n)} 条，如果对候选行都读取详情并 JOIN，则会产生最多约 <strong>${fmt(n)}</strong> 次相关处理，最后只返回 ${fmt(l)} 条。`;$('explain1').innerHTML=`<b>延迟关联</b><br>同样扫描约 <strong>${fmt(n)}</strong> 个有序 ID，但外层只需读取 <strong>${fmt(l)}</strong> 条员工完整行、进行约 <strong>${fmt(l)}</strong> 次部门关联。`;$('progressbar').style.width=(step/5*100)+'%';$('next').disabled=step===5}
+function stop(){clearInterval(timer);timer=null;$('play').textContent='▶ 自动播放'}$('next').onclick=()=>{step=Math.min(5,step+1);draw();if(step===5)stop()};$('reset').onclick=()=>{stop();step=0;draw()};$('all').onclick=()=>{stop();step=5;draw()};$('play').onclick=()=>{if(timer){stop();return}if(step===5)step=0;draw();$('play').textContent='⏸ 暂停';timer=setInterval(()=>{step=Math.min(step+1,5);draw();if(step===5)stop()},1150)};for(let id of ['offset','limit'])$(id).oninput=()=>{stop();step=0;draw()};makeSteps();draw();
+</script><style>
+:root {
+  color-scheme: light;
+  --bg: #f3eee4;
+  --panel: #fbf8f1;
+  --panel2: #ebe3d5;
+  --line: #ded5c7;
+  --text: #292923;
+  --muted: #777267;
+  --blue: #c76c4e;
+  --green: #65745c;
+  --amber: #8a692c;
+  --red: #a74e37;
+  --shadow: 0 18px 42px #382a1712;
+}
+body {
+  background:
+    radial-gradient(ellipse at 86% 0%, #fffaf0 0, transparent 34rem),
+    linear-gradient(135deg, #f7f3eb, var(--bg) 60%, #ebe3d5);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+h1, h2, h3 {
+  color: var(--text);
+  font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+.sub, .ctrl, .note, .legend, .foot, .step small, .metric span, .diagram p {
+  color: var(--muted);
+}
+.badge {
+  border-color: #c76c4e45;
+  background: #c76c4e18;
+  color: #a74e37;
+}
+.ctrl input {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+button {
+  border-color: var(--line);
+  background: var(--panel2);
+  color: var(--text);
+}
+button.primary {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fffaf1;
+}
+button:hover { filter: brightness(.97); }
+button:focus-visible, .ctrl input:focus-visible {
+  outline: 3px solid #c76c4e80;
+  outline-offset: 3px;
+}
+.panel, .info {
+  border-color: var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px #382a170a;
+}
+.panel.active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px #c76c4e55;
+}
+.sql {
+  border-color: #3e3a32;
+  background: #292923;
+  color: #fbf8f1;
+}
+.step {
+  border-color: var(--line);
+  background: var(--panel2);
+  opacity: .8;
+}
+.step.on, .step.done { opacity: 1; }
+.step.on {
+  border-color: var(--blue);
+  background: #f1e2d7;
+}
+.step.done {
+  border-color: #aab79d;
+  background: #e8ecdf;
+}
+.circle { background: #d8cdbb; }
+.step.on .circle { background: var(--blue); color: #fffaf1; }
+.step.done .circle { background: var(--green); color: #fffaf1; }
+.metric, .diagram { border: 1px solid var(--line); background: #f5f0e7; }
+.chip {
+  border-color: var(--line);
+  background: #e7dfd1;
+  color: var(--text);
+}
+.chip.skip {
+  border-color: #d6a18e;
+  background: #f1e2d7;
+  color: #8e422e;
+}
+.chip.target {
+  border-color: #b7c2a8;
+  background: #e8ecdf;
+  color: #46553e;
+}
+.chip.hit {
+  border-color: #c76c4e80;
+  background: #f1e2d7;
+  color: #8e422e;
+}
+.status {
+  background: #eee8dc;
+  color: var(--text);
+}
+.callout {
+  border-color: #d6d8c8;
+  background: #e8ecdf;
+}
+.callout b { color: #46553e; }
+.warning {
+  border-color: var(--amber);
+  color: #514638;
+}
+.progress { background: #ded5c7; }
+.progress div { background: linear-gradient(90deg, #c76c4e, #65745c); }
+table { color: var(--text); }
+td, th { border-color: var(--line); }
+th { color: var(--muted); }
+.highlight { color: var(--green); }
+code { color: #8e422e; }
+</style></body></html>
