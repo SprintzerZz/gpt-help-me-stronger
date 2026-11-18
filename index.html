@@ -1008,6 +1008,42 @@
           <span class="arrow" aria-hidden="true">↗</span>
         </a>
       </section>
+      <section class="resource-section" aria-labelledby="im-heading">
+        <h2 class="visually-hidden" id="im-heading">即时通讯</h2>
+        <a class="card" href="IM/private-chat-flow/index.html" data-search="im 即时通讯 私聊 消息链路 http redis lua kafka websocket ack mysql 送达确认 离线 超时">
+          <span class="card-copy">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 40 40" fill="none">
+                <path d="M7 10.5h26v17H18l-7 5v-5H7z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"></path>
+                <path d="M13 17h14M13 22h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span>
+              <span class="category"><span class="category-dot" aria-hidden="true"></span>IM · MESSAGE FLOW</span>
+              <span class="title">私聊消息完整链路</span>
+              <span class="description">交互查看私聊从 HTTP 发送、Redis 暂存、Kafka 投递到 ACK 回程和 MySQL 落库。</span>
+            </span>
+          </span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="card" href="IM/group-chat-flow/index.html" data-search="im 即时通讯 群聊 消息链路 http redis kafka netty websocket mysql 群成员 路由 群锁 已读回执">
+          <span class="card-copy">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 40 40" fill="none">
+                <circle cx="14" cy="17" r="6" stroke="currentColor" stroke-width="1.7"></circle>
+                <circle cx="27" cy="16" r="4.5" stroke="currentColor" stroke-width="1.7"></circle>
+                <path d="M6 31c1-6 4-9 8-9s7 3 8 9M22 28c1-4 3-6 6-6 3 0 5 2 6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span>
+              <span class="category"><span class="category-dot" aria-hidden="true"></span>IM · MESSAGE FLOW</span>
+              <span class="title">群聊消息完整链路</span>
+              <span class="description">交互查看群聊成员缓存、群级锁、消息落库、节点扇出、离线与已读回执。</span>
+            </span>
+          </span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      </section>
       <p class="empty-state" id="empty-state" role="status" hidden>没有找到匹配的学习资料，试试其他关键词。</p>
     </section>
 
