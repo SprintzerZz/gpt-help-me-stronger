@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="交互理解 HTTP/1.1 与 HTTP/2 的连接、分帧、多路复用、HPACK 和队头阻塞差异。">
+  <title>HTTP/1.1 与 HTTP/2 交互学习</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f3eee4;
+      --paper-light: #fbf8f1;
+      --paper-deep: #ebe3d5;
+      --ink: #292923;
+      --muted: #777267;
+      --line: #ded5c7;
+      --terracotta: #c76c4e;
+      --terracotta-dark: #a74e37;
+      --olive: #65745c;
+      --olive-soft: #e8ecdf;
+      --shadow: 0 18px 42px #382a1712;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 88% 0, #fffaf0 0, transparent 25rem),
+        linear-gradient(135deg, #f7f3eb, var(--paper) 65%, var(--paper-deep));
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      line-height: 1.65;
+    }
+    main { max-width: 1160px; margin: 0 auto; padding: 38px 22px 72px; }
+    h1, h2, h3 { font-family: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif; }
+    h1 { margin: 8px 0 12px; font-size: clamp(34px, 5vw, 54px); line-height: 1.12; }
+    h2 { margin: 0 0 18px; font-size: clamp(21px, 3vw, 27px); }
+    h3 { margin: 0 0 10px; font-size: 18px; }
+    p { margin: 8px 0 16px; color: var(--muted); }
+    code, pre { font-family: Consolas, "Microsoft YaHei", monospace; }
+    code { color: var(--terracotta-dark); }
+    .eyebrow { color: var(--terracotta); font-size: 13px; font-weight: 800; letter-spacing: 0.12em; }
+    .lead { max-width: 900px; font-size: 17px; }
+    .lead strong { color: var(--ink); }
+    .panel {
+      margin-top: 22px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--paper-light);
+      box-shadow: var(--shadow);
+    }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .half {
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f9f5ec;
+    }
+    .tag {
+      display: inline-block;
+      margin-bottom: 9px;
+      padding: 4px 10px;
+      border: 1px solid #d8c7b7;
+      border-radius: 999px;
+      background: #eee8dc;
+      color: #664f43;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .tag.green { border-color: #c9d2bf; background: var(--olive-soft); color: #46533e; }
+    .small { font-size: 13px; }
+    .ok { color: #46533e; }
+    .rail { margin-top: 14px; }
+    .arrow-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .arrow-label::after { height: 1px; flex: 1; background: var(--line); content: ""; }
+    .road {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 43px;
+      margin: 8px 0;
+      padding: 5px 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper-deep);
+    }
+    .road .name { width: 42px; flex-shrink: 0; color: var(--muted); font-size: 12px; }
+    .packet {
+      display: grid;
+      min-width: 32px;
+      height: 27px;
+      place-items: center;
+      border: 1px solid #00000010;
+      border-radius: 5px;
+      color: #fffaf1;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .a { background: #65745c; }
+    .b { background: #b67a51; }
+    .c { background: #c76c4e; }
+    .d { background: #806b63; }
+    .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+    .btn {
+      min-height: 42px;
+      padding: 9px 15px;
+      border: 1px solid var(--terracotta);
+      border-radius: 9px;
+      background: var(--terracotta);
+      color: #fffaf1;
+      cursor: pointer;
+      font: 700 14px/1.2 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .btn:hover { background: var(--terracotta-dark); }
+    .btn:focus-visible { outline: 3px solid #c76c4e66; outline-offset: 3px; }
+    .status { color: var(--muted); font-size: 13px; }
+    .timeline {
+      position: relative;
+      height: 122px;
+      padding: 12px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #eee8dc;
+    }
+    .timeline::before {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), #d8cfbf calc(25% - 1px), #d8cfbf 25%);
+      content: "";
+      pointer-events: none;
+    }
+    .track { position: relative; z-index: 1; display: flex; align-items: center; height: 28px; gap: 3px; margin-bottom: 4px; }
+    .track label { width: 27px; flex: none; color: var(--muted); font-size: 11px; }
+    .bar {
+      width: 0;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      color: #fffaf1;
+      font-size: 11px;
+      font-weight: 800;
+      transition: width 0.55s;
+    }
+    .bar1 { background: #65745c; }
+    .bar2 { background: #b67a51; }
+    .bar3 { background: #c76c4e; }
+    .play .one { animation: reveal1 3.5s ease-in-out forwards; }
+    .play .two { animation: reveal2 3.5s ease-in-out forwards; }
+    .play .three { animation: reveal3 3.5s ease-in-out forwards; }
+    @keyframes reveal1 { 0% { width: 0; } 25%,100% { width: 24%; } }
+    @keyframes reveal2 { 0%,24% { width: 0; } 45%,100% { width: 38%; } }
+    @keyframes reveal3 { 0%,46% { width: 0; } 65%,100% { width: 27%; } }
+    .play .sim1 { animation: sim1 3.5s ease-out forwards; }
+    .play .sim2 { animation: sim2 3.5s ease-out forwards; }
+    .play .sim3 { animation: sim3 3.5s ease-out forwards; }
+    @keyframes sim1 { 0% { width: 0; } 35%,100% { width: 35%; } }
+    @keyframes sim2 { 0% { width: 0; } 72%,100% { width: 64%; } }
+    @keyframes sim3 { 0% { width: 0; } 55%,100% { width: 46%; } }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12px; }
+    .dot { display: inline-block; width: 10px; height: 10px; margin-right: 5px; border-radius: 3px; }
+    .diagram { display: grid; grid-template-columns: 120px 1fr 120px; align-items: center; gap: 18px; margin: 18px 0; }
+    .endpoint {
+      padding: 18px 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper-deep);
+      text-align: center;
+      font-weight: 800;
+    }
+    .stream { padding: 12px; border: 1px dashed #b5a58f; border-radius: 10px; background: #f7f3ea; }
+    .stream-row { display: flex; gap: 5px; margin: 6px 0; }
+    .stream-row span { flex: 1; padding: 7px; border-radius: 5px; color: #fffaf1; text-align: center; font-size: 12px; font-weight: 800; }
+    .comparison { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .comparison th, .comparison td { padding: 13px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .comparison th { background: var(--paper-deep); }
+    .comparison td:first-child { width: 19%; color: var(--ink); font-weight: 800; }
+    .note { margin-top: 14px; padding: 14px 18px; border-left: 4px solid var(--terracotta); border-radius: 0 9px 9px 0; background: #eee5d2; color: #514638; font-size: 14px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+    .chip { padding: 5px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-deep); color: #574f43; font-size: 13px; }
+    .q { margin-top: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: #f7f3ea; }
+    .q strong { color: var(--terracotta-dark); }
+    .table-wrap { overflow-x: auto; }
+    @media (max-width: 770px) {
+      main { padding: 24px 12px 52px; }
+      .panel { padding: 17px; }
+      .cols { grid-template-columns: 1fr; }
+      .half { padding: 15px; }
+      .diagram { grid-template-columns: 1fr; gap: 9px; }
+      .endpoint { padding: 9px; }
+      .comparison { font-size: 12px; }
+      .comparison th, .comparison td { padding: 10px 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">JAVA 后端面试 · 网络协议可视化</div>
+    <h1>HTTP/1.1 与 HTTP/2</h1>
+    <p class="lead">一句话理解：<strong>HTTP/1.1 在持久连接上主要按请求组织传输，浏览器常用多条连接并行加载资源；HTTP/2 把请求拆成帧，在一条 TCP 连接上交错传输多个流。</strong></p>
+
+    <section class="panel">
+      <h2>01 · 一眼看懂核心区别</h2>
+      <div class="cols">
+        <div class="half">
+          <div class="tag">HTTP/1.1</div>
+          <h3>持久连接与多连接并行</h3>
+          <p class="small">同一网页的 HTML、JS、CSS 可能分到多条 TCP 连接加载。管线化曾被提出，但实际响应传输的兼容性和排队问题使它并不普及。</p>
+          <div class="rail">
+            <div class="arrow-label">连接 1：请求与响应按序组织</div>
+            <div class="road"><span class="name">响应</span><span class="packet a" style="width:35%">A</span><span class="packet b" style="width:34%">B</span><span class="packet c" style="width:22%">C</span></div>
+            <div class="arrow-label">浏览器可另外建立连接加载资源</div>
+            <div class="road"><span class="name">连接 2</span><span class="packet d" style="width:43%">D</span></div>
+          </div>
+        </div>
+        <div class="half">
+          <div class="tag green">HTTP/2</div>
+          <h3>单连接：多个 Stream 交错传输</h3>
+          <p class="small">多个请求各有独立的流（Stream），分成帧（Frame），帧可在同一连接中交错发送；接收方按 Stream ID 重组。</p>
+          <div class="rail">
+            <div class="arrow-label">同一条 TCP 连接</div>
+            <div class="road"><span class="name">帧</span><span class="packet a">A1</span><span class="packet b">B1</span><span class="packet c">C1</span><span class="packet a">A2</span><span class="packet c">C2</span><span class="packet b">B2</span></div>
+            <div class="arrow-label">Stream A / B / C 在逻辑上独立</div>
+            <div class="chips"><span class="chip">A = /index.html</span><span class="chip">B = /app.js</span><span class="chip">C = /style.css</span></div>
+          </div>
+          <p class="small ok">关键：多路复用，不需要为每个并发请求单独占用一条 TCP 连接。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>02 · 交互演示：HTML、JS、CSS 何时推进？</h2>
+      <p><strong>A：GET /index.html；B：GET /app.js；C：GET /style.css。</strong> 浏览器通常先解析 HTML，再发现并请求 JS/CSS；这里假定三个请求已经发起，比较传输模型，不代表精确性能测试。</p>
+      <div class="actions">
+        <button class="btn" id="start" type="button">▶ 播放 / 重新播放</button>
+        <span class="status" id="status">点击播放，观察响应开始的时间是否相互等待</span>
+      </div>
+      <div class="cols">
+        <div class="half">
+          <h3>HTTP/1.1 单连接示意</h3>
+          <div class="timeline" id="old" role="img" aria-label="HTTP 1.1 单连接响应时序示意">
+            <div class="track"><label>A</label><div class="bar bar1 one">HTML 响应</div></div>
+            <div class="track"><label>B</label><div style="width:24%"></div><div class="bar bar2 two">JS 响应</div></div>
+            <div class="track"><label>C</label><div style="width:62%"></div><div class="bar bar3 three">CSS 响应</div></div>
+          </div>
+          <p class="small">在此简化的管线化模型中，B 等 A，C 等 B；实际浏览器也会通过多连接并行。</p>
+        </div>
+        <div class="half">
+          <h3>HTTP/2 同连接示意</h3>
+          <div class="timeline" id="new" role="img" aria-label="HTTP 2 单连接多流传输时序示意">
+            <div class="track"><label>A</label><div class="bar bar1 sim1">HTML 流</div></div>
+            <div class="track"><label>B</label><div class="bar bar2 sim2">JS 流</div></div>
+            <div class="track"><label>C</label><div class="bar bar3 sim3">CSS 流</div></div>
+          </div>
+          <p class="small">多个流可以并发推进，完成顺序不必由请求顺序决定。</p>
+        </div>
+      </div>
+      <div class="legend" aria-label="资源图例">
+        <span><i class="dot" style="background:#65745c"></i>A：网页 HTML</span>
+        <span><i class="dot" style="background:#b67a51"></i>B：同页 JS</span>
+        <span><i class="dot" style="background:#c76c4e"></i>C：同页 CSS</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>03 · Frame 与 Stream 到底是什么？</h2>
+      <div class="diagram">
+        <div class="endpoint">浏览器</div>
+        <div class="stream">
+          <p class="small">一条 TCP 连接内的二进制帧</p>
+          <div class="stream-row"><span class="a">流 1 HEADERS</span><span class="b">流 3 HEADERS</span><span class="a">流 1 DATA</span></div>
+          <div class="stream-row"><span class="c">流 5 HEADERS</span><span class="b">流 3 DATA</span><span class="c">流 5 DATA</span></div>
+          <p class="small">每个 Frame 带所属 Stream ID，接收端按 ID 重组。</p>
+        </div>
+        <div class="endpoint">服务器</div>
+      </div>
+      <p><strong>Stream（流）</strong>：一次请求/响应交换的逻辑通道。<strong>Frame（帧）</strong>：HTTP/2 传输的基本单位，例如 HEADERS、DATA。<strong>Multiplexing（多路复用）</strong>：多个流的帧可交错共用同一条连接。</p>
+    </section>
+
+    <section class="panel">
+      <h2>04 · 关键特性对比表</h2>
+      <div class="table-wrap">
+        <table class="comparison">
+          <thead><tr><th>对比点</th><th>HTTP/1.1</th><th>HTTP/2</th></tr></thead>
+          <tbody>
+            <tr><td>数据格式</td><td>文本格式报文</td><td>二进制分帧</td></tr>
+            <tr><td>并发请求</td><td>可复用持久连接；浏览器常使用多条 TCP 连接并行</td><td>一条 TCP 连接上的多个流并发与多路复用</td></tr>
+            <tr><td>响应顺序</td><td>管线化响应在单连接模型中须按序处理</td><td>不同流的帧可交错，响应完成顺序更灵活</td></tr>
+            <tr><td>请求头</td><td>每次传输通常重复完整或部分头部</td><td>HPACK 头部压缩，降低重复头开销</td></tr>
+            <tr><td>队头阻塞</td><td>存在 HTTP 层排队与可能的应用层阻塞</td><td>改善 HTTP 层跨流响应阻塞；仍存在 TCP 层队头阻塞</td></tr>
+            <tr><td>服务器推送</td><td>不提供 HTTP/2 式 Server Push</td><td>曾为协议特性；主流浏览器现已不再支持或已移除</td></tr>
+            <tr><td>HTTPS</td><td>可使用 HTTP 或 HTTPS</td><td>规范允许 h2c，主流浏览器通常使用基于 TLS 的 h2</td></tr>
+            <tr><td>应用语义</td><td>方法、状态码、头部等</td><td>基本保持相同，主要改进传输方式</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>05 · 易错重点：HTTP/2 仍有 TCP 队头阻塞</h2>
+      <div class="cols">
+        <div class="half">
+          <h3>HTTP 层的阻塞得到改善</h3>
+          <p>流 A 响应较慢时，流 B、C 不必完全停止传输。</p>
+          <div class="chips"><span class="chip">A：慢</span><span class="chip ok">B：继续</span><span class="chip ok">C：继续</span></div>
+        </div>
+        <div class="half">
+          <h3>底层仍共用 TCP 字节流</h3>
+          <p>TCP 丢包时，后续到达的字节可能等待重传，多个 HTTP/2 流一起受到影响。</p>
+          <div class="chips"><span class="chip">TCP 包 1 ✓</span><span class="chip">TCP 包 2 丢失 ✕</span><span class="chip">TCP 包 3 等待交付</span></div>
+        </div>
+      </div>
+      <div class="note"><strong>面试常考：</strong>HTTP/2 解决了 HTTP 层因响应顺序引发的队头阻塞，<strong>没有解决 TCP 层的队头阻塞</strong>。HTTP/3 基于 QUIC（运行于 UDP 之上），通过独立的传输流缓解跨流丢包阻塞。</div>
+    </section>
+
+    <section class="panel">
+      <h2>06 · 真实项目怎么理解？</h2>
+      <p>例如 Java Spring Boot 后端提供商品详情页接口，浏览器并发请求 <code>/product</code>、<code>/reviews</code>、<code>/recommendations</code>。HTTP/2 可在同一条连接上并发传输多路响应，减少为并发请求维护多条连接的必要性。</p>
+      <div class="note">HTTP/2 不代表接口业务执行必然更快。如果瓶颈是慢查询、Redis 延迟、线程池排队或服务端 CPU，多路复用不会自动消除这些问题。</div>
+    </section>
+
+    <section class="panel">
+      <h2>07 · 面试时可以这样回答</h2>
+      <div class="q">
+        <strong>面试官：HTTP/1.1 和 HTTP/2 主要有什么区别？</strong>
+        <p>HTTP/1.1 可复用 TCP 持久连接，但请求和响应组织相对简单，浏览器通常使用多条连接并行加载资源。HTTP/2 引入二进制分帧、Stream 和 HPACK 头部压缩，实现一条 TCP 连接上多个请求与响应的多路复用，并改善了 HTTP 层的响应排队阻塞。但它仍基于 TCP，发生丢包时多个流仍可能受 TCP 队头阻塞影响；这是 HTTP/3 改用基于 QUIC 的 UDP 的重要原因之一。</p>
+      </div>
+      <p class="small">知识点依据：RFC 9113（HTTP/2）、RFC 7541（HPACK）、RFC 9114（HTTP/3）。</p>
+    </section>
+  </main>
+  <script>
+    const old = document.getElementById("old");
+    const next = document.getElementById("new");
+    const status = document.getElementById("status");
+    document.getElementById("start").addEventListener("click", () => {
+      old.classList.remove("play");
+      next.classList.remove("play");
+      void old.offsetWidth;
+      old.classList.add("play");
+      next.classList.add("play");
+      status.textContent = "动画播放中：注意 HTTP/2 的多个流可同步推进";
+    });
+  </script>
+</body>
+</html>
