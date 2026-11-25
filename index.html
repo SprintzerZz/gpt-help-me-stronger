@@ -112,6 +112,8 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      flex: 0 0 auto;
+      white-space: nowrap;
       color: var(--muted);
       font-size: 0.78rem;
       font-weight: 700;
@@ -129,7 +131,7 @@
     .page-heading {
       position: relative;
       isolation: isolate;
-      overflow: hidden;
+      overflow: clip;
       display: grid;
       grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
       gap: 24px;
@@ -1149,6 +1151,17 @@
         border-radius: 18px;
       }
 
+      .brand {
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        gap: 8px;
+      }
+
+      .status {
+        font-size: 0.72rem;
+        letter-spacing: 0.03em;
+      }
+
       .board-panel,
       .directory-panel {
         padding: 16px 14px;
@@ -1213,7 +1226,7 @@
         <div class="search">
           <label for="resource-search">全站检索知识点或学科</label>
           <div class="search-field">
-            <input id="resource-search" type="search" placeholder="搜 MVCC、B+树、HTTP/3、QUIC、Linux、Redis…" autocomplete="off">
+            <input id="resource-search" type="search" placeholder="搜 MVCC、B+树、HTTP/3、Linux、Redis…" autocomplete="off">
           </div>
           <div class="search-meta">
             <span>输入关键词可跨学科检索并高亮周期表元素</span>
