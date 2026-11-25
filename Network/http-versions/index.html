@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="交互演示 HTTP/1.0、HTTP/1.1、HTTP/2 与 HTTP/3 协议演进：实时对比连接复用、二进制分帧多路复用、HPACK/QPACK 头部压缩、HTTP 与 TCP 队头阻塞及 QUIC 连接迁移。" />
+  <title>HTTP/1.0 → 1.1 → 2 → 3 协议演进交互演示</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f3eee4;
+      --paper-light: #fbf8f1;
+      --paper-deep: #ebe3d5;
+      --ink: #292923;
+      --muted: #777267;
+      --line: #ded5c7;
+      --terracotta: #c76c4e;
+      --terracotta-dark: #a74e37;
+      --olive: #65745c;
+      --olive-soft: #e8ecdf;
+      --shadow: 0 18px 42px #382a1712;
+
+      /* Editorial semantic accents harmonized with warm paper */
+      --slate: #4a6580;
+      --slate-soft: #e6edf3;
+      --slate-text: #2c4257;
+      --ochre: #b5783a;
+      --ochre-soft: #f6ead6;
+      --ochre-text: #7a4d1d;
+      --sage: #3e6b63;
+      --sage-soft: #e1efec;
+      --sage-text: #254b44;
+      --plum: #7b5e7b;
+      --plum-soft: #efe7f0;
+      --plum-text: #523a52;
+      --brick: #b44c3a;
+      --brick-soft: #f8e6e2;
+      --brick-text: #873123;
+      --code-bg: #262520;
+      --code-ink: #efe9dc;
+      --mono: Consolas, Monaco, "Courier New", monospace;
+      --serif: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+      --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 86% 0%, #fffaf0 0, transparent 34rem),
+        linear-gradient(135deg, #f7f3eb, var(--paper) 60%, var(--paper-deep));
+      font: 15px/1.68 var(--sans);
+      color: var(--ink);
+    }
+
+    .wrap {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px 22px 64px;
+    }
+
+    .page-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .page-topline a {
+      color: var(--olive);
+      text-decoration: none;
+      letter-spacing: 0;
+    }
+    .page-topline a:hover { color: var(--terracotta-dark); text-decoration: underline; }
+    .page-topline a:focus-visible {
+      outline: 3px solid #c76c4e80;
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    /* Hero */
+    .hero {
+      display: grid;
+      grid-template-columns: 1.24fr .76fr;
+      gap: 20px;
+      align-items: center;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: linear-gradient(120deg, var(--paper-light), #efe8db);
+      box-shadow: var(--shadow);
+    }
+    .eyebrow {
+      color: var(--terracotta-dark);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 {
+      font-family: var(--serif);
+      color: var(--ink);
+    }
+    h1 {
+      margin: 8px 0 10px;
+      font-size: clamp(26px, 3.6vw, 35px);
+      line-height: 1.22;
+      letter-spacing: -0.2px;
+    }
+    h2 { margin: 0; font-size: 19px; line-height: 1.35; }
+    h3 { margin: 0; font-size: 15px; }
+    p { margin: 6px 0; color: #534d42; }
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: var(--paper-deep);
+      color: var(--terracotta-dark);
+      padding: 1px 6px;
+      border-radius: 5px;
+    }
+
+    .concept-card {
+      background: var(--paper-light);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+    .concept-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .stack-col {
+      border: 1.5px solid var(--line);
+      border-radius: 11px;
+      padding: 7px 6px;
+      background: var(--paper);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .18s, background-color .18s, transform .18s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      color: var(--ink);
+    }
+    .stack-col:hover { border-color: var(--terracotta); transform: translateY(-1px); }
+    .stack-col.active {
+      border-color: var(--terracotta);
+      background: #f8efe6;
+      box-shadow: 0 4px 12px #c76c4e24;
+    }
+    .stack-col.active.is-h3 {
+      border-color: var(--sage);
+      background: var(--sage-soft);
+      box-shadow: 0 4px 12px #3e6b6324;
+    }
+    .stack-ver {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+    .stack-layer {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 4px;
+      border-radius: 6px;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ly-app  { background: var(--slate-soft); color: var(--slate-text); }
+    .ly-tls  { background: var(--plum-soft);  color: var(--plum-text); }
+    .ly-tcp  { background: var(--paper-deep); color: #4a443b; }
+    .ly-quic { background: var(--sage-soft);  color: var(--sage-text); }
+    .ly-udp  { background: var(--ochre-soft); color: var(--ochre-text); }
+
+    .panel {
+      background: var(--paper-light);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-top: 18px;
+    }
+    .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .sub {
+      font-size: 11.5px;
+      color: var(--terracotta-dark);
+      font-weight: 800;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+    }
+
+    /* Controls */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .toolbar + .toolbar {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--line);
+    }
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .ctl-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: #4b463c;
+    }
+    button { font: inherit; }
+
+    .seg {
+      display: inline-flex;
+      border: 1.5px solid #d2c7b7;
+      border-radius: 11px;
+      overflow: hidden;
+      background: var(--paper-light);
+      flex-wrap: wrap;
+    }
+    .seg button {
+      border: 0;
+      background: transparent;
+      padding: 6px 13px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #4b463c;
+      cursor: pointer;
+      transition: background-color .15s, color .15s;
+    }
+    .seg button + button { border-left: 1px solid #d2c7b7; }
+    .seg button:hover:not(.active) { background: var(--paper-deep); color: var(--terracotta-dark); }
+    .seg button.active { background: var(--terracotta); color: #fffaf1; }
+    .seg button.active.race-btn { background: linear-gradient(135deg, var(--terracotta), var(--olive)); color: #fffaf1; }
+    .seg button.active.scen-loss { background: var(--brick); color: #fffaf1; }
+    .seg button.active.scen-mig { background: var(--sage); color: #fffaf1; }
+
+    .ctl {
+      height: 36px;
+      padding: 0 13px;
+      border-radius: 10px;
+      border: 1px solid #d2c7b7;
+      background: var(--paper-light);
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background-color .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .ctl:hover:not(:disabled) { border-color: var(--olive); color: var(--olive); background: var(--paper); }
+    .ctl.primary { background: var(--terracotta); border-color: var(--terracotta-dark); color: #fffaf1; }
+    .ctl.primary:hover:not(:disabled) { background: var(--terracotta-dark); border-color: var(--terracotta-dark); color: #fffaf1; }
+    .ctl:disabled { opacity: .42; cursor: not-allowed; }
+    .ctl:focus-visible, .seg button:focus-visible, .step-pill:focus-visible, .tab-btn:focus-visible, .stack-col:focus-visible {
+      outline: 3px solid #c76c4e80;
+      outline-offset: 2px;
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 800;
+      background: var(--paper-deep);
+      border: 1px solid #d2c7b7;
+      color: #4f483d;
+    }
+    .badge-pill.warn { background: var(--ochre-soft); border-color: #dec39a; color: var(--ochre-text); }
+    .badge-pill.good { background: var(--olive-soft); border-color: #bcc7b0; color: #43523a; }
+    .badge-pill.bad  { background: var(--brick-soft); border-color: #e0b3a9; color: var(--brick-text); }
+
+    /* Scrubber & Milestone Pills */
+    .scrubber-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .scrubber-row input[type="range"] {
+      flex: 1;
+      accent-color: var(--terracotta);
+      cursor: pointer;
+      height: 6px;
+    }
+    .time-readout {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--ink);
+      min-width: 128px;
+      text-align: right;
+    }
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .step-pill {
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 10px;
+      padding: 7px 10px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .15s, background-color .15s;
+      color: #4d473d;
+    }
+    .step-pill:hover { border-color: var(--terracotta); background: var(--paper-light); }
+    .step-pill b { display: block; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+    .step-pill span { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .step-pill.past { background: var(--olive-soft); border-color: #bdc7b2; color: #3e4d37; }
+    .step-pill.past b { color: var(--olive); }
+    .step-pill.active { background: var(--terracotta); border-color: var(--terracotta-dark); color: #fffaf1; box-shadow: 0 4px 12px #c76c4e2b; }
+    .step-pill.active b { color: #fbe6dc; }
+
+    .model-hint {
+      margin: 10px 0 0;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    /* Main Stage Layout */
+    .two {
+      display: grid;
+      grid-template-columns: 1.44fr .56fr;
+      gap: 18px;
+      align-items: start;
+      margin-top: 18px;
+    }
+    .two > .panel { margin-top: 0; }
+    .svg-box {
+      background: #fdfaf4;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 8px;
+      overflow-x: auto;
+    }
+    .stage-svg {
+      width: 100%;
+      min-width: 680px;
+      height: auto;
+      display: block;
+    }
+    .race-svg {
+      width: 100%;
+      min-width: 820px;
+      height: auto;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 16px;
+      font-size: 12.5px;
+      color: #534d42;
+      margin-top: 10px;
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+    .dot-lg {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      display: inline-block;
+      border: 1.5px solid transparent;
+    }
+
+    /* Inspector Panel */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .metric-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 9px 11px;
+    }
+    .metric-card.full { grid-column: 1 / -1; }
+    .metric-card small {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .metric-val {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--ink);
+      margin-top: 2px;
+    }
+    .metric-val.good { color: var(--olive); }
+    .metric-val.bad  { color: var(--brick); }
+    .metric-val.blue { color: var(--slate); }
+    .metric-val.teal { color: var(--sage); }
+
+    /* Dark Charcoal Code / Wire Inspector */
+    .wire-box {
+      margin-top: 12px;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      border: 1px solid #3c3a32;
+      border-radius: 12px;
+      padding: 12px 13px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.58;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .wire-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #b7b0a0;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 7px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #413e36;
+      white-space: normal;
+    }
+    .wire-hl   { color: #e2a47c; font-weight: 700; }
+    .wire-ok   { color: #a7c49b; font-weight: 700; }
+    .wire-warn { color: #e6c27a; font-weight: 700; }
+    .wire-bad  { color: #e58e7e; font-weight: 700; }
+    .wire-dim  { color: #9c9586; }
+
+    .trace-list {
+      list-style: none;
+      margin: 10px 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .trace-item {
+      border-radius: 9px;
+      padding: 7px 10px;
+      font-size: 12.5px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      line-height: 1.45;
+      color: #464138;
+    }
+    .trace-item.active { background: #f6ebe2; border-color: #dfb49e; color: #613524; font-weight: 600; }
+    .trace-item.bad    { background: var(--brick-soft); border-color: #e2b5aa; color: var(--brick-text); font-weight: 600; }
+    .trace-item.good   { background: var(--olive-soft); border-color: #b8c4ac; color: #3c4b35; font-weight: 600; }
+    .trace-t {
+      flex: 0 0 auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 5px;
+      background: var(--paper-deep);
+      color: #544e43;
+    }
+    .trace-item.active .trace-t { background: #eed5c5; color: var(--terracotta-dark); }
+    .trace-item.bad .trace-t    { background: #f1d3cb; color: var(--brick-text); }
+    .trace-item.good .trace-t   { background: #d6e0ca; color: #3b4b34; }
+
+    /* Explain Box */
+    .explain-box {
+      border-left: 4px solid var(--terracotta);
+      background: #f2e9d8;
+      border-radius: 0 12px 12px 0;
+      padding: 14px 16px;
+      color: #4a4134;
+    }
+    .explain-box.is-bad  { border-left-color: var(--brick); background: var(--brick-soft); color: #6e2a1f; }
+    .explain-box.is-teal { border-left-color: var(--sage); background: var(--sage-soft); color: var(--sage-text); }
+    .explain-box strong { display: block; font-size: 15px; margin-bottom: 4px; color: var(--ink); }
+    .explain-box p { margin: 0; color: inherit; font-size: 14px; }
+
+    /* Deep Dive Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .tab-btn {
+      border: 1.5px solid var(--line);
+      background: var(--paper);
+      color: #4d473d;
+      padding: 7px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, background-color .15s, color .15s;
+    }
+    .tab-btn:hover { border-color: var(--terracotta); color: var(--terracotta-dark); background: var(--paper-light); }
+    .tab-btn.active {
+      border-color: var(--terracotta-dark);
+      background: var(--terracotta);
+      color: #fffaf1;
+      box-shadow: 0 4px 12px #c76c4e24;
+    }
+    .deep-grid {
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: 16px;
+      align-items: center;
+    }
+    .deep-svg-wrap {
+      background: #fdfaf4;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      overflow-x: auto;
+    }
+    .deep-svg { width: 100%; min-width: 520px; height: auto; display: block; }
+    .deep-notes {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 13px;
+      background: var(--paper);
+      font-size: 13.5px;
+      color: #464138;
+    }
+    .mini-card b { display: block; font-size: 13.5px; color: var(--ink); margin-bottom: 3px; }
+    .mini-card.hl-blue { background: var(--slate-soft); border-color: #c5d3df; }
+    .mini-card.hl-red  { background: var(--brick-soft); border-color: #e2b5aa; }
+    .mini-card.hl-teal { background: var(--sage-soft);  border-color: #b7d3cd; }
+
+    /* Comparison Table */
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 720px; }
+    th, td { padding: 10px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { font-size: 12.5px; color: #544e43; font-weight: 800; background: var(--paper-deep); }
+    td:first-child { font-weight: 800; color: var(--ink); white-space: nowrap; }
+    th.col-active, td.col-active { background: #f6ebe2; color: #5a3425; }
+    th.col-active { color: var(--terracotta-dark); border-bottom: 2px solid var(--terracotta); }
+    th.col-active.is-h3, td.col-active.is-h3 { background: var(--sage-soft); color: var(--sage-text); }
+    th.col-active.is-h3 { color: var(--sage); border-bottom: 2px solid var(--sage); }
+
+    .note-box {
+      margin-top: 14px;
+      padding: 13px 16px;
+      border-radius: 0 12px 12px 0;
+      background: #f2e9d8;
+      border-left: 4px solid var(--terracotta);
+      color: #514638;
+      font-size: 13.5px;
+    }
+    .note-box strong { color: var(--ink); }
+    .note-box ul { margin: 6px 0 0; padding-left: 18px; }
+    .note-box li { margin: 4px 0; }
+
+    .footer {
+      margin-top: 22px;
+      font-size: 13.5px;
+      color: #534d42;
+      text-align: center;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes pulseRing {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .55; }
+    }
+    .pulse-warn { animation: pulseRing 1.2s ease-in-out infinite; }
+
+    @media (max-width: 1020px) {
+      .hero, .two, .deep-grid { grid-template-columns: 1fr; }
+      .stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .stack-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stepper, .metrics-grid { grid-template-columns: 1fr; }
+      .hero { padding: 18px 15px; }
+      .panel { padding: 16px 14px; }
+      h1 { font-size: 24px; }
+      .wrap { padding: 16px 12px 48px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="page-topline">
+    <span>NETWORK · HTTP PROTOCOL</span>
+    <a href="../../index.html">← 返回学习资料索引</a>
+  </div>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div>
+      <div class="eyebrow">Computer Networking · HTTP 协议演进交互演示</div>
+      <h1>HTTP/1.0 → 1.1 → 2 → 3：网页为什么越来越快？</h1>
+      <p>
+        同一浏览器向服务器请求 3 个静态资源（<code>style.css</code>、<code>app.js</code>、<code>hero.png</code>），
+        实时对比四代协议在<strong>连接复用、二进制多路复用、队头阻塞（HTTP 层 vs TCP 层）与 Wi-Fi 切 5G 连接迁移</strong>下的传输差异。
+      </p>
+    </div>
+
+    <div class="concept-card" aria-label="四代协议栈演进对比">
+      <div class="concept-title">
+        <span>协议栈演进（点击切换版本）</span>
+        <span style="font-family:var(--mono);color:var(--terracotta-dark)">1996 → 2022</span>
+      </div>
+      <div class="stack-grid" id="stack-grid">
+        <button type="button" class="stack-col" data-ver="1.0" onclick="setVersion('1.0')">
+          <div class="stack-ver">HTTP/1.0</div>
+          <div class="stack-layer ly-app">文本 · 短连接</div>
+          <div class="stack-layer ly-tls">TLS (可选)</div>
+          <div class="stack-layer ly-tcp">TCP (每请求新建)</div>
+        </button>
+        <button type="button" class="stack-col" data-ver="1.1" onclick="setVersion('1.1')">
+          <div class="stack-ver">HTTP/1.1</div>
+          <div class="stack-layer ly-app">文本 · 串行队列</div>
+          <div class="stack-layer ly-tls">TLS 1.2 / 1.3</div>
+          <div class="stack-layer ly-tcp">TCP 持久连接</div>
+        </button>
+        <button type="button" class="stack-col active" data-ver="2.0" onclick="setVersion('2.0')">
+          <div class="stack-ver">HTTP/2</div>
+          <div class="stack-layer ly-app">二进制帧+HPACK</div>
+          <div class="stack-layer ly-tls">TLS 1.2 / 1.3</div>
+          <div class="stack-layer ly-tcp">TCP 单连接复用</div>
+        </button>
+        <button type="button" class="stack-col is-h3" data-ver="3.0" onclick="setVersion('3.0')">
+          <div class="stack-ver">HTTP/3</div>
+          <div class="stack-layer ly-app">帧 + QPACK</div>
+          <div class="stack-layer ly-quic">QUIC (内置TLS1.3)</div>
+          <div class="stack-layer ly-udp">UDP (独立流)</div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Control Panel -->
+  <section class="panel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="ctl-label">协议视图：</span>
+        <div class="seg" role="group" aria-label="选择 HTTP 版本或竞速模式">
+          <button type="button" id="ver-1.0" onclick="setVersion('1.0')">HTTP/1.0</button>
+          <button type="button" id="ver-1.1" onclick="setVersion('1.1')">HTTP/1.1</button>
+          <button type="button" id="ver-2.0" onclick="setVersion('2.0')">HTTP/2</button>
+          <button type="button" id="ver-3.0" onclick="setVersion('3.0')">HTTP/3</button>
+          <button type="button" id="ver-race" class="race-btn active" onclick="setVersion('race')">🏁 四代同屏竞速</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <span class="ctl-label">网络场景：</span>
+        <div class="seg" role="group" aria-label="选择网络场景">
+          <button type="button" id="sc-normal" class="active" onclick="setScenario('normal')">正常网络</button>
+          <button type="button" id="sc-loss" onclick="setScenario('loss')">模拟丢包 (HOL)</button>
+          <button type="button" id="sc-migrate" onclick="setScenario('migrate')">Wi-Fi 切 5G</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button type="button" class="ctl primary" id="btn-play" onclick="togglePlay()">▶ 播放动画</button>
+        <button type="button" class="ctl" id="btn-prev" onclick="jumpMilestone(-1)">← 上一节点</button>
+        <button type="button" class="ctl" id="btn-next" onclick="jumpMilestone(1)">下一节点 →</button>
+        <button type="button" class="ctl" onclick="replay()">↺ 重播</button>
+        <div class="seg" role="group" aria-label="播放倍速">
+          <button type="button" id="spd-0.5" onclick="setSpeed(0.5)">0.5x</button>
+          <button type="button" id="spd-1" class="active" onclick="setSpeed(1)">1x</button>
+          <button type="button" id="spd-2" onclick="setSpeed(2)">2x</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <span class="badge-pill" id="stage-pill">就绪 · 统一 HTTPS (TLS 1.3)</span>
+      </div>
+    </div>
+
+    <div class="scrubber-row">
+      <span class="ctl-label" style="white-space:nowrap">时间进度：</span>
+      <input type="range" id="scrubber" min="0" max="1000" value="0" aria-label="拖动动画时间轴" />
+      <span class="time-readout" id="time-readout">0.00 / 4.00 RTT</span>
+    </div>
+
+    <div class="stepper" id="stepper" aria-label="关键阶段快速跳转"></div>
+    <p class="model-hint">
+      教学模型说明：为便于同尺度对照，四代统一按 HTTPS (TLS 1.3) 模拟，HTTP/1.1 展示单条持久连接行为（现实浏览器通常会为同源开启约 6 条并行 TCP 连接）；图中耗时单位为相对 RTT，非固定物理毫秒。
+    </p>
+  </section>
+
+  <!-- Single-Version Stage + Inspector -->
+  <div class="two" id="single-layout">
+    <section class="panel">
+      <div class="head">
+        <div>
+          <div class="sub" id="stage-sub">Packet &amp; Stream Animation · 实时数据包与时间线</div>
+          <h2 id="stage-title">① HTTP/2：单条 TCP 连接内的二进制分帧多路复用</h2>
+        </div>
+        <span class="badge-pill" id="stage-status">待播放</span>
+      </div>
+
+      <div class="svg-box">
+        <svg id="stage-svg" class="stage-svg" viewBox="0 0 820 462" role="img" aria-label="HTTP 协议传输动画画布"></svg>
+      </div>
+
+      <div class="legend">
+        <span><i class="dot-lg" style="background:#e6edf3;border-color:#4a6580"></i><code>style.css</code> (资源 A)</span>
+        <span><i class="dot-lg" style="background:#e8ecdf;border-color:#5b6f52"></i><code>app.js</code> (资源 B)</span>
+        <span><i class="dot-lg" style="background:#f6ead6;border-color:#b5783a"></i><code>hero.png</code> (资源 C)</span>
+        <span><i class="dot-lg" style="background:#e8e1d5;border-color:#7c7468"></i>TCP 握手</span>
+        <span><i class="dot-lg" style="background:#efe7f0;border-color:#7b5e7b"></i>TLS 1.3</span>
+        <span><i class="dot-lg" style="background:#e1efec;border-color:#3e6b63"></i>QUIC 1-RTT</span>
+        <span><i class="dot-lg" style="background:#f8e6e2;border-color:#b44c3a"></i>丢包 / 阻塞 / 断连</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="head">
+        <div>
+          <div class="sub">Protocol Inspector · 线缆透视</div>
+          <h2>② 性能指标与报文结构</h2>
+        </div>
+      </div>
+
+      <div class="metrics-grid" id="metrics-grid"></div>
+      <div class="wire-box" id="wire-box"></div>
+
+      <h3 style="margin-top:14px">实时事件轨迹</h3>
+      <ul class="trace-list" id="trace-list"></ul>
+    </section>
+  </div>
+
+  <!-- Race Mode Full-Width Stage -->
+  <section class="panel hidden" id="race-layout">
+    <div class="head">
+      <div>
+        <div class="sub">Head-to-Head Comparison · 同时间轴四代同步竞速</div>
+        <h2 id="race-title">① 四代同屏竞速：同一网络条件下加载 3 个资源的 RTT 对比</h2>
+      </div>
+      <span class="badge-pill good" id="race-leader">点击「播放动画」开始竞速</span>
+    </div>
+
+    <div class="svg-box">
+      <svg id="race-svg" class="race-svg" viewBox="0 0 1120 472" role="img" aria-label="HTTP 1.0、1.1、2、3 同屏竞速动画"></svg>
+    </div>
+
+    <div class="legend">
+      <span><i class="dot-lg" style="background:#e8e1d5;border-color:#7c7468"></i>TCP 握手 (1 RTT)</span>
+      <span><i class="dot-lg" style="background:#efe7f0;border-color:#7b5e7b"></i>TLS 1.3 (1 RTT)</span>
+      <span><i class="dot-lg" style="background:#e1efec;border-color:#3e6b63"></i>QUIC 合并握手 (1 RTT)</span>
+      <span><i class="dot-lg" style="background:#4a6580;border-color:#364d63"></i><code>style.css</code></span>
+      <span><i class="dot-lg" style="background:#5b6f52;border-color:#43533c"></i><code>app.js</code></span>
+      <span><i class="dot-lg" style="background:#b5783a;border-color:#8d5b28"></i><code>hero.png</code></span>
+      <span><i class="dot-lg" style="background:#f8e6e2;border-color:#b44c3a"></i>丢包重传 / 阻塞 / 重建连</span>
+    </div>
+  </section>
+
+  <!-- Dynamic Walkthrough Box -->
+  <section class="panel">
+    <div class="head" style="margin-bottom:10px">
+      <div>
+        <div class="sub">Live Walkthrough · 同步原理解说</div>
+        <h2>③ 当前场景核心解读</h2>
+      </div>
+    </div>
+    <div class="explain-box" id="explain-box"></div>
+  </section>
+
+  <!-- Deep Dive Interactive Mechanics -->
+  <section class="panel">
+    <div class="head">
+      <div>
+        <div class="sub">Core Breakthroughs · 四大演进核心机制图解</div>
+        <h2>④ 为什么需要换代？深入拆解关键瓶颈</h2>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="四大演进原理专题">
+      <button type="button" role="tab" aria-selected="true" class="tab-btn active" id="tab-hol" onclick="setDeepTab('hol')">1. 队头阻塞（HTTP 层 vs TCP 层）</button>
+      <button type="button" role="tab" aria-selected="false" class="tab-btn" id="tab-header" onclick="setDeepTab('header')">2. 头部压缩（明文 → HPACK → QPACK）</button>
+      <button type="button" role="tab" aria-selected="false" class="tab-btn" id="tab-handshake" onclick="setDeepTab('handshake')">3. 握手耗时（3 RTT → 2 RTT → 1 / 0 RTT）</button>
+      <button type="button" role="tab" aria-selected="false" class="tab-btn" id="tab-migrate" onclick="setDeepTab('migrate')">4. 连接迁移（四元组 vs Connection ID）</button>
+    </div>
+
+    <div class="deep-grid">
+      <div class="deep-svg-wrap">
+        <svg id="deep-svg" class="deep-svg" viewBox="0 0 680 276" role="img" aria-label="核心原理拆解示意图"></svg>
+      </div>
+      <div class="deep-notes" id="deep-notes"></div>
+    </div>
+  </section>
+
+  <!-- Reference Comparison Matrix -->
+  <section class="panel">
+    <div class="head" style="margin-bottom:10px">
+      <div>
+        <div class="sub">Comparison Matrix · 实时高亮当前选中版本</div>
+        <h2>⑤ HTTP/1.0 · 1.1 · 2 · 3 全维度对比速查</h2>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="cmp-table">
+        <thead>
+          <tr>
+            <th style="width:15%">对比维度</th>
+            <th data-col="1.0">HTTP/1.0 (1996)</th>
+            <th data-col="1.1">HTTP/1.1 (1997/1999)</th>
+            <th data-col="2.0">HTTP/2 (2015)</th>
+            <th data-col="3.0">HTTP/3 (2022)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>标准 RFC</td>
+            <td data-col="1.0"><code>RFC 1945</code></td>
+            <td data-col="1.1"><code>RFC 2068 / 2616 → 9112</code></td>
+            <td data-col="2.0"><code>RFC 7540 → 9113</code>（HPACK <code>7541</code>）</td>
+            <td data-col="3.0"><code>RFC 9114</code>、QUIC <code>9000</code>、QPACK <code>9204</code></td>
+          </tr>
+          <tr>
+            <td>传输层协议</td>
+            <td data-col="1.0">TCP（短连接）</td>
+            <td data-col="1.1">TCP（默认持久连接）</td>
+            <td data-col="2.0">TCP + TLS（规范允许 <code>h2c</code>，浏览器必开 TLS）</td>
+            <td data-col="3.0"><strong>UDP + QUIC</strong>（内置 TLS 1.3）</td>
+          </tr>
+          <tr>
+            <td>连接管理</td>
+            <td data-col="1.0">每次请求新建 TCP，响应即断（<code>keep-alive</code> 非标准）</td>
+            <td data-col="1.1">默认持久连接复用；浏览器常对同源开约 <strong>6 条并发连接</strong></td>
+            <td data-col="2.0"><strong>单域名单连接</strong> + 多路复用（多个 Stream 交错）</td>
+            <td data-col="3.0"><strong>Connection ID</strong>（0~20 字节）标识连接，Wi-Fi ↔ 5G 可平滑迁移</td>
+          </tr>
+          <tr>
+            <td>传输格式</td>
+            <td data-col="1.0">纯文本 ASCII</td>
+            <td data-col="1.1">纯文本 ASCII + <code>chunked</code> 分块传输</td>
+            <td data-col="2.0"><strong>二进制分帧</strong>（HEADERS / DATA 等）</td>
+            <td data-col="3.0"><strong>QUIC 加密帧</strong>（载荷与绝大多数传输头均加密，防中间盒干扰）</td>
+          </tr>
+          <tr>
+            <td>头部压缩</td>
+            <td data-col="1.0">无（每次重复发送）</td>
+            <td data-col="1.1">无（Cookie / UA 冗余大）</td>
+            <td data-col="2.0"><strong>HPACK</strong>（61 项静态表 + 动态表 + Huffman）</td>
+            <td data-col="3.0"><strong>QPACK</strong>（99 项静态表 + 独立控制流同步动态表，避免跨流乱序阻塞）</td>
+          </tr>
+          <tr>
+            <td>队头阻塞 (HOL)</td>
+            <td data-col="1.0">无连接复用，但频繁建连开销更大</td>
+            <td data-col="1.1"><strong>应用层 HTTP HOL</strong>（单连接响应必须按 FIFO 顺序返回）</td>
+            <td data-col="2.0">改善应用层跨流阻塞，仍存在 <strong>TCP 传输层 HOL</strong></td>
+            <td data-col="3.0"><strong>消除跨流队头阻塞</strong>（QUIC 各流独立保序，单流丢包不阻塞他流）</td>
+          </tr>
+          <tr>
+            <td>建连握手 (HTTPS)</td>
+            <td data-col="1.0">每请求 2~3 RTT（明文 TCP 1 RTT）</td>
+            <td data-col="1.1">TCP(1) + TLS 1.3(1) = <strong>2 RTT</strong>（TLS 1.2 为 3 RTT）</td>
+            <td data-col="2.0">TCP(1) + TLS 1.3(1) = <strong>2 RTT</strong>（ALPN 协商 <code>h2</code>）</td>
+            <td data-col="3.0">首次 <strong>1 RTT</strong>，会话恢复可 <strong>0 RTT</strong>（仅限幂等安全请求）</td>
+          </tr>
+          <tr>
+            <td>关键特性与补充</td>
+            <td data-col="1.0">基础 GET/POST/HEAD、<code>Expires</code> 缓存</td>
+            <td data-col="1.1">强制 <code>Host</code>（虚拟主机）、<code>Range</code> 断点续传、<code>Cache-Control</code></td>
+            <td data-col="2.0">流优先级、流量控制、Server Push（主流浏览器已移除，改用 <code>103 Early Hints</code>）</td>
+            <td data-col="3.0">抗弱网丢包、0-RTT 建连、支持 <code>Alt-Svc</code> 发现与优雅降级到 HTTP/2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note-box">
+      <strong>工程实战与面试高频补充：</strong>
+      <ul>
+        <li><strong>为什么现实中 HTTP/1.1 没看起来那么慢？</strong> 浏览器通常会为同一域名同时建立约 <strong>6 条并行 TCP 连接</strong>（早期前端还会用「域名分片」开更多连接），代价是消耗更多端口、内存与 TCP 慢启动开销；升级 HTTP/2 后应取消域名分片，让同源请求复用同一连接。</li>
+        <li><strong>HTTP/2 Server Push 现状：</strong> 规范曾引入服务端推送，但因服务端难以准确判断浏览器缓存状态（易推送冗余资源），Chrome 等主流浏览器已移除支持，现代实践改用 <code>103 Early Hints</code>。</li>
+        <li><strong>HTTP/3 部署与兼容：</strong> 部分企业防火墙会拦截或限速 UDP 443 端口。服务端通过响应头 <code>Alt-Svc: h3=":443"</code>（或 DNS HTTPS 记录）通告支持 HTTP/3，浏览器并发探测（Happy Eyeballs），若 UDP 不通自动回退到 HTTP/2。</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="footer">
+    一句话记住演进主线：<strong>1.0 每次建连 → 1.1 长连接串行 → 2 二进制多路复用（解了 HTTP 跨流阻塞，卡在 TCP）→ 3 改用 UDP/QUIC（消除跨流队头阻塞 + 1/0-RTT + Connection ID 连接迁移）。</strong>
+    提示：支持键盘 <code>Space</code> 播放/暂停、<code>←</code> / <code>→</code> 切换关键节点。
+  </p>
+</main>
+
+<script>
+(() => {
+  // Editorial vintage palette for the 3 requested resources
+  const RES = [
+    { id: 'css', name: 'style.css', short: 'CSS', color: '#4a6580', soft: '#e6edf3', text: '#2c4257', h2Stream: 1, h3Stream: 0 },
+    { id: 'js',  name: 'app.js',    short: 'JS',  color: '#5b6f52', soft: '#e8ecdf', text: '#3a4b34', h2Stream: 3, h3Stream: 4 },
+    { id: 'png', name: 'hero.png',  short: 'PNG', color: '#b5783a', soft: '#f6ead6', text: '#7a4d1d', h2Stream: 5, h3Stream: 8 }
+  ];
+
+  // Deterministic teaching simulation model for each (version, scenario)
+  function buildModel(ver, scen) {
+    const isLoss = scen === 'loss';
+    const migT   = 2.5;
+
+    if (ver === '1.0') {
+      if (scen === 'normal') {
+        return {
+          ver, scen, total: 9.6, connCount: 3, handshakeRtt: '6.0 RTT (3×2)',
+          holStatus: '短连接串行开销大', holClass: 'bad',
+          doneAt: [3.0, 6.2, 9.6],
+          bars: [
+            [
+              { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+              { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+              { type: 'data', start: 2.0, end: 3.0, label: 'CSS', resIdx: 0 }
+            ],
+            [
+              { type: 'tcp', start: 3.0, end: 4.0, label: 'TCP' },
+              { type: 'tls', start: 4.0, end: 5.0, label: 'TLS' },
+              { type: 'data', start: 5.0, end: 6.2, label: 'JS', resIdx: 1 }
+            ],
+            [
+              { type: 'tcp', start: 6.2, end: 7.2, label: 'TCP' },
+              { type: 'tls', start: 7.2, end: 8.2, label: 'TLS' },
+              { type: 'data', start: 8.2, end: 9.6, label: 'PNG', resIdx: 2 }
+            ]
+          ],
+          packets: [
+            { lane: 0, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+            { lane: 0, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 0, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS Hello' },
+            { lane: 0, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert+Fin' },
+            { lane: 0, dir: 'c2s', start: 2.0, end: 2.45, kind: 'req', resIdx: 0, label: 'GET css' },
+            { lane: 0, dir: 's2c', start: 2.45, end: 3.0, kind: 'data', resIdx: 0, label: '200 CSS+FIN' },
+            { lane: 1, dir: 'c2s', start: 3.0, end: 3.5, kind: 'tcp', label: 'SYN' },
+            { lane: 1, dir: 's2c', start: 3.5, end: 4.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 1, dir: 'c2s', start: 4.0, end: 4.5, kind: 'tls', label: 'TLS Hello' },
+            { lane: 1, dir: 's2c', start: 4.5, end: 5.0, kind: 'tls', label: 'Cert+Fin' },
+            { lane: 1, dir: 'c2s', start: 5.0, end: 5.45, kind: 'req', resIdx: 1, label: 'GET js' },
+            { lane: 1, dir: 's2c', start: 5.45, end: 6.2, kind: 'data', resIdx: 1, label: '200 JS+FIN' },
+            { lane: 2, dir: 'c2s', start: 6.2, end: 6.7, kind: 'tcp', label: 'SYN' },
+            { lane: 2, dir: 's2c', start: 6.7, end: 7.2, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 2, dir: 'c2s', start: 7.2, end: 7.7, kind: 'tls', label: 'TLS Hello' },
+            { lane: 2, dir: 's2c', start: 7.7, end: 8.2, kind: 'tls', label: 'Cert+Fin' },
+            { lane: 2, dir: 'c2s', start: 8.2, end: 8.65, kind: 'req', resIdx: 2, label: 'GET png' },
+            { lane: 2, dir: 's2c', start: 8.65, end: 9.6, kind: 'data', resIdx: 2, label: '200 PNG+FIN' }
+          ],
+          connStates: [
+            { open: 0.0, close: 3.0 },
+            { open: 3.0, close: 6.2 },
+            { open: 6.2, close: 9.6 }
+          ],
+          milestones: [
+            { t: 0.5, tag: '01 · Conn #1', title: '首次 TCP+TLS 握手' },
+            { t: 2.7, tag: '02 · 响应即断', title: 'CSS 完成即 FIN 断连' },
+            { t: 4.3, tag: '03 · 重复建连', title: 'JS 重新握手建 Conn #2' },
+            { t: 9.6, tag: '04 · 全部完成', title: '3 次建连共耗时 9.6 RTT' }
+          ],
+          traces: [
+            { t: 0.0, text: '建立 Conn #1：TCP 三次握手 (1 RTT) + TLS 1.3 (1 RTT)。' },
+            { t: 2.0, text: '发送 GET /style.css HTTP/1.0，响应结束后立即关闭 TCP。' },
+            { t: 3.0, text: '为请求 app.js，被迫新建 Conn #2，再次经历完整 TCP+TLS 握手。' },
+            { t: 6.2, text: '为请求 hero.png，第三次新建 Conn #3，62.5% 时间耗费在重复握手。' },
+            { t: 9.6, text: '全部交付完成，总耗时 9.6 RTT（即使明文无 TLS 也需 6.6 RTT）。', cls: 'bad' }
+          ]
+        };
+      }
+      if (isLoss) {
+        return {
+          ver, scen, total: 10.8, connCount: 3, handshakeRtt: '6.0 RTT (3×2)',
+          holStatus: '重复建连 + 丢包重传', holClass: 'bad',
+          doneAt: [3.0, 7.4, 10.8],
+          lossEvent: { t: 5.7, lane: 1, label: 'JS 丢包' },
+          bars: [
+            [
+              { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+              { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+              { type: 'data', start: 2.0, end: 3.0, label: 'CSS', resIdx: 0 }
+            ],
+            [
+              { type: 'tcp', start: 3.0, end: 4.0, label: 'TCP' },
+              { type: 'tls', start: 4.0, end: 5.0, label: 'TLS' },
+              { type: 'loss', start: 5.0, end: 6.6, label: '✕ 丢包重传' },
+              { type: 'data', start: 6.6, end: 7.4, label: 'JS', resIdx: 1 }
+            ],
+            [
+              { type: 'tcp', start: 7.4, end: 8.4, label: 'TCP' },
+              { type: 'tls', start: 8.4, end: 9.4, label: 'TLS' },
+              { type: 'data', start: 9.4, end: 10.8, label: 'PNG', resIdx: 2 }
+            ]
+          ],
+          packets: [
+            { lane: 0, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+            { lane: 0, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 0, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS' },
+            { lane: 0, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert' },
+            { lane: 0, dir: 'c2s', start: 2.0, end: 2.45, kind: 'req', resIdx: 0, label: 'GET css' },
+            { lane: 0, dir: 's2c', start: 2.45, end: 3.0, kind: 'data', resIdx: 0, label: '200 CSS' },
+            { lane: 1, dir: 'c2s', start: 3.0, end: 3.5, kind: 'tcp', label: 'SYN' },
+            { lane: 1, dir: 's2c', start: 3.5, end: 4.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 1, dir: 'c2s', start: 4.0, end: 4.5, kind: 'tls', label: 'TLS' },
+            { lane: 1, dir: 's2c', start: 4.5, end: 5.0, kind: 'tls', label: 'Cert' },
+            { lane: 1, dir: 'c2s', start: 5.0, end: 5.4, kind: 'req', resIdx: 1, label: 'GET js' },
+            { lane: 1, dir: 's2c', start: 5.4, end: 6.0, kind: 'data', resIdx: 1, label: 'JS #1', dropAt: 0.52 },
+            { lane: 1, dir: 's2c', start: 6.6, end: 7.4, kind: 'data', resIdx: 1, label: '重传 JS' },
+            { lane: 2, dir: 'c2s', start: 7.4, end: 7.9, kind: 'tcp', label: 'SYN' },
+            { lane: 2, dir: 's2c', start: 7.9, end: 8.4, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 2, dir: 'c2s', start: 8.4, end: 8.9, kind: 'tls', label: 'TLS' },
+            { lane: 2, dir: 's2c', start: 8.9, end: 9.4, kind: 'tls', label: 'Cert' },
+            { lane: 2, dir: 'c2s', start: 9.4, end: 9.85, kind: 'req', resIdx: 2, label: 'GET png' },
+            { lane: 2, dir: 's2c', start: 9.85, end: 10.8, kind: 'data', resIdx: 2, label: '200 PNG' }
+          ],
+          connStates: [
+            { open: 0.0, close: 3.0 },
+            { open: 3.0, close: 7.4 },
+            { open: 7.4, close: 10.8 }
+          ],
+          milestones: [
+            { t: 2.6, tag: '01 · CSS 完成', title: 'Conn #1 正常结束' },
+            { t: 5.75, tag: '02 · JS 丢包', title: 'Conn #2 响应中途丢包' },
+            { t: 7.0, tag: '03 · TCP 重传', title: '重传完成后才建 Conn #3' },
+            { t: 10.8, tag: '04 · 最终完成', title: '雪上加霜：共 10.8 RTT' }
+          ],
+          traces: [
+            { t: 0.0, text: 'Conn #1 经历 TCP+TLS 握手后拉取 style.css 并断开。' },
+            { t: 5.7, text: 'Conn #2 传输 app.js 时遭遇丢包，TCP 触发重传等待。', cls: 'bad' },
+            { t: 7.4, text: 'app.js 终于完成，Conn #3 才开始第三次握手建连。' },
+            { t: 10.8, text: '全部完成，耗时 10.8 RTT。', cls: 'bad' }
+          ]
+        };
+      }
+      return {
+        ver, scen, total: 12.5, connCount: 4, handshakeRtt: '8.0 RTT (含断连重建)',
+        holStatus: 'IP 改变导致 TCP 断连', holClass: 'bad',
+        doneAt: [5.9, 9.1, 12.5],
+        migAt: migT,
+        bars: [
+          [
+            { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+            { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+            { type: 'loss', start: 2.0, end: 2.9, label: '✕ 断连' },
+            { type: 'tcp', start: 2.9, end: 3.9, label: '重连TCP' },
+            { type: 'tls', start: 3.9, end: 4.9, label: 'TLS' },
+            { type: 'data', start: 4.9, end: 5.9, label: 'CSS', resIdx: 0 }
+          ],
+          [
+            { type: 'tcp', start: 5.9, end: 6.9, label: 'TCP' },
+            { type: 'tls', start: 6.9, end: 7.9, label: 'TLS' },
+            { type: 'data', start: 7.9, end: 9.1, label: 'JS', resIdx: 1 }
+          ],
+          [
+            { type: 'tcp', start: 9.1, end: 10.1, label: 'TCP' },
+            { type: 'tls', start: 10.1, end: 11.1, label: 'TLS' },
+            { type: 'data', start: 11.1, end: 12.5, label: 'PNG', resIdx: 2 }
+          ]
+        ],
+        packets: [
+          { lane: 0, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+          { lane: 0, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 0, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS' },
+          { lane: 0, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert' },
+          { lane: 0, dir: 'c2s', start: 2.0, end: 2.4, kind: 'req', resIdx: 0, label: 'GET css' },
+          { lane: 0, dir: 's2c', start: 2.4, end: 2.8, kind: 'data', resIdx: 0, label: '中断!', dropAt: 0.45 },
+          { lane: 0, dir: 'c2s', start: 2.9, end: 3.4, kind: 'tcp', label: '5G SYN' },
+          { lane: 0, dir: 's2c', start: 3.4, end: 3.9, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 0, dir: 'c2s', start: 3.9, end: 4.4, kind: 'tls', label: 'TLS' },
+          { lane: 0, dir: 's2c', start: 4.4, end: 4.9, kind: 'tls', label: 'Cert' },
+          { lane: 0, dir: 'c2s', start: 4.9, end: 5.3, kind: 'req', resIdx: 0, label: 'GET css' },
+          { lane: 0, dir: 's2c', start: 5.3, end: 5.9, kind: 'data', resIdx: 0, label: '200 CSS' },
+          { lane: 1, dir: 'c2s', start: 5.9, end: 6.4, kind: 'tcp', label: 'SYN' },
+          { lane: 1, dir: 's2c', start: 6.4, end: 6.9, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 1, dir: 'c2s', start: 6.9, end: 7.4, kind: 'tls', label: 'TLS' },
+          { lane: 1, dir: 's2c', start: 7.4, end: 7.9, kind: 'tls', label: 'Cert' },
+          { lane: 1, dir: 'c2s', start: 7.9, end: 8.35, kind: 'req', resIdx: 1, label: 'GET js' },
+          { lane: 1, dir: 's2c', start: 8.35, end: 9.1, kind: 'data', resIdx: 1, label: '200 JS' },
+          { lane: 2, dir: 'c2s', start: 9.1, end: 9.6, kind: 'tcp', label: 'SYN' },
+          { lane: 2, dir: 's2c', start: 9.6, end: 10.1, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 2, dir: 'c2s', start: 10.1, end: 10.6, kind: 'tls', label: 'TLS' },
+          { lane: 2, dir: 's2c', start: 10.6, end: 11.1, kind: 'tls', label: 'Cert' },
+          { lane: 2, dir: 'c2s', start: 11.1, end: 11.55, kind: 'req', resIdx: 2, label: 'GET png' },
+          { lane: 2, dir: 's2c', start: 11.55, end: 12.5, kind: 'data', resIdx: 2, label: '200 PNG' }
+        ],
+        connStates: [
+          { open: 0.0, close: 5.9, brokenAt: migT },
+          { open: 5.9, close: 9.1 },
+          { open: 9.1, close: 12.5 }
+        ],
+        milestones: [
+          { t: 1.5, tag: '01 · Wi-Fi 建连', title: 'Wi-Fi IP 建立 Conn #1' },
+          { t: 2.6, tag: '02 · 切 5G 断连', title: 'IP 改变导致 TCP 四元组失效' },
+          { t: 4.3, tag: '03 · 被迫重连', title: '5G 下重新 TCP+TLS 握手' },
+          { t: 12.5, tag: '04 · 最终完成', title: '重建连+短连接共 12.5 RTT' }
+        ],
+        traces: [
+          { t: 0.0, text: '在 Wi-Fi (192.168.1.8) 建立 Conn #1 准备拉取 style.css。' },
+          { t: 2.5, text: '手机切至 5G (10.88.4.21)，TCP 四元组失效，Conn #1 当场断连。', cls: 'bad' },
+          { t: 2.9, text: '新 IP 下重新执行 TCP + TLS 握手并重发 style.css。' },
+          { t: 12.5, text: '经历 4 次建连后全部完成，总耗时 12.5 RTT。', cls: 'bad' }
+        ]
+      };
+    }
+
+    if (ver === '1.1') {
+      if (scen === 'normal') {
+        return {
+          ver, scen, total: 5.6, connCount: 1, handshakeRtt: '2.0 RTT (长连接复用)',
+          holStatus: '单连接内串行排队 (FIFO)', holClass: 'bad',
+          doneAt: [3.0, 4.2, 5.6],
+          bars: [
+            [
+              { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+              { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+              { type: 'data', start: 2.0, end: 3.0, label: 'CSS', resIdx: 0 }
+            ],
+            [
+              { type: 'block', start: 2.0, end: 3.0, label: '排队等 CSS' },
+              { type: 'data', start: 3.0, end: 4.2, label: 'JS', resIdx: 1 }
+            ],
+            [
+              { type: 'block', start: 2.0, end: 4.2, label: '串行等待前面完成' },
+              { type: 'data', start: 4.2, end: 5.6, label: 'PNG', resIdx: 2 }
+            ]
+          ],
+          packets: [
+            { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+            { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 1, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS Hello' },
+            { lane: 1, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert+Fin' },
+            { lane: 1, dir: 'c2s', start: 2.0, end: 2.4, kind: 'req', resIdx: 0, label: 'GET css' },
+            { lane: 1, dir: 's2c', start: 2.4, end: 3.0, kind: 'data', resIdx: 0, label: '200 CSS' },
+            { lane: 1, dir: 'c2s', start: 3.0, end: 3.45, kind: 'req', resIdx: 1, label: 'GET js' },
+            { lane: 1, dir: 's2c', start: 3.45, end: 4.2, kind: 'data', resIdx: 1, label: '200 JS' },
+            { lane: 1, dir: 'c2s', start: 4.2, end: 4.65, kind: 'req', resIdx: 2, label: 'GET png' },
+            { lane: 1, dir: 's2c', start: 4.65, end: 5.6, kind: 'data', resIdx: 2, label: '200 PNG' }
+          ],
+          milestones: [
+            { t: 1.2, tag: '01 · 一次建连', title: 'TCP+TLS 长连接只建 1 次' },
+            { t: 2.7, tag: '02 · 串行发 CSS', title: '持久连接复用，先传 CSS' },
+            { t: 3.8, tag: '03 · 排队传 JS', title: 'PNG 必须等 JS 完全结束' },
+            { t: 5.6, tag: '04 · 全部完成', title: '较 1.0 省 4 RTT，共 5.6 RTT' }
+          ],
+          traces: [
+            { t: 0.0, text: '建立 1 条 TCP + TLS 1.3 持久连接（HTTP/1.1 默认复用，无需显式声明）。' },
+            { t: 2.0, text: '发起 style.css 请求；app.js 和 hero.png 只能在队列里等待。' },
+            { t: 3.0, text: 'style.css 返回后复用同一连接发送 app.js，省去 2 RTT 握手。', cls: 'good' },
+            { t: 4.2, text: 'app.js 返回后继续串行发送 hero.png。' },
+            { t: 5.6, text: '全部完成，耗时 5.6 RTT（单连接无法并发是最大痛点）。' }
+          ]
+        };
+      }
+      if (isLoss) {
+        return {
+          ver, scen, total: 6.8, connCount: 1, handshakeRtt: '2.0 RTT',
+          holStatus: '应用层 HTTP 队头阻塞', holClass: 'bad',
+          doneAt: [3.0, 5.4, 6.8],
+          lossEvent: { t: 3.7, lane: 1, label: 'JS 丢包卡住队列' },
+          holWindow: { start: 3.6, end: 5.4, type: 'http', label: 'HTTP 应用层队头阻塞：PNG 无法越过 JS' },
+          bars: [
+            [
+              { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+              { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+              { type: 'data', start: 2.0, end: 3.0, label: 'CSS', resIdx: 0 }
+            ],
+            [
+              { type: 'block', start: 2.0, end: 3.0, label: '排队' },
+              { type: 'loss', start: 3.0, end: 4.7, label: '✕ JS 丢包重传' },
+              { type: 'data', start: 4.7, end: 5.4, label: 'JS', resIdx: 1 }
+            ],
+            [
+              { type: 'block', start: 2.0, end: 3.6, label: '排队' },
+              { type: 'loss', start: 3.6, end: 5.4, label: '🔒 HTTP 队头阻塞' },
+              { type: 'data', start: 5.4, end: 6.8, label: 'PNG', resIdx: 2 }
+            ]
+          ],
+          packets: [
+            { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+            { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 1, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS' },
+            { lane: 1, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert' },
+            { lane: 1, dir: 'c2s', start: 2.0, end: 2.4, kind: 'req', resIdx: 0, label: 'GET css' },
+            { lane: 1, dir: 's2c', start: 2.4, end: 3.0, kind: 'data', resIdx: 0, label: '200 CSS' },
+            { lane: 1, dir: 'c2s', start: 3.0, end: 3.4, kind: 'req', resIdx: 1, label: 'GET js' },
+            { lane: 1, dir: 's2c', start: 3.4, end: 4.0, kind: 'data', resIdx: 1, label: 'JS 丢包', dropAt: 0.52 },
+            { lane: 1, dir: 's2c', start: 4.7, end: 5.4, kind: 'data', resIdx: 1, label: '重传 JS' },
+            { lane: 1, dir: 'c2s', start: 5.4, end: 5.85, kind: 'req', resIdx: 2, label: 'GET png' },
+            { lane: 1, dir: 's2c', start: 5.85, end: 6.8, kind: 'data', resIdx: 2, label: '200 PNG' }
+          ],
+          milestones: [
+            { t: 2.7, tag: '01 · CSS 完成', title: '长连接顺利拉取 CSS' },
+            { t: 3.72, tag: '02 · JS 丢包', title: 'JS 响应丢失，队列停摆' },
+            { t: 4.4, tag: '03 · 应用层阻塞', title: 'PNG 被挡在队列后面' },
+            { t: 6.8, tag: '04 · 最终完成', title: '连带拖延至 6.8 RTT' }
+          ],
+          traces: [
+            { t: 0.0, text: '单条持久连接建立，style.css 顺利在 3.0 RTT 完成。' },
+            { t: 3.7, text: 'app.js 响应丢包，整条 HTTP/1.1 通道停滞等待重传。', cls: 'bad' },
+            { t: 4.2, text: '应用层队头阻塞：即使开启 Pipelining，服务器也必须按 FIFO 顺序返回响应，hero.png 无法越过 app.js。', cls: 'bad' },
+            { t: 5.4, text: 'app.js 重传终于完毕，hero.png 才得以开始。' },
+            { t: 6.8, text: '全部完成，耗时 6.8 RTT。', cls: 'bad' }
+          ]
+        };
+      }
+      return {
+        ver, scen, total: 8.5, connCount: 2, handshakeRtt: '4.0 RTT (断连重建)',
+        holStatus: 'Wi-Fi 切 5G，长连接直接断开', holClass: 'bad',
+        doneAt: [5.9, 7.1, 8.5],
+        migAt: migT,
+        bars: [
+          [
+            { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+            { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+            { type: 'loss', start: 2.0, end: 2.9, label: '✕ 断连' },
+            { type: 'tcp', start: 2.9, end: 3.9, label: '5G TCP' },
+            { type: 'tls', start: 3.9, end: 4.9, label: 'TLS' },
+            { type: 'data', start: 4.9, end: 5.9, label: 'CSS', resIdx: 0 }
+          ],
+          [
+            { type: 'block', start: 4.9, end: 5.9, label: '排队' },
+            { type: 'data', start: 5.9, end: 7.1, label: 'JS', resIdx: 1 }
+          ],
+          [
+            { type: 'block', start: 4.9, end: 7.1, label: '串行排队' },
+            { type: 'data', start: 7.1, end: 8.5, label: 'PNG', resIdx: 2 }
+          ]
+        ],
+        packets: [
+          { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+          { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 1, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS' },
+          { lane: 1, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert' },
+          { lane: 1, dir: 'c2s', start: 2.0, end: 2.38, kind: 'req', resIdx: 0, label: 'GET css' },
+          { lane: 1, dir: 's2c', start: 2.38, end: 2.8, kind: 'data', resIdx: 0, label: '中断!', dropAt: 0.45 },
+          { lane: 1, dir: 'c2s', start: 2.9, end: 3.4, kind: 'tcp', label: '5G SYN' },
+          { lane: 1, dir: 's2c', start: 3.4, end: 3.9, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 1, dir: 'c2s', start: 3.9, end: 4.4, kind: 'tls', label: 'TLS' },
+          { lane: 1, dir: 's2c', start: 4.4, end: 4.9, kind: 'tls', label: 'Cert' },
+          { lane: 1, dir: 'c2s', start: 4.9, end: 5.3, kind: 'req', resIdx: 0, label: 'GET css' },
+          { lane: 1, dir: 's2c', start: 5.3, end: 5.9, kind: 'data', resIdx: 0, label: '200 CSS' },
+          { lane: 1, dir: 'c2s', start: 5.9, end: 6.35, kind: 'req', resIdx: 1, label: 'GET js' },
+          { lane: 1, dir: 's2c', start: 6.35, end: 7.1, kind: 'data', resIdx: 1, label: '200 JS' },
+          { lane: 1, dir: 'c2s', start: 7.1, end: 7.55, kind: 'req', resIdx: 2, label: 'GET png' },
+          { lane: 1, dir: 's2c', start: 7.55, end: 8.5, kind: 'data', resIdx: 2, label: '200 PNG' }
+        ],
+        milestones: [
+          { t: 1.5, tag: '01 · Wi-Fi 建连', title: 'Wi-Fi 下建立长连接' },
+          { t: 2.6, tag: '02 · 切 5G 断连', title: 'IP 改变，TCP 连接作废' },
+          { t: 4.2, tag: '03 · 重新握手', title: '5G 下重做 TCP+TLS 握手' },
+          { t: 8.5, tag: '04 · 最终完成', title: '重建连 + 串行共 8.5 RTT' }
+        ],
+        traces: [
+          { t: 0.0, text: 'Wi-Fi 环境下建好持久连接并开始拉取 style.css。' },
+          { t: 2.5, text: '切到 5G 后客户端 IP 改变，TCP 四元组绑定失效，长连接中断。', cls: 'bad' },
+          { t: 2.9, text: '被迫在 5G 网络重新握手 2 RTT，并从头重传 style.css。' },
+          { t: 8.5, text: '随后串行完成 JS 与 PNG，总耗时 8.5 RTT。', cls: 'bad' }
+        ]
+      };
+    }
+
+    if (ver === '2.0') {
+      if (scen === 'normal') {
+        return {
+          ver, scen, total: 4.0, connCount: 1, handshakeRtt: '2.0 RTT (ALPN: h2)',
+          holStatus: '多路复用 · 无应用层阻塞', holClass: 'good',
+          doneAt: [3.2, 3.6, 4.0],
+          bars: [
+            [
+              { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+              { type: 'tls', start: 1.0, end: 2.0, label: 'TLS (h2)' },
+              { type: 'req', start: 2.0, end: 2.4, label: 'HDR', resIdx: 0 },
+              { type: 'data', start: 2.4, end: 3.2, label: 'S1: CSS', resIdx: 0 }
+            ],
+            [
+              { type: 'req', start: 2.0, end: 2.4, label: 'HDR', resIdx: 1 },
+              { type: 'data', start: 2.4, end: 3.6, label: 'S3: JS (并发)', resIdx: 1 }
+            ],
+            [
+              { type: 'req', start: 2.0, end: 2.4, label: 'HDR', resIdx: 2 },
+              { type: 'data', start: 2.4, end: 4.0, label: 'S5: PNG (并发)', resIdx: 2 }
+            ]
+          ],
+          packets: [
+            { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+            { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 1, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS+ALPN:h2' },
+            { lane: 1, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'ServerHello' },
+            { lane: 0, dir: 'c2s', start: 2.0, end: 2.4, kind: 'req', resIdx: 0, label: 'S1 HDR' },
+            { lane: 1, dir: 'c2s', start: 2.04, end: 2.44, kind: 'req', resIdx: 1, label: 'S3 HDR' },
+            { lane: 2, dir: 'c2s', start: 2.08, end: 2.48, kind: 'req', resIdx: 2, label: 'S5 HDR' },
+            { lane: 0, dir: 's2c', start: 2.42, end: 3.18, kind: 'data', resIdx: 0, label: 'S1 DATA' },
+            { lane: 1, dir: 's2c', start: 2.52, end: 3.16, kind: 'data', resIdx: 1, label: 'S3 #1' },
+            { lane: 2, dir: 's2c', start: 2.62, end: 3.26, kind: 'data', resIdx: 2, label: 'S5 #1' },
+            { lane: 1, dir: 's2c', start: 2.95, end: 3.60, kind: 'data', resIdx: 1, label: 'S3 #2' },
+            { lane: 2, dir: 's2c', start: 3.08, end: 3.72, kind: 'data', resIdx: 2, label: 'S5 #2' },
+            { lane: 2, dir: 's2c', start: 3.38, end: 4.00, kind: 'data', resIdx: 2, label: 'S5 #3' }
+          ],
+          milestones: [
+            { t: 1.2, tag: '01 · TCP+TLS', title: 'ALPN 协商升级为 h2' },
+            { t: 2.22, tag: '02 · 并发请求', title: '3 条 Stream 并发发 HPACK 帧' },
+            { t: 3.05, tag: '03 · 帧交错传输', title: '二进制 DATA 帧同管并行回传' },
+            { t: 4.0, tag: '04 · 全部完成', title: '多路复用仅耗时 4.0 RTT' }
+          ],
+          traces: [
+            { t: 0.0, text: '单条 TCP + TLS 1.3 建连，通过 ALPN 扩展直接协商使用 h2。' },
+            { t: 2.0, text: 'Stream 1 / 3 / 5 同时发出 HPACK 压缩后的 HEADERS 帧（重复头部体积大幅压缩）。', cls: 'good' },
+            { t: 2.5, text: '服务端将三个资源拆为二进制 DATA 帧，交错塞入同一条 TCP 管道并行回传。', cls: 'good' },
+            { t: 3.2, text: 'Stream 1 (style.css) 率先拼装完成，无需等其他流。' },
+            { t: 4.0, text: '全部交付完成，共 4.0 RTT（较 HTTP/1.1 单连接减少约 29% 耗时）。', cls: 'good' }
+          ]
+        };
+      }
+      if (isLoss) {
+        return {
+          ver, scen, total: 5.2, connCount: 1, handshakeRtt: '2.0 RTT',
+          holStatus: 'TCP 层队头阻塞 (全流连坐)', holClass: 'bad',
+          doneAt: [3.2, 5.0, 5.2],
+          lossEvent: { t: 3.1, lane: 1, label: 'TCP 丢包 (S3 #2)' },
+          tcpFreeze: { start: 3.25, end: 4.8, affectedLanes: [1, 2] },
+          bars: [
+            [
+              { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+              { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+              { type: 'req', start: 2.0, end: 2.4, label: 'HDR', resIdx: 0 },
+              { type: 'data', start: 2.4, end: 3.2, label: 'S1: CSS ✓', resIdx: 0 }
+            ],
+            [
+              { type: 'req', start: 2.0, end: 2.4, label: 'HDR', resIdx: 1 },
+              { type: 'data', start: 2.4, end: 3.0, label: 'S3 #1', resIdx: 1 },
+              { type: 'loss', start: 3.0, end: 4.8, label: '✕ TCP 丢包重传' },
+              { type: 'data', start: 4.8, end: 5.0, label: 'JS', resIdx: 1 }
+            ],
+            [
+              { type: 'req', start: 2.0, end: 2.4, label: 'HDR', resIdx: 2 },
+              { type: 'data', start: 2.4, end: 3.25, label: 'S5 #1', resIdx: 2 },
+              { type: 'loss', start: 3.25, end: 4.8, label: '🔒 卡在 TCP 接收缓冲' },
+              { type: 'data', start: 4.8, end: 5.2, label: 'PNG', resIdx: 2 }
+            ]
+          ],
+          packets: [
+            { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+            { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+            { lane: 1, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS+h2' },
+            { lane: 1, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert' },
+            { lane: 0, dir: 'c2s', start: 2.0, end: 2.4, kind: 'req', resIdx: 0, label: 'S1 HDR' },
+            { lane: 1, dir: 'c2s', start: 2.04, end: 2.44, kind: 'req', resIdx: 1, label: 'S3 HDR' },
+            { lane: 2, dir: 'c2s', start: 2.08, end: 2.48, kind: 'req', resIdx: 2, label: 'S5 HDR' },
+            { lane: 0, dir: 's2c', start: 2.42, end: 3.18, kind: 'data', resIdx: 0, label: 'S1 DATA' },
+            { lane: 1, dir: 's2c', start: 2.50, end: 3.02, kind: 'data', resIdx: 1, label: 'S3 #1' },
+            { lane: 1, dir: 's2c', start: 2.75, end: 3.40, kind: 'data', resIdx: 1, label: 'S3 #2', dropAt: 0.54 },
+            { lane: 2, dir: 's2c', start: 2.60, end: 3.28, kind: 'data', resIdx: 2, label: 'S5 #1', holdUntil: 4.85 },
+            { lane: 2, dir: 's2c', start: 3.00, end: 3.68, kind: 'data', resIdx: 2, label: 'S5 #2', holdUntil: 4.95 },
+            { lane: 1, dir: 's2c', start: 4.25, end: 4.85, kind: 'data', resIdx: 1, label: '重传 S3 #2' },
+            { lane: 2, dir: 's2c', start: 4.75, end: 5.20, kind: 'data', resIdx: 2, label: 'S5 #3' }
+          ],
+          milestones: [
+            { t: 2.22, tag: '01 · 三流并发', title: 'S1/S3/S5 并发复用 TCP' },
+            { t: 3.12, tag: '02 · TCP 丢包', title: 'S3 #2 所在的 TCP 包丢失' },
+            { t: 3.95, tag: '03 · 缓冲冻结', title: 'S5 已到却被 TCP 扣在缓冲区' },
+            { t: 5.2, tag: '04 · 解锁完成', title: '重传抵达才解锁，拖至 5.2 RTT' }
+          ],
+          traces: [
+            { t: 0.0, text: '单条 TCP+TLS 建连后，S1 / S3 / S5 三流并发传输。' },
+            { t: 3.1, text: '携带 Stream 3 (app.js) 的 TCP 报文在半路丢包。', cls: 'bad' },
+            { t: 3.3, text: '关键痛点：Stream 5 (hero.png) 的报文明明已经无损抵达，但 TCP 强制字节流按序交付，内核将其滞留在 TCP 接收缓冲区中。', cls: 'bad' },
+            { t: 4.8, text: 'TCP 重传包终于到达，空洞补齐，接收缓冲区一次性释放 S3 和 S5。' },
+            { t: 5.2, text: '全部完成，耗时 5.2 RTT——单连接丢包会波及同连接上所有未完成的流。', cls: 'bad' }
+          ]
+        };
+      }
+      return {
+        ver, scen, total: 6.9, connCount: 2, handshakeRtt: '4.0 RTT (全流中断重连)',
+        holStatus: '切 5G 导致单连接全流重置', holClass: 'bad',
+        doneAt: [6.1, 6.5, 6.9],
+        migAt: migT,
+        bars: [
+          [
+            { type: 'tcp', start: 0.0, end: 1.0, label: 'TCP' },
+            { type: 'tls', start: 1.0, end: 2.0, label: 'TLS' },
+            { type: 'loss', start: 2.0, end: 2.9, label: '✕ 断连' },
+            { type: 'tcp', start: 2.9, end: 3.9, label: '5G TCP' },
+            { type: 'tls', start: 3.9, end: 4.9, label: 'TLS' },
+            { type: 'data', start: 4.9, end: 6.1, label: 'S1: CSS', resIdx: 0 }
+          ],
+          [
+            { type: 'loss', start: 2.0, end: 2.9, label: '✕ 流重置' },
+            { type: 'data', start: 4.9, end: 6.5, label: 'S3: JS (重发)', resIdx: 1 }
+          ],
+          [
+            { type: 'loss', start: 2.0, end: 2.9, label: '✕ 流重置' },
+            { type: 'data', start: 4.9, end: 6.9, label: 'S5: PNG (重发)', resIdx: 2 }
+          ]
+        ],
+        packets: [
+          { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'tcp', label: 'SYN' },
+          { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 1, dir: 'c2s', start: 1.0, end: 1.5, kind: 'tls', label: 'TLS+h2' },
+          { lane: 1, dir: 's2c', start: 1.5, end: 2.0, kind: 'tls', label: 'Cert' },
+          { lane: 0, dir: 'c2s', start: 2.0, end: 2.4, kind: 'req', resIdx: 0, label: 'S1 HDR' },
+          { lane: 1, dir: 'c2s', start: 2.04, end: 2.44, kind: 'req', resIdx: 1, label: 'S3 HDR' },
+          { lane: 2, dir: 'c2s', start: 2.08, end: 2.48, kind: 'req', resIdx: 2, label: 'S5 HDR' },
+          { lane: 0, dir: 's2c', start: 2.42, end: 2.85, kind: 'data', resIdx: 0, label: '中断!', dropAt: 0.42 },
+          { lane: 1, dir: 's2c', start: 2.46, end: 2.88, kind: 'data', resIdx: 1, label: '中断!', dropAt: 0.40 },
+          { lane: 1, dir: 'c2s', start: 2.9, end: 3.4, kind: 'tcp', label: '5G SYN' },
+          { lane: 1, dir: 's2c', start: 3.4, end: 3.9, kind: 'tcp', label: 'SYN-ACK' },
+          { lane: 1, dir: 'c2s', start: 3.9, end: 4.4, kind: 'tls', label: 'TLS+h2' },
+          { lane: 1, dir: 's2c', start: 4.4, end: 4.9, kind: 'tls', label: 'Cert' },
+          { lane: 0, dir: 'c2s', start: 4.9, end: 5.3, kind: 'req', resIdx: 0, label: 'S1 HDR' },
+          { lane: 1, dir: 'c2s', start: 4.94, end: 5.34, kind: 'req', resIdx: 1, label: 'S3 HDR' },
+          { lane: 2, dir: 'c2s', start: 4.98, end: 5.38, kind: 'req', resIdx: 2, label: 'S5 HDR' },
+          { lane: 0, dir: 's2c', start: 5.32, end: 6.1, kind: 'data', resIdx: 0, label: 'S1 CSS' },
+          { lane: 1, dir: 's2c', start: 5.42, end: 6.5, kind: 'data', resIdx: 1, label: 'S3 JS' },
+          { lane: 2, dir: 's2c', start: 5.52, end: 6.9, kind: 'data', resIdx: 2, label: 'S5 PNG' }
+        ],
+        milestones: [
+          { t: 2.2, tag: '01 · 三流起飞', title: 'Wi-Fi 下 3 条流刚发请求' },
+          { t: 2.62, tag: '02 · 切 5G 断连', title: 'IP 改变，TCP 连接全部失效' },
+          { t: 4.2, tag: '03 · 重做握手', title: '5G 下重新 TCP+TLS 握手' },
+          { t: 6.9, tag: '04 · 重发完成', title: '重连+重发共耗时 6.9 RTT' }
+        ],
+        traces: [
+          { t: 0.0, text: 'Wi-Fi 建连并并发发出 S1 / S3 / S5 三条流。' },
+          { t: 2.5, text: 'Wi-Fi 切 5G，客户端 IP 变更 → TCP 四元组失效，3 条并发流同时中断。', cls: 'bad' },
+          { t: 2.9, text: '必须在新 IP 上重新 TCP(1) + TLS(1) 握手，并重发所有未完成流。' },
+          { t: 6.9, text: '全部完成，耗时 6.9 RTT。', cls: 'bad' }
+        ]
+      };
+    }
+
+    // HTTP/3 (QUIC over UDP)
+    if (scen === 'normal') {
+      return {
+        ver, scen, total: 3.0, connCount: 1, handshakeRtt: '1.0 RTT (恢复可 0-RTT)',
+        holStatus: '独立流并发 · 无跨流阻塞', holClass: 'teal',
+        doneAt: [2.2, 2.6, 3.0],
+        bars: [
+          [
+            { type: 'quic', start: 0.0, end: 1.0, label: 'QUIC+TLS1.3' },
+            { type: 'req', start: 1.0, end: 1.4, label: 'QPACK', resIdx: 0 },
+            { type: 'data', start: 1.4, end: 2.2, label: 'S0: CSS', resIdx: 0 }
+          ],
+          [
+            { type: 'req', start: 1.0, end: 1.4, label: 'QPACK', resIdx: 1 },
+            { type: 'data', start: 1.4, end: 2.6, label: 'S4: JS (独立流)', resIdx: 1 }
+          ],
+          [
+            { type: 'req', start: 1.0, end: 1.4, label: 'QPACK', resIdx: 2 },
+            { type: 'data', start: 1.4, end: 3.0, label: 'S8: PNG (独立流)', resIdx: 2 }
+          ]
+        ],
+        packets: [
+          { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'quic', label: 'QUIC Initial+TLS' },
+          { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'quic', label: 'Handshake+1RTT' },
+          { lane: 0, dir: 'c2s', start: 1.0, end: 1.4, kind: 'req', resIdx: 0, label: 'S0 HDR' },
+          { lane: 1, dir: 'c2s', start: 1.04, end: 1.44, kind: 'req', resIdx: 1, label: 'S4 HDR' },
+          { lane: 2, dir: 'c2s', start: 1.08, end: 1.48, kind: 'req', resIdx: 2, label: 'S8 HDR' },
+          { lane: 0, dir: 's2c', start: 1.42, end: 2.20, kind: 'data', resIdx: 0, label: 'S0 CSS' },
+          { lane: 1, dir: 's2c', start: 1.50, end: 2.15, kind: 'data', resIdx: 1, label: 'S4 #1' },
+          { lane: 2, dir: 's2c', start: 1.58, end: 2.25, kind: 'data', resIdx: 2, label: 'S8 #1' },
+          { lane: 1, dir: 's2c', start: 1.95, end: 2.60, kind: 'data', resIdx: 1, label: 'S4 #2' },
+          { lane: 2, dir: 's2c', start: 2.08, end: 2.68, kind: 'data', resIdx: 2, label: 'S8 #2' },
+          { lane: 2, dir: 's2c', start: 2.40, end: 3.00, kind: 'data', resIdx: 2, label: 'S8 #3' }
+        ],
+        milestones: [
+          { t: 0.55, tag: '01 · 1-RTT 合并握手', title: 'QUIC + TLS 1.3 一次完成' },
+          { t: 1.22, tag: '02 · 独立流并发', title: 'S0/S4/S8 并发发 QPACK 帧' },
+          { t: 2.15, tag: '03 · 高速交付', title: 'CSS 已在 2.2 RTT 渲染' },
+          { t: 3.0, tag: '04 · 全场最快', title: '仅 3.0 RTT 全部完成' }
+        ],
+        traces: [
+          { t: 0.0, text: 'QUIC 基于 UDP，将传输握手与 TLS 1.3 密钥协商合并，首次建连仅需 1 RTT。', cls: 'good' },
+          { t: 1.0, text: 'Stream 0 / 4 / 8 三条独立 QUIC 双向流同时发送 QPACK 请求帧。', cls: 'good' },
+          { t: 2.2, text: 'Stream 0 (style.css) 率先交付——比 HTTP/2 早整整 1 个 RTT。', cls: 'good' },
+          { t: 3.0, text: '全部交付完成，总耗时 3.0 RTT（若带 0-RTT 会话票据可进一步压缩至 2.0 RTT）。', cls: 'good' }
+        ]
+      };
+    }
+    if (isLoss) {
+      return {
+        ver, scen, total: 4.0, connCount: 1, handshakeRtt: '1.0 RTT',
+        holStatus: '零跨流阻塞 (PNG 照常交付)', holClass: 'teal',
+        doneAt: [2.2, 4.0, 3.0],
+        lossEvent: { t: 2.08, lane: 1, label: 'UDP 包丢失 (仅影响 S4)' },
+        bars: [
+          [
+            { type: 'quic', start: 0.0, end: 1.0, label: 'QUIC+TLS1.3' },
+            { type: 'req', start: 1.0, end: 1.4, label: 'HDR', resIdx: 0 },
+            { type: 'data', start: 1.4, end: 2.2, label: 'S0: CSS ✓', resIdx: 0 }
+          ],
+          [
+            { type: 'req', start: 1.0, end: 1.4, label: 'HDR', resIdx: 1 },
+            { type: 'data', start: 1.4, end: 1.95, label: 'S4 #1', resIdx: 1 },
+            { type: 'loss', start: 1.95, end: 3.45, label: '✕ 仅 S4 重传' },
+            { type: 'data', start: 3.45, end: 4.0, label: 'JS', resIdx: 1 }
+          ],
+          [
+            { type: 'req', start: 1.0, end: 1.4, label: 'HDR', resIdx: 2 },
+            { type: 'data', start: 1.4, end: 3.0, label: 'S8: PNG ✓ 无跨流阻塞', resIdx: 2 }
+          ]
+        ],
+        packets: [
+          { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'quic', label: 'QUIC+TLS' },
+          { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'quic', label: '1-RTT OK' },
+          { lane: 0, dir: 'c2s', start: 1.0, end: 1.4, kind: 'req', resIdx: 0, label: 'S0 HDR' },
+          { lane: 1, dir: 'c2s', start: 1.04, end: 1.44, kind: 'req', resIdx: 1, label: 'S4 HDR' },
+          { lane: 2, dir: 'c2s', start: 1.08, end: 1.48, kind: 'req', resIdx: 2, label: 'S8 HDR' },
+          { lane: 0, dir: 's2c', start: 1.42, end: 2.20, kind: 'data', resIdx: 0, label: 'S0 CSS ✓' },
+          { lane: 1, dir: 's2c', start: 1.48, end: 1.96, kind: 'data', resIdx: 1, label: 'S4 #1' },
+          { lane: 1, dir: 's2c', start: 1.75, end: 2.38, kind: 'data', resIdx: 1, label: 'S4 #2', dropAt: 0.52 },
+          { lane: 2, dir: 's2c', start: 1.55, end: 2.20, kind: 'data', resIdx: 2, label: 'S8 #1 ✓' },
+          { lane: 2, dir: 's2c', start: 2.00, end: 2.62, kind: 'data', resIdx: 2, label: 'S8 #2 ✓' },
+          { lane: 2, dir: 's2c', start: 2.38, end: 3.00, kind: 'data', resIdx: 2, label: 'S8 #3 ✓' },
+          { lane: 1, dir: 's2c', start: 3.35, end: 4.00, kind: 'data', resIdx: 1, label: '重传 S4 #2' }
+        ],
+        milestones: [
+          { t: 0.55, tag: '01 · 1-RTT 建连', title: 'QUIC 1-RTT 极速建立' },
+          { t: 2.1, tag: '02 · S4 丢包', title: 'Stream 4 丢包，但互不干扰' },
+          { t: 2.78, tag: '03 · S8 照常飞驰', title: 'Stream 8 (PNG) 绕过 S4 准时交付' },
+          { t: 4.0, tag: '04 · S4 补齐', title: '仅重传 S4，总耗时 4.0 RTT' }
+        ],
+        traces: [
+          { t: 0.0, text: 'QUIC 1-RTT 建连完成，三条独立流 (S0 / S4 / S8) 并发传输。' },
+          { t: 2.08, text: '携带 Stream 4 (app.js) 的 UDP 数据报丢失，仅 Stream 4 暂停等待重传。', cls: 'bad' },
+          { t: 2.2, text: 'Stream 0 (style.css) 与 Stream 8 (hero.png) 拥有各自独立的流偏移与接收缓冲，不受 S4 拖累。', cls: 'good' },
+          { t: 3.0, text: 'hero.png 准时于 3.0 RTT 完整交付（比 HTTP/2 丢包时快 2.2 RTT）。', cls: 'good' },
+          { t: 4.0, text: 'Stream 4 独立重传完毕，总耗时 4.0 RTT。', cls: 'good' }
+        ]
+      };
+    }
+    return {
+      ver, scen, total: 3.2, connCount: 1, handshakeRtt: '1.0 RTT (切网 0 重连)',
+      holStatus: 'ConnID 识别连接，平滑迁移', holClass: 'teal',
+      doneAt: [2.2, 2.8, 3.2],
+      migAt: migT,
+      quicSeamless: true,
+      bars: [
+        [
+          { type: 'quic', start: 0.0, end: 1.0, label: 'QUIC+TLS1.3' },
+          { type: 'req', start: 1.0, end: 1.4, label: 'HDR', resIdx: 0 },
+          { type: 'data', start: 1.4, end: 2.2, label: 'S0: CSS ✓', resIdx: 0 }
+        ],
+        [
+          { type: 'req', start: 1.0, end: 1.4, label: 'HDR', resIdx: 1 },
+          { type: 'data', start: 1.4, end: 2.5, label: 'S4: JS', resIdx: 1 },
+          { type: 'mig', start: 2.5, end: 2.8, label: 'ConnID 续传' }
+        ],
+        [
+          { type: 'req', start: 1.0, end: 1.4, label: 'HDR', resIdx: 2 },
+          { type: 'data', start: 1.4, end: 2.5, label: 'S8: PNG', resIdx: 2 },
+          { type: 'mig', start: 2.5, end: 3.2, label: 'ConnID 平滑续传 ✓' }
+        ]
+      ],
+      packets: [
+        { lane: 1, dir: 'c2s', start: 0.0, end: 0.5, kind: 'quic', label: 'QUIC+0x7A9F' },
+        { lane: 1, dir: 's2c', start: 0.5, end: 1.0, kind: 'quic', label: '1-RTT OK' },
+        { lane: 0, dir: 'c2s', start: 1.0, end: 1.4, kind: 'req', resIdx: 0, label: 'S0 HDR' },
+        { lane: 1, dir: 'c2s', start: 1.04, end: 1.44, kind: 'req', resIdx: 1, label: 'S4 HDR' },
+        { lane: 2, dir: 'c2s', start: 1.08, end: 1.48, kind: 'req', resIdx: 2, label: 'S8 HDR' },
+        { lane: 0, dir: 's2c', start: 1.42, end: 2.20, kind: 'data', resIdx: 0, label: 'S0 CSS ✓' },
+        { lane: 1, dir: 's2c', start: 1.50, end: 2.25, kind: 'data', resIdx: 1, label: 'S4 #1' },
+        { lane: 2, dir: 's2c', start: 1.60, end: 2.35, kind: 'data', resIdx: 2, label: 'S8 #1' },
+        { lane: 1, dir: 'c2s', start: 2.50, end: 2.68, kind: 'mig', label: '5G CID:0x7A9F' },
+        { lane: 1, dir: 's2c', start: 2.35, end: 2.80, kind: 'data', resIdx: 1, label: 'S4 #2 续传' },
+        { lane: 2, dir: 's2c', start: 2.48, end: 3.20, kind: 'data', resIdx: 2, label: 'S8 #2 续传' }
+      ],
+      milestones: [
+        { t: 0.55, tag: '01 · 分配 ConnID', title: '建立连接与可变长 ConnID' },
+        { t: 2.2, tag: '02 · CSS 已完', title: 'S0 完成，S4/S8 正在传输' },
+        { t: 2.62, tag: '03 · 切 5G 续传', title: 'IP 改变仍识别为同一连接，0 重连' },
+        { t: 3.2, tag: '04 · 极速完成', title: '无需重握手，3.2 RTT 完成' }
+      ],
+      traces: [
+        { t: 0.0, text: 'QUIC 1-RTT 建连，双方通过可变长 Connection ID（示例 0x7A9F）标识连接而非 IP 四元组。', cls: 'good' },
+        { t: 2.2, text: 'style.css 已完成，app.js 与 hero.png 正在并发传输中。' },
+        { t: 2.5, text: '手机从 Wi-Fi 切到 5G，客户端 IP 变化；QUIC 凭连接 ID 映射同一会话并顺带校验新路径，无需重新握手。', cls: 'good' },
+        { t: 3.2, text: '全部平滑交付完成，仅耗时 3.2 RTT（对比 HTTP/2 断连重连的 6.9 RTT，耗时不到一半）。', cls: 'good' }
+      ]
+    };
+  }
+
+  function verLabel(ver) {
+    if (ver === '2.0') return 'HTTP/2';
+    if (ver === '3.0') return 'HTTP/3';
+    return 'HTTP/' + ver;
+  }
+
+  // Wire format inspector HTML per version
+  function getWireHTML(ver, scen) {
+    if (ver === '1.0') {
+      return `<div class="wire-title"><span>Wire Format · HTTP/1.0 纯文本</span><span class="wire-warn">~510 B / 请求</span></div>` +
+        `<span class="wire-hl">GET /style.css HTTP/1.0</span>\n` +
+        `User-Agent: Mozilla/5.0 ...\n` +
+        `Accept: text/css,*/*;q=0.1\n` +
+        `<span class="wire-bad"># 默认无持久连接，响应后即 TCP FIN</span>\n` +
+        `<span class="wire-dim"># 下一个请求必须新建连接再发完整文本头</span>`;
+    }
+    if (ver === '1.1') {
+      return `<div class="wire-title"><span>Wire Format · HTTP/1.1 纯文本</span><span class="wire-warn">~540 B / 请求</span></div>` +
+        `<span class="wire-hl">GET /app.js HTTP/1.1</span>\n` +
+        `<span class="wire-ok">Host: cdn.example.com</span>  <span class="wire-dim"># 1.1 强制必填</span>\n` +
+        `<span class="wire-ok">Connection: keep-alive</span> <span class="wire-dim"># 1.1 默认持久连接</span>\n` +
+        `Cookie: sid=9a8f...; pref=light (每次重复)\n` +
+        `<span class="wire-bad"># 无 Stream ID，响应须按 FIFO 顺序返回</span>`;
+    }
+    if (ver === '2.0') {
+      return `<div class="wire-title"><span>Wire Format · HTTP/2 二进制帧 + HPACK</span><span class="wire-ok">540 B → 48 B (-91%)</span></div>` +
+        `<span class="wire-hl">[Frame Header 9B]</span> Len=48 | Type=<span class="wire-ok">HEADERS</span> | <span class="wire-warn">StreamID=3</span>\n` +
+        `<span class="wire-hl">[HPACK Payload]</span> <span class="wire-ok">0x82</span>(:method GET) <span class="wire-ok">0x87</span>(https) <span class="wire-ok">0xbe</span>(动态表#62)\n` +
+        `<span class="wire-hl">[Frame Header 9B]</span> Len=1400 | Type=<span class="wire-ok">DATA</span> | <span class="wire-warn">StreamID=5</span>\n` +
+        `<span class="wire-dim">${scen === 'loss' ? '# 注意：不同 Stream 的帧共享同一 TCP 字节序号空间' : '# 多条 Stream 的二进制帧可在单连接内交错传输'}</span>`;
+    }
+    return `<div class="wire-title"><span>Wire Format · HTTP/3 QUIC 加密帧 + QPACK</span><span class="wire-ok">UDP :443</span></div>` +
+      `<span class="wire-hl">[QUIC Short Header]</span> <span class="wire-ok">DCID=0x7A9F</span> (0~20B) | PktNum(加密)\n` +
+      `<span class="wire-hl">[QUIC STREAM Frame]</span> <span class="wire-warn">StreamID=8</span> | Offset=0 | H3 HEADERS/DATA\n` +
+      `<span class="wire-ok">[TLS 1.3 AEAD]</span> 载荷与绝大多数传输头加密，明文头受 AAD 认证\n` +
+      `<span class="wire-dim">${scen === 'migrate' ? '# IP 变更后仍凭连接 ID 映射同一会话并校验新路径' : '# 各 QUIC 流独立保序交付，单流丢包不阻塞他流'}</span>`;
+  }
+
+  // Deep-dive 4 tabs content (harmonized vintage SVG palette)
+  const DEEP_TABS = {
+    hol: {
+      svg: `
+        <rect x="10" y="10" width="660" height="74" rx="11" fill="#fbf8f1" stroke="#dfb5ab" stroke-width="1.5"/>
+        <text x="24" y="33" font-size="13" font-weight="800" fill="#873123">HTTP/1.1 · 应用层队头阻塞（FIFO 响应队列）</text>
+        <rect x="24" y="45" width="120" height="27" rx="6" fill="#e6edf3" stroke="#4a6580"/><text x="84" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#2c4257">Resp 1: CSS ✓</text>
+        <rect x="156" y="45" width="150" height="27" rx="6" fill="#f8e6e2" stroke="#b44c3a" stroke-dasharray="4 2"/><text x="231" y="62" text-anchor="middle" font-size="11.5" font-weight="800" fill="#873123">Resp 2: JS 慢/丢包 ✕</text>
+        <rect x="318" y="45" width="174" height="27" rx="6" fill="#ebe3d5" stroke="#998f80"/><text x="405" y="62" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5d574c">🔒 Resp 3: PNG 被挡在后面</text>
+        <text x="508" y="62" font-size="11.5" font-weight="700" fill="#873123">HTTP 层无 Stream ID</text>
+
+        <rect x="10" y="98" width="660" height="78" rx="11" fill="#fbf8f1" stroke="#d8b98c" stroke-width="1.5"/>
+        <text x="24" y="121" font-size="13" font-weight="800" fill="#7a4d1d">HTTP/2 · 应用层已多路复用，但卡在 TCP 传输层队头阻塞</text>
+        <rect x="24" y="133" width="468" height="32" rx="8" fill="#f3eee4" stroke="#7c7468" stroke-width="1.5"/>
+        <rect x="32" y="138" width="76" height="22" rx="5" fill="#e6edf3" stroke="#4a6580"/><text x="70" y="153" text-anchor="middle" font-size="11" font-weight="700" fill="#2c4257">S1 CSS</text>
+        <rect x="116" y="138" width="84" height="22" rx="5" fill="#f8e6e2" stroke="#b44c3a" stroke-dasharray="3 2"/><text x="158" y="153" text-anchor="middle" font-size="11" font-weight="800" fill="#873123">S3 丢包 ✕</text>
+        <rect x="208" y="138" width="86" height="22" rx="5" fill="#f6ead6" stroke="#b5783a"/><text x="251" y="153" text-anchor="middle" font-size="11" font-weight="700" fill="#7a4d1d">S5 PNG 已到</text>
+        <rect x="302" y="138" width="182" height="22" rx="5" fill="#f8e6e2" stroke="#b44c3a"/><text x="393" y="153" text-anchor="middle" font-size="11" font-weight="800" fill="#873123">🔒 TCP 强制按序，扣留 S5</text>
+        <text x="506" y="153" font-size="11.5" font-weight="700" fill="#7a4d1d">单条 TCP 字节流连坐</text>
+
+        <rect x="10" y="190" width="660" height="76" rx="11" fill="#e1efec" stroke="#3e6b63" stroke-width="1.7"/>
+        <text x="24" y="213" font-size="13" font-weight="800" fill="#254b44">HTTP/3 (QUIC/UDP) · 流级独立缓冲，消除跨流队头阻塞</text>
+        <rect x="24" y="223" width="144" height="31" rx="7" fill="#e6edf3" stroke="#4a6580"/><text x="96" y="242" text-anchor="middle" font-size="11.5" font-weight="800" fill="#2c4257">Stream 0: CSS ✓</text>
+        <rect x="180" y="223" width="150" height="31" rx="7" fill="#f8e6e2" stroke="#b44c3a" stroke-dasharray="4 2"/><text x="255" y="242" text-anchor="middle" font-size="11.5" font-weight="800" fill="#873123">Stream 4: 丢包独传</text>
+        <rect x="342" y="223" width="172" height="31" rx="7" fill="#e8ecdf" stroke="#5b6f52" stroke-width="1.7"/><text x="428" y="242" text-anchor="middle" font-size="11.5" font-weight="800" fill="#3a4b34">Stream 8: PNG 直接交付 ✓</text>
+        <text x="526" y="242" font-size="11.5" font-weight="800" fill="#254b44">单流保序 · 跨流互不阻塞</text>
+      `,
+      notes: [
+        { cls: 'hl-red', title: 'HTTP/1.1 的痛：应用层队列卡死', body: '同一连接里请求和响应没有流编号，必须严格 FIFO。前一个响应慢了，后面的响应即使准备好了也无法越过队头返回。' },
+        { cls: 'hl-blue', title: 'HTTP/2 的痛：内核 TCP 不感知 Stream', body: 'HTTP/2 把多个流塞进同一条 TCP 字节流。内核看到字节序号出现空洞，就会把后续所有已到达的包扣在接收缓冲区里，牵连其他无辜的流。' },
+        { cls: 'hl-teal', title: 'HTTP/3 的解法：在 UDP 上实现流级隔离', body: 'QUIC 为每条流维护独立的偏移量与接收缓冲：Stream 4 丢包仅暂停 Stream 4 内部交付，Stream 0 与 Stream 8 照常交付给浏览器。' }
+      ]
+    },
+    header: {
+      svg: `
+        <text x="16" y="26" font-size="13.5" font-weight="800" fill="#292923">连续发起多次请求时，HTTP 头部体积与编码机制对比</text>
+
+        <rect x="16" y="42" width="648" height="60" rx="10" fill="#fbf8f1" stroke="#ded5c7" stroke-width="1.5"/>
+        <text x="30" y="66" font-size="12.5" font-weight="800" fill="#4f483d">HTTP/1.0 &amp; 1.1 (无压缩)</text>
+        <rect x="210" y="52" width="360" height="24" rx="6" fill="#f8e6e2" stroke="#c76c4e"/>
+        <text x="390" y="68" text-anchor="middle" font-size="11.5" font-weight="700" fill="#873123">每次全量发送明文：UA + Accept + Cookie + Host (~540 B)</text>
+        <text x="586" y="68" font-family="Consolas,monospace" font-size="12" font-weight="800" fill="#873123">100%</text>
+        <text x="30" y="90" font-size="11.5" fill="#777267">Gzip/Brotli 只压缩 Body，不压缩 Header；高频小接口头部体积甚至大于 Body</text>
+
+        <rect x="16" y="114" width="648" height="68" rx="10" fill="#e6edf3" stroke="#9eb3c5" stroke-width="1.5"/>
+        <text x="30" y="138" font-size="12.5" font-weight="800" fill="#2c4257">HTTP/2 · HPACK (RFC 7541)</text>
+        <rect x="210" y="124" width="52" height="24" rx="6" fill="#4a6580"/>
+        <text x="236" y="140" text-anchor="middle" font-size="11" font-weight="800" fill="#fffaf1">48 B</text>
+        <rect x="272" y="124" width="136" height="24" rx="6" fill="#fbf8f1" stroke="#4a6580"/><text x="340" y="140" text-anchor="middle" font-size="11" font-weight="700" fill="#2c4257">静态表 61 项索引</text>
+        <rect x="416" y="124" width="152" height="24" rx="6" fill="#fbf8f1" stroke="#4a6580"/><text x="492" y="140" text-anchor="middle" font-size="11" font-weight="700" fill="#2c4257">动态表增量 + Huffman</text>
+        <text x="586" y="140" font-family="Consolas,monospace" font-size="12" font-weight="800" fill="#2c4257">-91%</text>
+        <text x="30" y="168" font-size="11.5" fill="#2c4257">依赖 TCP 严格按序同步动态表：若跨流乱序到达，未同步的表项会导致解码依赖错误</text>
+
+        <rect x="16" y="194" width="648" height="70" rx="10" fill="#e1efec" stroke="#3e6b63" stroke-width="1.7"/>
+        <text x="30" y="218" font-size="12.5" font-weight="800" fill="#254b44">HTTP/3 · QPACK (RFC 9204)</text>
+        <rect x="210" y="204" width="50" height="24" rx="6" fill="#3e6b63"/>
+        <text x="235" y="220" text-anchor="middle" font-size="11" font-weight="800" fill="#fffaf1">46 B</text>
+        <rect x="270" y="204" width="142" height="24" rx="6" fill="#fbf8f1" stroke="#3e6b63"/><text x="341" y="220" text-anchor="middle" font-size="11" font-weight="700" fill="#254b44">静态表扩至 99 项</text>
+        <rect x="420" y="204" width="154" height="24" rx="6" fill="#fbf8f1" stroke="#3e6b63"/><text x="497" y="220" text-anchor="middle" font-size="11" font-weight="700" fill="#254b44">Encoder/Decoder 控制流</text>
+        <text x="586" y="220" font-family="Consolas,monospace" font-size="12" font-weight="800" fill="#254b44">-92%</text>
+        <text x="30" y="249" font-size="11.5" fill="#254b44">通过独立单向流同步与确认动态表；引用静态项或已确认项可零阻塞乱序解码</text>
+      `,
+      notes: [
+        { cls: 'hl-blue', title: 'HPACK 三板斧', body: '① 61 项静态表（如 :method: GET 仅 1 字节 0x82）；② 动态表缓存重复的 Cookie/Token（索引从 62 起，如 0xbe）；③ 静态 Huffman 编码压缩字面量。' },
+        { cls: 'hl-teal', title: '为什么 HTTP/3 改用 QPACK？', body: 'HTTP/3 多条流允许乱序交付，直接套用 HPACK 会因动态表更新未到而无法解码。QPACK 扩充静态表至 99 项，并用 Encoder/Decoder 单向控制流解耦同步，配合确认机制避免跨流阻塞。' }
+      ]
+    },
+    handshake: {
+      svg: `
+        <text x="16" y="26" font-size="13.5" font-weight="800" fill="#292923">HTTPS 首次发送业务数据前的握手往返耗时（RTT）</text>
+
+        <text x="16" y="66" font-size="12" font-weight="800" fill="#4f483d">HTTP/1.1 &amp; 2 (TLS 1.2)</text>
+        <rect x="196" y="48" width="104" height="28" rx="6" fill="#e8e1d5" stroke="#7c7468"/><text x="248" y="66" text-anchor="middle" font-size="11.5" font-weight="700" fill="#453f37">TCP (1 RTT)</text>
+        <rect x="304" y="48" width="208" height="28" rx="6" fill="#efe7f0" stroke="#7b5e7b"/><text x="408" y="66" text-anchor="middle" font-size="11.5" font-weight="700" fill="#523a52">TLS 1.2 握手 (2 RTT)</text>
+        <rect x="516" y="48" width="84" height="28" rx="6" fill="#e6edf3" stroke="#4a6580"/><text x="558" y="66" text-anchor="middle" font-size="11.5" font-weight="800" fill="#2c4257">发 HTTP</text>
+        <text x="612" y="66" font-family="Consolas,monospace" font-size="12" font-weight="800" fill="#873123">3 RTT</text>
+
+        <text x="16" y="116" font-size="12" font-weight="800" fill="#2c4257">HTTP/1.1 &amp; 2 (TLS 1.3)</text>
+        <rect x="196" y="98" width="104" height="28" rx="6" fill="#e8e1d5" stroke="#7c7468"/><text x="248" y="116" text-anchor="middle" font-size="11.5" font-weight="700" fill="#453f37">TCP (1 RTT)</text>
+        <rect x="304" y="98" width="104" height="28" rx="6" fill="#efe7f0" stroke="#7b5e7b"/><text x="356" y="116" text-anchor="middle" font-size="11.5" font-weight="700" fill="#523a52">TLS 1.3 (1 RTT)</text>
+        <rect x="412" y="98" width="84" height="28" rx="6" fill="#e6edf3" stroke="#4a6580"/><text x="454" y="116" text-anchor="middle" font-size="11.5" font-weight="800" fill="#2c4257">发 HTTP</text>
+        <text x="508" y="116" font-family="Consolas,monospace" font-size="12" font-weight="800" fill="#2c4257">2 RTT</text>
+
+        <text x="16" y="166" font-size="12" font-weight="800" fill="#254b44">HTTP/3 QUIC 首次连接</text>
+        <rect x="196" y="148" width="104" height="28" rx="6" fill="#e1efec" stroke="#3e6b63" stroke-width="1.6"/><text x="248" y="166" text-anchor="middle" font-size="11.5" font-weight="800" fill="#254b44">QUIC+TLS (1)</text>
+        <rect x="304" y="148" width="90" height="28" rx="6" fill="#e8ecdf" stroke="#5b6f52"/><text x="349" y="166" text-anchor="middle" font-size="11.5" font-weight="800" fill="#3a4b34">发 HTTP/3</text>
+        <text x="406" y="166" font-family="Consolas,monospace" font-size="12" font-weight="800" fill="#254b44">1 RTT</text>
+
+        <text x="16" y="216" font-size="12" font-weight="800" fill="#3a4b34">HTTP/3 QUIC 会话恢复</text>
+        <rect x="196" y="198" width="176" height="28" rx="6" fill="#e8ecdf" stroke="#5b6f52" stroke-width="1.8"/><text x="284" y="216" text-anchor="middle" font-size="11.5" font-weight="800" fill="#3a4b34">首包直接夹带加密 HTTP/3</text>
+        <text x="384" y="216" font-family="Consolas,monospace" font-size="12" font-weight="800" fill="#3a4b34">0 RTT ⚡</text>
+
+        <line x1="196" y1="246" x2="620" y2="246" stroke="#cfc5b4" stroke-width="1.5"/>
+        <text x="196" y="264" font-family="Consolas,monospace" font-size="11" fill="#777267">0</text>
+        <text x="300" y="264" font-family="Consolas,monospace" font-size="11" fill="#777267">1 RTT</text>
+        <text x="404" y="264" font-family="Consolas,monospace" font-size="11" fill="#777267">2 RTT</text>
+        <text x="508" y="264" font-family="Consolas,monospace" font-size="11" fill="#777267">3 RTT</text>
+      `,
+      notes: [
+        { cls: 'hl-blue', title: 'TCP + TLS 分层叠加的代价', body: 'TCP 归操作系统内核，TLS 归应用层库，必须先做完 TCP 三次握手再发起 TLS 握手，至少 2 RTT（TLS 1.2 为 3 RTT）。' },
+        { cls: 'hl-teal', title: 'QUIC 将传输与加密握手合一', body: 'QUIC 把 TLS 1.3 握手消息内嵌在 Initial/Handshake 包中，首次建连只需 1 RTT；缓存会话票据后支持 0-RTT 早期数据（须防重放攻击，通常仅限幂等安全请求如 GET）。' }
+      ]
+    },
+    migrate: {
+      svg: `
+        <text x="16" y="26" font-size="13.5" font-weight="800" fill="#292923">走出家门：手机从 Wi-Fi (192.168.1.8) 切换至 5G (10.88.4.21)</text>
+
+        <rect x="16" y="44" width="648" height="98" rx="12" fill="#f8e6e2" stroke="#dfb5ab" stroke-width="1.5"/>
+        <text x="30" y="68" font-size="13" font-weight="800" fill="#873123">HTTP/1.x &amp; 2 (TCP)：绑定网络四元组 → 换 IP 即断连</text>
+        <rect x="30" y="81" width="228" height="45" rx="8" fill="#fbf8f1" stroke="#c76c4e"/>
+        <text x="144" y="100" text-anchor="middle" font-family="Consolas,monospace" font-size="11.5" font-weight="700" fill="#292923">(192.168.1.8:51234, srv:443)</text>
+        <text x="144" y="117" text-anchor="middle" font-size="11" fill="#777267">原 Wi-Fi TCP 连接</text>
+        <text x="292" y="108" text-anchor="middle" font-size="18" font-weight="900" fill="#b44c3a">✕</text>
+        <rect x="326" y="81" width="322" height="45" rx="8" fill="#fbf8f1" stroke="#b44c3a" stroke-dasharray="4 2"/>
+        <text x="487" y="100" text-anchor="middle" font-family="Consolas,monospace" font-size="11.5" font-weight="800" fill="#873123">(10.88.4.21:60812, srv:443) ≠ 原四元组</text>
+        <text x="487" y="117" text-anchor="middle" font-size="11" fill="#873123">连接作废 → 重新 TCP+TLS 握手，下载/直播中断</text>
+
+        <rect x="16" y="158" width="648" height="106" rx="12" fill="#e1efec" stroke="#3e6b63" stroke-width="1.7"/>
+        <text x="30" y="182" font-size="13" font-weight="800" fill="#254b44">HTTP/3 (QUIC)：独立 Connection ID (0~20B) → 换 IP 平滑迁移</text>
+        <rect x="30" y="196" width="218" height="50" rx="8" fill="#fbf8f1" stroke="#3e6b63"/>
+        <text x="139" y="216" text-anchor="middle" font-family="Consolas,monospace" font-size="11.5" font-weight="800" fill="#254b44">ConnID: 0x7A9F</text>
+        <text x="139" y="235" text-anchor="middle" font-size="11" fill="#534d42">来源: Wi-Fi 192.168.1.8</text>
+        <line x1="254" y1="221" x2="310" y2="221" stroke="#3e6b63" stroke-width="2.4"/>
+        <polygon points="320,221 309,215 309,227" fill="#3e6b63"/>
+        <text x="287" y="212" text-anchor="middle" font-size="10.5" font-weight="800" fill="#254b44">路径迁移</text>
+        <rect x="326" y="196" width="322" height="50" rx="8" fill="#fbf8f1" stroke="#3e6b63" stroke-width="1.6"/>
+        <text x="487" y="216" text-anchor="middle" font-family="Consolas,monospace" font-size="11.5" font-weight="800" fill="#254b44">同一 QUIC 连接 (ConnID 映射)</text>
+        <text x="487" y="235" text-anchor="middle" font-size="11" fill="#254b44">来源变为 5G 10.88.4.21 → 校验新路径并续传流 ✓</text>
+      `,
+      notes: [
+        { cls: 'hl-red', title: 'TCP 的历史包袱', body: 'TCP 用「源 IP + 源端口 + 目标 IP + 目标端口」四元组唯一识别连接。手机在 Wi-Fi 与蜂窝网间切换时，IP 变化导致原连接立即作废。' },
+        { cls: 'hl-teal', title: 'QUIC Connection ID 机制 (RFC 9000)', body: 'QUIC 使用独立于 IP/端口的可变长 Connection ID（0~20 字节）标识连接。切网后客户端可用该连接预分配的 CID 继续通信，服务端配合 PATH_CHALLENGE/PATH_RESPONSE 校验新路径即可续传未完成的流，既免重连又兼顾防跨网追踪。' }
+      ]
+    }
+  };
+
+  // App state
+  let version = 'race';
+  let scenario = 'normal';
+  let speed = 1;
+  let deepTab = 'hol';
+  let curT = 0;
+  let playing = false;
+  let rafId = null;
+  let lastTs = 0;
+
+  let curModel = null;
+  let raceModels = null;
+
+  function textWidth(str, fontSize = 10) {
+    let w = 0;
+    for (const ch of str) {
+      w += ch.charCodeAt(0) > 127 ? fontSize * 1.08 : fontSize * 0.64;
+    }
+    return w;
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs = {}, text = null) {
+    const node = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text !== null) node.textContent = text;
+    return node;
+  }
+
+  function getMaxT() {
+    if (version === 'race') {
+      return Math.max(...raceModels.map(m => m.total));
+    }
+    return curModel.total;
+  }
+
+  function setVersion(v) {
+    stopPlay();
+    version = v;
+    curT = 0;
+    rebuild();
+  }
+  function setScenario(s) {
+    stopPlay();
+    scenario = s;
+    curT = 0;
+    if (s === 'loss') deepTab = 'hol';
+    if (s === 'migrate') deepTab = 'migrate';
+    rebuild();
+  }
+  function setSpeed(sp) {
+    speed = sp;
+    ['0.5', '1', '2'].forEach(k => {
+      const btn = document.getElementById('spd-' + k);
+      const isAct = Number(k) === sp;
+      btn.classList.toggle('active', isAct);
+      btn.setAttribute('aria-pressed', String(isAct));
+    });
+  }
+  function setDeepTab(tab) {
+    deepTab = tab;
+    renderDeepDive();
+  }
+
+  function togglePlay() {
+    if (playing) { stopPlay(); return; }
+    const maxT = getMaxT();
+    if (curT >= maxT - 0.01) curT = 0;
+    playing = true;
+    lastTs = performance.now();
+    document.getElementById('btn-play').textContent = '⏸ 暂停动画';
+    rafId = requestAnimationFrame(tick);
+  }
+  function stopPlay() {
+    playing = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    const btn = document.getElementById('btn-play');
+    if (btn) btn.textContent = '▶ 播放动画';
+  }
+  function replay() {
+    stopPlay();
+    curT = 0;
+    renderFrame(0);
+    togglePlay();
+  }
+
+  function getMilestones() {
+    if (version === 'race') {
+      if (scenario === 'normal') {
+        return [
+          { t: 1.0, tag: '01 · 1.0 RTT', title: 'HTTP/3 已完成握手开跑' },
+          { t: 2.0, tag: '02 · 2.0 RTT', title: 'H1.1 / H2 才刚握完手' },
+          { t: 3.0, tag: '03 · 3.0 RTT', title: 'HTTP/3 率先冲线' },
+          { t: 9.6, tag: '04 · 9.6 RTT', title: '全员冲线对比终局' }
+        ];
+      }
+      if (scenario === 'loss') {
+        return [
+          { t: 2.1, tag: '01 · S4 丢包', title: 'HTTP/3 丢包但 PNG 不阻塞' },
+          { t: 3.1, tag: '02 · TCP 丢包', title: 'HTTP/2 触发 TCP 缓冲冻结' },
+          { t: 4.0, tag: '03 · 4.0 RTT', title: 'HTTP/3 遥遥领先冲线' },
+          { t: 10.8, tag: '04 · 10.8 RTT', title: '四代弱网耗时终局' }
+        ];
+      }
+      return [
+        { t: 1.5, tag: '01 · 正常拉取', title: 'Wi-Fi 环境下各自起跑' },
+        { t: 2.55, tag: '02 · 切 5G 瞬间', title: 'TCP 全断，QUIC 连接续传' },
+        { t: 3.2, tag: '03 · 3.2 RTT', title: 'HTTP/3 率先冲线' },
+        { t: 12.5, tag: '04 · 12.5 RTT', title: '四代切网耗时终局' }
+      ];
+    }
+    return curModel.milestones;
+  }
+
+  function jumpToTime(t) {
+    stopPlay();
+    curT = Math.max(0, Math.min(getMaxT(), t));
+    renderFrame(curT);
+  }
+  function jumpMilestone(delta) {
+    stopPlay();
+    const ms = getMilestones();
+    let target = curT;
+    if (delta > 0) {
+      const next = ms.find(m => m.t > curT + 0.05);
+      target = next ? next.t : getMaxT();
+    } else {
+      const prevs = ms.filter(m => m.t < curT - 0.05);
+      target = prevs.length ? prevs[prevs.length - 1].t : 0;
+    }
+    curT = target;
+    renderFrame(curT);
+  }
+
+  function tick(now) {
+    if (!playing) return;
+    const dtSec = Math.min(0.06, (now - lastTs) / 1000);
+    lastTs = now;
+    const maxT = getMaxT();
+    const rate = (maxT > 8 ? 1.45 : 1.05) * speed;
+    curT += dtSec * rate;
+    if (curT >= maxT) {
+      curT = maxT;
+      renderFrame(curT);
+      stopPlay();
+      return;
+    }
+    renderFrame(curT);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function rebuild() {
+    ['1.0', '1.1', '2.0', '3.0', 'race'].forEach(v => {
+      const btn = document.getElementById('ver-' + v);
+      const act = version === v;
+      btn.classList.toggle('active', act);
+      btn.setAttribute('aria-pressed', String(act));
+    });
+    ['normal', 'loss', 'migrate'].forEach(s => {
+      const b = document.getElementById('sc-' + s);
+      const act = scenario === s;
+      b.classList.toggle('active', act);
+      b.classList.toggle('scen-loss', s === 'loss' && act);
+      b.classList.toggle('scen-mig', s === 'migrate' && act);
+      b.setAttribute('aria-pressed', String(act));
+    });
+    document.querySelectorAll('#stack-grid .stack-col').forEach(col => {
+      const v = col.getAttribute('data-ver');
+      const act = version === v;
+      col.classList.toggle('active', act);
+      col.setAttribute('aria-pressed', String(act));
+    });
+    document.querySelectorAll('#cmp-table [data-col]').forEach(cell => {
+      const c = cell.getAttribute('data-col');
+      const act = version === c;
+      cell.classList.toggle('col-active', act);
+      cell.classList.toggle('is-h3', act && c === '3.0');
+    });
+
+    if (version === 'race') {
+      raceModels = ['1.0', '1.1', '2.0', '3.0'].map(v => buildModel(v, scenario));
+      curModel = null;
+      document.getElementById('single-layout').classList.add('hidden');
+      document.getElementById('race-layout').classList.remove('hidden');
+      buildRaceSkeleton();
+    } else {
+      curModel = buildModel(version, scenario);
+      raceModels = null;
+      document.getElementById('single-layout').classList.remove('hidden');
+      document.getElementById('race-layout').classList.add('hidden');
+      buildSingleSkeleton();
+      renderInspectorStatic();
+    }
+
+    const ms = getMilestones();
+    const stepper = document.getElementById('stepper');
+    stepper.innerHTML = ms.map((m, i) => `
+      <button type="button" class="step-pill" data-idx="${i}" onclick="window.__jumpT(${m.t})">
+        <b>${m.tag} · ${m.t.toFixed(1)} RTT</b>
+        <span>${m.title}</span>
+      </button>
+    `).join('');
+
+    renderDeepDive();
+    renderFrame(curT);
+  }
+
+  // ---- SINGLE VERSION SVG SKELETON (viewBox 820x462) ----
+  function buildSingleSkeleton() {
+    const m = curModel;
+    const svg = document.getElementById('stage-svg');
+    svg.innerHTML = '';
+
+    const titles = {
+      '1.0': '① HTTP/1.0：每请求新建短连接，反复 TCP + TLS 握手',
+      '1.1': '① HTTP/1.1：单条持久连接，串行 FIFO 队列',
+      '2.0': '① HTTP/2：单条 TCP 连接内的二进制分帧多路复用',
+      '3.0': '① HTTP/3：QUIC (UDP) 1-RTT 握手 + 独立流并发'
+    };
+    document.getElementById('stage-title').textContent = titles[m.ver];
+
+    // Top status strip
+    svg.appendChild(el('rect', { x: 12, y: 8, width: 796, height: 34, rx: 10, fill: '#f3eee4', stroke: '#ded5c7' }));
+    svg.appendChild(el('text', { x: 24, y: 29, 'font-size': 12.5, 'font-weight': 800, fill: m.ver === '3.0' ? '#254b44' : '#292923' },
+      `${verLabel(m.ver)} · ${m.ver === '3.0' ? 'QUIC / UDP (CID: 0x7A9F)' : (m.ver === '1.0' ? 'TCP 短连接 (每请求新建)' : 'TCP + TLS 1.3 长连接')}`));
+
+    // Network pill (widened so 5G text has generous padding)
+    const netG = el('g', { id: 'svg-net-badge' });
+    netG.appendChild(el('rect', { id: 'svg-net-bg', x: 356, y: 14, width: 266, height: 22, rx: 11, fill: '#e6edf3', stroke: '#b8c8d6' }));
+    netG.appendChild(el('text', { id: 'svg-net-txt', x: 489, y: 29, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 11, 'font-weight': 800, fill: '#2c4257' }, 'Wi-Fi · 192.168.1.8'));
+    svg.appendChild(netG);
+
+    svg.appendChild(el('text', { id: 'svg-clock', x: 794, y: 29, 'text-anchor': 'end', 'font-family': 'Consolas,monospace', 'font-size': 12.5, 'font-weight': 800, fill: '#453f37' }, 't = 0.00 RTT'));
+
+    // Client Card
+    svg.appendChild(el('rect', { x: 12, y: 52, width: 158, height: 196, rx: 14, fill: '#fbf8f1', stroke: '#d2c7b7', 'stroke-width': 1.5 }));
+    svg.appendChild(el('text', { x: 91, y: 74, 'text-anchor': 'middle', 'font-size': 13.5, 'font-weight': 800, fill: '#292923' }, '浏览器 (Client)'));
+    svg.appendChild(el('text', { id: 'svg-client-ip', x: 91, y: 90, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 11, fill: '#777267' }, 'Wi-Fi: 192.168.1.8'));
+
+    RES.forEach((r, i) => {
+      const ry = 104 + i * 44;
+      svg.appendChild(el('rect', { id: `cli-slot-bg-${i}`, x: 22, y: ry, width: 138, height: 34, rx: 8, fill: '#fdfaf4', stroke: '#ded5c7', 'stroke-width': 1.4 }));
+      svg.appendChild(el('rect', { id: `cli-slot-fill-${i}`, x: 23, y: ry + 1, width: 0, height: 32, rx: 7, fill: r.soft }));
+      svg.appendChild(el('circle', { cx: 34, cy: ry + 17, r: 4.5, fill: r.color }));
+      svg.appendChild(el('text', { x: 44, y: ry + 14, 'font-family': 'Consolas,monospace', 'font-size': 11.5, 'font-weight': 800, fill: '#292923' }, r.name));
+      svg.appendChild(el('text', { id: `cli-slot-st-${i}`, x: 44, y: ry + 28, 'font-size': 10.5, 'font-weight': 700, fill: '#777267' }, '等待发起'));
+    });
+
+    // Server Card
+    svg.appendChild(el('rect', { x: 676, y: 52, width: 132, height: 196, rx: 14, fill: '#fbf8f1', stroke: '#d2c7b7', 'stroke-width': 1.5 }));
+    svg.appendChild(el('text', { x: 742, y: 74, 'text-anchor': 'middle', 'font-size': 13.5, 'font-weight': 800, fill: '#292923' }, '服务器 (Server)'));
+    svg.appendChild(el('text', { x: 742, y: 90, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 11, 'font-weight': 700, fill: m.ver === '3.0' ? '#254b44' : '#534d42' },
+      m.ver === '3.0' ? 'UDP :443 (QUIC)' : 'TCP :443'));
+    RES.forEach((r, i) => {
+      const ry = 104 + i * 44;
+      svg.appendChild(el('rect', { x: 688, y: ry, width: 108, height: 34, rx: 8, fill: r.soft, stroke: r.color, 'stroke-opacity': 0.6 }));
+      svg.appendChild(el('text', { x: 742, y: ry + 15, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 11.5, 'font-weight': 800, fill: r.text }, r.name));
+      const tag = m.ver === '2.0' ? `Stream ${r.h2Stream}` : (m.ver === '3.0' ? `Stream ${r.h3Stream}` : `文件 #${i + 1}`);
+      svg.appendChild(el('text', { x: 742, y: ry + 28, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 10, fill: r.text }, tag));
+    });
+
+    // Center Pipe Architecture (cleanly bounded within y: 68..214 so banners fit below at y: 220..246)
+    const pipeG = el('g', { id: 'pipe-arch' });
+    if (m.ver === '1.0') {
+      [0, 1, 2].forEach(i => {
+        const cy = 108 + i * 42;
+        pipeG.appendChild(el('rect', { id: `h10-pipe-${i}`, x: 180, y: cy - 14, width: 486, height: 28, rx: 14, fill: '#f3eee4', stroke: '#cfc5b4', 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }));
+        pipeG.appendChild(el('text', { id: `h10-lbl-${i}`, x: 423, y: cy + 4, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 11, 'font-weight': 700, fill: '#777267' }, `TCP 短连接 #${i + 1}（未建立）`));
+      });
+    } else if (m.ver === '1.1') {
+      pipeG.appendChild(el('rect', { id: 'h11-pipe', x: 180, y: 106, width: 486, height: 84, rx: 16, fill: '#f3eee4', stroke: '#9c9282', 'stroke-width': 2 }));
+      pipeG.appendChild(el('line', { x1: 194, y1: 148, x2: 652, y2: 148, stroke: '#d8cebe', 'stroke-dasharray': '6 4' }));
+      pipeG.appendChild(el('text', { x: 423, y: 96, 'text-anchor': 'middle', 'font-size': 11.5, 'font-weight': 800, fill: '#4f483d' }, '单条 TCP 持久连接 · 严格串行 FIFO（请求 → / ← 响应）'));
+      pipeG.appendChild(el('text', { x: 204, y: 132, 'font-size': 10.5, fill: '#777267', 'font-weight': 700 }, 'REQ →'));
+      pipeG.appendChild(el('text', { x: 642, y: 173, 'text-anchor': 'end', 'font-size': 10.5, fill: '#777267', 'font-weight': 700 }, '← RESP'));
+    } else if (m.ver === '2.0') {
+      pipeG.appendChild(el('rect', { id: 'h2-outer', x: 180, y: 74, width: 486, height: 140, rx: 16, fill: '#f3eee4', stroke: '#7c7468', 'stroke-width': 2.1 }));
+      pipeG.appendChild(el('text', { x: 423, y: 66, 'text-anchor': 'middle', 'font-size': 11.5, 'font-weight': 800, fill: '#2c4257' }, '单条 TCP + TLS 管道（3 条逻辑 Stream 共享同一 TCP 字节序号流）'));
+      [0, 1, 2].forEach(i => {
+        const cy = 102 + i * 44;
+        pipeG.appendChild(el('line', { x1: 196, y1: cy, x2: 652, y2: cy, stroke: RES[i].color, 'stroke-opacity': 0.34, 'stroke-width': 2, 'stroke-dasharray': '4 4' }));
+        pipeG.appendChild(el('text', { x: 194, y: cy - 9, 'font-family': 'Consolas,monospace', 'font-size': 10, 'font-weight': 800, fill: RES[i].text }, `Stream ${RES[i].h2Stream}`));
+      });
+    } else {
+      pipeG.appendChild(el('rect', { id: 'h3-outer', x: 180, y: 72, width: 486, height: 144, rx: 16, fill: '#e1efec', stroke: '#3e6b63', 'stroke-width': 2 }));
+      pipeG.appendChild(el('text', { x: 423, y: 64, 'text-anchor': 'middle', 'font-size': 11.5, 'font-weight': 800, fill: '#254b44' }, 'QUIC / UDP 隧道 · ConnID: 0x7A9F（3 条独立流，单流保序互不阻塞）'));
+      [0, 1, 2].forEach(i => {
+        const cy = 102 + i * 44;
+        pipeG.appendChild(el('rect', { x: 192, y: cy - 14, width: 462, height: 28, rx: 14, fill: '#fbf8f1', stroke: RES[i].color, 'stroke-opacity': 0.55, 'stroke-width': 1.5 }));
+        pipeG.appendChild(el('text', { x: 204, y: cy + 4, 'font-family': 'Consolas,monospace', 'font-size': 10, 'font-weight': 800, fill: RES[i].text }, `S${RES[i].h3Stream} 独立流`));
+      });
+    }
+    svg.appendChild(pipeG);
+
+    svg.appendChild(el('g', { id: 'dyn-packets' }));
+
+    // Bottom Waterfall Card (y: 262..452 — dedicated marker band at y: 290..308 avoids title collision!)
+    svg.appendChild(el('rect', { x: 12, y: 262, width: 796, height: 190, rx: 14, fill: '#fbf8f1', stroke: '#ded5c7' }));
+    svg.appendChild(el('text', { x: 26, y: 283, 'font-size': 12.5, 'font-weight': 800, fill: '#292923' }, '实时 RTT 瀑布时间线 (Waterfall)'));
+    svg.appendChild(el('text', { x: 792, y: 283, 'text-anchor': 'end', 'font-family': 'Consolas,monospace', 'font-size': 11.5, 'font-weight': 700, fill: '#777267' }, `总耗时: ${m.total.toFixed(1)} RTT`));
+
+    const x0 = 114, x1 = 786, w = x1 - x0;
+    const maxT = m.total;
+    const tx = t => x0 + (t / maxT) * w;
+
+    const step = maxT > 9 ? 2 : 1;
+    for (let g = 0; g <= Math.ceil(maxT); g += step) {
+      if (g > maxT + 0.05) continue;
+      const gx = tx(g);
+      svg.appendChild(el('line', { x1: gx, y1: 312, x2: gx, y2: 422, stroke: '#e5ddd0', 'stroke-dasharray': g === 0 ? '' : '3 3' }));
+      svg.appendChild(el('text', { x: gx, y: 440, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 10.5, fill: '#777267' }, `${g} RTT`));
+    }
+
+    RES.forEach((r, i) => {
+      const y = 320 + i * 33;
+      svg.appendChild(el('text', { x: 26, y: y + 16, 'font-family': 'Consolas,monospace', 'font-size': 11.5, 'font-weight': 800, fill: r.text }, r.name));
+      svg.appendChild(el('rect', { x: x0, y, width: w, height: 23, rx: 5, fill: '#ebe3d5' }));
+    });
+
+    svg.appendChild(el('g', { id: 'dyn-wf' }));
+
+    if (m.migAt !== undefined) {
+      const mx = tx(m.migAt);
+      svg.appendChild(el('line', { x1: mx, y1: 310, x2: mx, y2: 424, stroke: '#3e6b63', 'stroke-width': 1.8, 'stroke-dasharray': '4 3' }));
+      svg.appendChild(el('rect', { x: mx - 40, y: 290, width: 80, height: 18, rx: 9, fill: '#e1efec', stroke: '#3e6b63' }));
+      svg.appendChild(el('text', { x: mx, y: 303, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: '#254b44' }, 'Wi-Fi → 5G'));
+    }
+    if (m.lossEvent) {
+      const lx = tx(m.lossEvent.t);
+      svg.appendChild(el('line', { x1: lx, y1: 310, x2: lx, y2: 424, stroke: '#b44c3a', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }));
+      svg.appendChild(el('rect', { x: lx - 32, y: 290, width: 64, height: 18, rx: 9, fill: '#f8e6e2', stroke: '#b44c3a' }));
+      svg.appendChild(el('text', { x: lx, y: 303, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: '#873123' }, '✕ 丢包点'));
+    }
+
+    svg.appendChild(el('line', { id: 'wf-playhead', x1: x0, y1: 310, x2: x0, y2: 426, stroke: '#c76c4e', 'stroke-width': 2.2 }));
+  }
+
+  function renderInspectorStatic() {
+    const m = curModel;
+    document.getElementById('metrics-grid').innerHTML = `
+      <div class="metric-card">
+        <small>总完成耗时</small>
+        <div class="metric-val ${m.ver === '3.0' ? 'teal' : (m.ver === '2.0' ? 'blue' : '')}">${m.total.toFixed(1)} RTT</div>
+      </div>
+      <div class="metric-card">
+        <small>建立连接数</small>
+        <div class="metric-val">${m.connCount} 条 (${m.ver === '3.0' ? 'UDP' : 'TCP'})</div>
+      </div>
+      <div class="metric-card full">
+        <small>建连握手开销</small>
+        <div class="metric-val" style="font-size:14px">${m.handshakeRtt}</div>
+      </div>
+      <div class="metric-card full">
+        <small>阻塞 / 迁移特征</small>
+        <div class="metric-val ${m.holClass}" style="font-size:13.5px">${m.holStatus}</div>
+      </div>
+    `;
+    document.getElementById('wire-box').innerHTML = getWireHTML(m.ver, m.scen);
+  }
+
+  // ---- RACE MODE SVG SKELETON (viewBox 1120x472) ----
+  function buildRaceSkeleton() {
+    const svg = document.getElementById('race-svg');
+    svg.innerHTML = '';
+    const scenLabel = scenario === 'normal' ? '正常网络' : (scenario === 'loss' ? '模拟丢包 (app.js 丢包)' : 'Wi-Fi 切 5G (t = 2.5 RTT)');
+    document.getElementById('race-title').textContent = `① 四代同屏竞速：${scenLabel}下的 RTT 耗时差距`;
+
+    const maxT = getMaxT();
+    const x0 = 436, x1 = 964, w = x1 - x0;
+    const tx = t => x0 + (t / maxT) * w;
+
+    svg.appendChild(el('text', { x: 24, y: 22, 'font-size': 12.5, 'font-weight': 800, fill: '#4f483d' }, '协议版本'));
+    svg.appendChild(el('text', { x: 295, y: 22, 'text-anchor': 'middle', 'font-size': 12.5, 'font-weight': 800, fill: '#4f483d' }, '实时数据包管道 (Client ↔ Server)'));
+    svg.appendChild(el('text', { x: 436, y: 22, 'font-size': 12.5, 'font-weight': 800, fill: '#4f483d' }, `统一时间轴 (0 → ${maxT.toFixed(1)} RTT)`));
+    svg.appendChild(el('text', { x: 1037, y: 22, 'text-anchor': 'middle', 'font-size': 12.5, 'font-weight': 800, fill: '#4f483d' }, '交付进度'));
+
+    const step = maxT > 9 ? 2 : 1;
+    for (let g = 0; g <= Math.ceil(maxT); g += step) {
+      if (g > maxT + 0.05) continue;
+      const gx = tx(g);
+      svg.appendChild(el('line', { x1: gx, y1: 48, x2: gx, y2: 444, stroke: '#e5ddd0', 'stroke-dasharray': g === 0 ? '' : '3 3' }));
+      svg.appendChild(el('text', { x: gx, y: 462, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 11, fill: '#777267' }, `${g} RTT`));
+    }
+
+    const meta = [
+      { ver: '1.0', title: 'HTTP/1.0', sub: 'TCP+TLS 短连接', accent: '#6d665c', bg: '#f3eee4' },
+      { ver: '1.1', title: 'HTTP/1.1', sub: '持久连接串行', accent: '#9e632b', bg: '#f6ead6' },
+      { ver: '2.0', title: 'HTTP/2',   sub: 'TCP 单连接多路复用', accent: '#3d5873', bg: '#e6edf3' },
+      { ver: '3.0', title: 'HTTP/3',   sub: 'QUIC/UDP 独立流', accent: '#2e5c54', bg: '#e1efec' }
+    ];
+
+    raceModels.forEach((m, idx) => {
+      const y = 54 + idx * 98;
+      const info = meta[idx];
+      svg.appendChild(el('rect', { x: 14, y, width: 1092, height: 88, rx: 14, fill: '#fbf8f1', stroke: '#ded5c7', 'stroke-width': 1.4 }));
+      svg.appendChild(el('rect', { x: 22, y: y + 9, width: 138, height: 70, rx: 10, fill: info.bg, stroke: info.accent, 'stroke-opacity': 0.42 }));
+      svg.appendChild(el('text', { x: 34, y: y + 33, 'font-family': 'Consolas,monospace', 'font-size': 15, 'font-weight': 900, fill: info.accent }, info.title));
+      svg.appendChild(el('text', { x: 34, y: y + 51, 'font-size': 11.5, 'font-weight': 700, fill: '#4f483d' }, info.sub));
+      svg.appendChild(el('text', { id: `race-sub-${idx}`, x: 34, y: y + 68, 'font-family': 'Consolas,monospace', 'font-size': 11, fill: '#777267' }, `预计 ${m.total.toFixed(1)} RTT`));
+
+      svg.appendChild(el('rect', { x: 174, y: y + 11, width: 242, height: 66, rx: 10, fill: '#f3eee4', stroke: '#d8cebe' }));
+      svg.appendChild(el('rect', { x: 180, y: y + 19, width: 24, height: 50, rx: 5, fill: '#e6edf3', stroke: '#4a6580' }));
+      svg.appendChild(el('text', { x: 192, y: y + 48, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: '#2c4257' }, '客'));
+      svg.appendChild(el('rect', { x: 386, y: y + 19, width: 24, height: 50, rx: 5, fill: '#e8e1d5', stroke: '#7c7468' }));
+      svg.appendChild(el('text', { x: 398, y: y + 48, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: '#453f37' }, '服'));
+      [0, 1, 2].forEach(r => {
+        const ly = y + 26 + r * 18;
+        svg.appendChild(el('line', { x1: 206, y1: ly, x2: 384, y2: ly, stroke: '#cfc5b4', 'stroke-dasharray': '3 3' }));
+      });
+
+      [0, 1, 2].forEach(r => {
+        const wy = y + 16 + r * 20;
+        svg.appendChild(el('rect', { x: x0, y: wy, width: w, height: 15, rx: 4, fill: '#ebe3d5' }));
+      });
+
+      svg.appendChild(el('rect', { id: `race-fin-bg-${idx}`, x: 978, y: y + 9, width: 118, height: 70, rx: 10, fill: '#f3eee4', stroke: '#ded5c7' }));
+      svg.appendChild(el('text', { id: `race-fin-t-${idx}`, x: 1037, y: y + 33, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 13.5, 'font-weight': 900, fill: '#5d574c' }, '0.0 RTT'));
+      RES.forEach((r, ri) => {
+        const cx = 995 + ri * 34;
+        svg.appendChild(el('rect', { id: `race-chip-${idx}-${ri}`, x: cx - 13, y: y + 47, width: 30, height: 20, rx: 5, fill: '#e4dccd' }));
+        svg.appendChild(el('text', { id: `race-chipt-${idx}-${ri}`, x: cx + 2, y: y + 61, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 9.5, 'font-weight': 800, fill: '#6c665b' }, r.short));
+      });
+    });
+
+    svg.appendChild(el('g', { id: 'race-dyn' }));
+
+    // Placed cleanly in y: 28..46 below the column header text (y: 22)
+    if (scenario === 'migrate') {
+      const mx = tx(2.5);
+      svg.appendChild(el('line', { x1: mx, y1: 48, x2: mx, y2: 444, stroke: '#3e6b63', 'stroke-width': 2, 'stroke-dasharray': '5 3' }));
+      svg.appendChild(el('rect', { x: mx - 42, y: 28, width: 84, height: 18, rx: 9, fill: '#e1efec', stroke: '#3e6b63' }));
+      svg.appendChild(el('text', { x: mx, y: 40, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: '#254b44' }, 'Wi-Fi → 5G'));
+    }
+    svg.appendChild(el('line', { id: 'race-playhead', x1: x0, y1: 48, x2: x0, y2: 446, stroke: '#c76c4e', 'stroke-width': 2.2 }));
+  }
+
+  function barStyle(seg) {
+    if (seg.type === 'tcp')  return { fill: '#e4dcd0', stroke: '#7c7468', text: '#453f37' };
+    if (seg.type === 'tls')  return { fill: '#eadfeb', stroke: '#7b5e7b', text: '#523a52' };
+    if (seg.type === 'quic') return { fill: '#d5e9e4', stroke: '#3e6b63', text: '#254b44' };
+    if (seg.type === 'loss') return { fill: '#f6ddd7', stroke: '#b44c3a', text: '#873123' };
+    if (seg.type === 'block')return { fill: '#ebe3d5', stroke: '#9f9687', text: '#5f594e' };
+    if (seg.type === 'mig')  return { fill: '#d5e9e4', stroke: '#3e6b63', text: '#254b44' };
+    if (seg.type === 'req')  return { fill: RES[seg.resIdx].soft, stroke: RES[seg.resIdx].color, text: RES[seg.resIdx].text };
+    return { fill: RES[seg.resIdx].color, stroke: RES[seg.resIdx].color, text: '#fffaf1' };
+  }
+
+  function pktStyle(p) {
+    if (p.kind === 'tcp')  return { fill: '#e8e1d5', stroke: '#7c7468', text: '#3b3630' };
+    if (p.kind === 'tls')  return { fill: '#efe7f0', stroke: '#7b5e7b', text: '#523a52' };
+    if (p.kind === 'quic') return { fill: '#e1efec', stroke: '#3e6b63', text: '#254b44' };
+    if (p.kind === 'mig')  return { fill: '#3e6b63', stroke: '#254b44', text: '#fffaf1' };
+    const r = RES[p.resIdx];
+    if (p.kind === 'req')  return { fill: r.soft, stroke: r.color, text: r.text };
+    return { fill: r.color, stroke: r.color, text: '#fffaf1' };
+  }
+
+  function renderFrame(t) {
+    const maxT = getMaxT();
+    document.getElementById('scrubber').value = Math.round((t / maxT) * 1000);
+    document.getElementById('time-readout').textContent = `${t.toFixed(2)} / ${maxT.toFixed(2)} RTT`;
+
+    const ms = getMilestones();
+    document.querySelectorAll('#stepper .step-pill').forEach((pill, i) => {
+      const mt = ms[i].t;
+      const nextT = i < ms.length - 1 ? ms[i + 1].t : maxT + 1;
+      pill.classList.toggle('active', t >= mt - 0.15 && t < nextT - 0.15 || (i === ms.length - 1 && t >= mt - 0.05));
+      pill.classList.toggle('past', t >= nextT - 0.15);
+    });
+
+    if (version === 'race') {
+      renderRaceFrame(t);
+    } else {
+      renderSingleFrame(t);
+    }
+    renderWalkthrough(t);
+  }
+
+  function renderSingleFrame(t) {
+    const m = curModel;
+    const maxT = m.total;
+    const x0 = 114, x1 = 786, w = x1 - x0;
+    const tx = v => x0 + (v / maxT) * w;
+
+    document.getElementById('svg-clock').textContent = `t = ${t.toFixed(2)} RTT`;
+    const is5G = m.migAt !== undefined && t >= m.migAt;
+    const netBg = document.getElementById('svg-net-bg');
+    const netTxt = document.getElementById('svg-net-txt');
+    const cliIp = document.getElementById('svg-client-ip');
+    if (is5G) {
+      netBg.setAttribute('fill', m.ver === '3.0' ? '#e1efec' : '#f8e6e2');
+      netBg.setAttribute('stroke', m.ver === '3.0' ? '#3e6b63' : '#b44c3a');
+      netTxt.setAttribute('fill', m.ver === '3.0' ? '#254b44' : '#873123');
+      netTxt.textContent = m.ver === '3.0' ? '5G · 10.88.4.21 (ConnID 延续)' : '5G · 10.88.4.21 (IP 改变!)';
+      cliIp.textContent = '5G: 10.88.4.21';
+      cliIp.setAttribute('fill', m.ver === '3.0' ? '#254b44' : '#b44c3a');
+    } else {
+      netBg.setAttribute('fill', '#e6edf3');
+      netBg.setAttribute('stroke', '#b8c8d6');
+      netTxt.setAttribute('fill', '#2c4257');
+      netTxt.textContent = 'Wi-Fi · 192.168.1.8';
+      cliIp.textContent = 'Wi-Fi: 192.168.1.8';
+      cliIp.setAttribute('fill', '#777267');
+    }
+
+    const stPill = document.getElementById('stage-status');
+    const topPill = document.getElementById('stage-pill');
+    if (t === 0) {
+      stPill.textContent = '点击播放观察数据包';
+      stPill.className = 'badge-pill';
+    } else if (t >= maxT - 0.01) {
+      stPill.textContent = `✓ 完成 · ${maxT.toFixed(1)} RTT`;
+      stPill.className = 'badge-pill good';
+    } else if (m.tcpFreeze && t >= m.tcpFreeze.start && t < m.tcpFreeze.end) {
+      stPill.textContent = '🔒 TCP 接收缓冲冻结中';
+      stPill.className = 'badge-pill bad';
+    } else if (m.holWindow && t >= m.holWindow.start && t < m.holWindow.end) {
+      stPill.textContent = '🔒 HTTP 应用层队头阻塞';
+      stPill.className = 'badge-pill bad';
+    } else if (m.migAt !== undefined && t >= m.migAt && t < m.migAt + 0.8) {
+      stPill.textContent = m.ver === '3.0' ? '⚡ ConnID 平滑切 5G' : '✕ 切 5G 导致 TCP 断连';
+      stPill.className = m.ver === '3.0' ? 'badge-pill good' : 'badge-pill bad';
+    } else {
+      stPill.textContent = '传输进行中…';
+      stPill.className = 'badge-pill warn';
+    }
+    topPill.textContent = `${verLabel(m.ver)} · ${scenario === 'normal' ? '正常网络' : (scenario === 'loss' ? '模拟丢包' : 'Wi-Fi→5G')}`;
+
+    if (m.ver === '1.0' && m.connStates) {
+      m.connStates.forEach((cs, i) => {
+        const rect = document.getElementById(`h10-pipe-${i}`);
+        const lbl  = document.getElementById(`h10-lbl-${i}`);
+        if (t < cs.open) {
+          rect.setAttribute('fill', '#f3eee4'); rect.setAttribute('stroke', '#cfc5b4'); rect.setAttribute('stroke-dasharray', '5 4');
+          lbl.textContent = `TCP 短连接 #${i + 1}（等待前序完成）`; lbl.setAttribute('fill', '#777267');
+        } else if (cs.brokenAt && t >= cs.brokenAt && t < cs.brokenAt + 0.5) {
+          rect.setAttribute('fill', '#f8e6e2'); rect.setAttribute('stroke', '#b44c3a'); rect.setAttribute('stroke-dasharray', '4 3');
+          lbl.textContent = `✕ IP 改变 → TCP 连接 #1 断开，准备重建`; lbl.setAttribute('fill', '#873123');
+        } else if (t >= cs.close) {
+          rect.setAttribute('fill', '#ebe3d5'); rect.setAttribute('stroke', '#cfc5b4'); rect.setAttribute('stroke-dasharray', '2 4');
+          lbl.textContent = `TCP 短连接 #${i + 1}（FIN 已关闭）`; lbl.setAttribute('fill', '#8a8478');
+        } else {
+          rect.setAttribute('fill', '#e6edf3'); rect.setAttribute('stroke', '#4a6580'); rect.setAttribute('stroke-dasharray', '');
+          lbl.textContent = `TCP 短连接 #${i + 1}（活跃传输中）`; lbl.setAttribute('fill', '#2c4257');
+        }
+      });
+    }
+
+    RES.forEach((r, i) => {
+      const doneT = m.doneAt[i];
+      const bg   = document.getElementById(`cli-slot-bg-${i}`);
+      const fill = document.getElementById(`cli-slot-fill-${i}`);
+      const st   = document.getElementById(`cli-slot-st-${i}`);
+      const bars = m.bars[i];
+      const dataBars = bars.filter(b => b.type === 'data' || b.type === 'mig');
+      const startD = dataBars.length ? dataBars[0].start : 0;
+
+      if (t >= doneT - 0.01) {
+        fill.setAttribute('width', 136);
+        bg.setAttribute('stroke', r.color);
+        st.textContent = `✓ 已交付 (${doneT.toFixed(1)} RTT)`;
+        st.setAttribute('fill', r.text);
+      } else if (m.tcpFreeze && i === 2 && t >= m.tcpFreeze.start && t < m.tcpFreeze.end) {
+        fill.setAttribute('width', 68);
+        bg.setAttribute('stroke', '#b44c3a');
+        st.textContent = '🔒 卡在 TCP 缓冲区';
+        st.setAttribute('fill', '#873123');
+      } else if (m.holWindow && i === 2 && t >= m.holWindow.start && t < m.holWindow.end) {
+        fill.setAttribute('width', 0);
+        bg.setAttribute('stroke', '#b44c3a');
+        st.textContent = '🔒 应用层排队阻塞';
+        st.setAttribute('fill', '#873123');
+      } else if (m.lossEvent && m.lossEvent.lane === i && t >= m.lossEvent.t && t < doneT - 0.35) {
+        fill.setAttribute('width', 44);
+        bg.setAttribute('stroke', '#b44c3a');
+        st.textContent = '✕ 丢包重传中…';
+        st.setAttribute('fill', '#873123');
+      } else if (t >= startD && startD > 0) {
+        const pct = Math.max(0.08, Math.min(0.92, (t - startD) / Math.max(0.1, doneT - startD)));
+        fill.setAttribute('width', Math.round(136 * pct));
+        bg.setAttribute('stroke', r.color);
+        st.textContent = `接收中 ${Math.round(pct * 100)}%`;
+        st.setAttribute('fill', r.text);
+      } else if (t > 0.01) {
+        fill.setAttribute('width', 0);
+        bg.setAttribute('stroke', '#ded5c7');
+        st.textContent = m.ver === '1.1' && i > 0 ? '⏳ 队列等待中' : '握手 / 准备中';
+        st.setAttribute('fill', '#777267');
+      } else {
+        fill.setAttribute('width', 0);
+        bg.setAttribute('stroke', '#ded5c7');
+        st.textContent = '等待发起';
+        st.setAttribute('fill', '#8b857a');
+      }
+    });
+
+    const pipeBorder = m.ver === '1.1' ? document.getElementById('h11-pipe')
+      : (m.ver === '2.0' ? document.getElementById('h2-outer')
+      : (m.ver === '3.0' ? document.getElementById('h3-outer') : null));
+    if (pipeBorder) {
+      if (m.migAt !== undefined && t >= m.migAt && t < m.migAt + 0.9) {
+        pipeBorder.setAttribute('stroke', m.ver === '3.0' ? '#3e6b63' : '#b44c3a');
+        pipeBorder.setAttribute('stroke-width', '2.6');
+      } else {
+        pipeBorder.setAttribute('stroke', m.ver === '3.0' ? '#3e6b63' : (m.ver === '2.0' ? '#7c7468' : '#9c9282'));
+        pipeBorder.setAttribute('stroke-width', m.ver === '2.0' ? '2.1' : '2');
+      }
+    }
+
+    const dyn = document.getElementById('dyn-packets');
+    dyn.innerHTML = '';
+
+    // HTTP/2 TCP Receive Buffer Freeze visual — cleanly scoped to Stream 3 & Stream 5 without overlapping Stream 1
+    if (m.tcpFreeze && t >= m.tcpFreeze.start && t < m.tcpFreeze.end) {
+      const box = el('g', { class: 'pulse-warn' });
+      box.appendChild(el('rect', { x: 184, y: 122, width: 112, height: 90, rx: 10, fill: '#f8e6e2', 'fill-opacity': 0.96, stroke: '#b44c3a', 'stroke-width': 1.8, 'stroke-dasharray': '5 3' }));
+      box.appendChild(el('text', { x: 240, y: 139, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 900, fill: '#873123' }, '🔒 TCP 接收缓冲'));
+      box.appendChild(el('text', { x: 240, y: 153, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 700, fill: '#9f3b2b' }, '缺 S3 #2 序号'));
+      box.appendChild(el('text', { x: 240, y: 205, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 800, fill: '#873123' }, 'S5 暂无法上交'));
+      dyn.appendChild(box);
+    }
+
+    // HTTP/1.1 Application-layer HOL visual banner (placed cleanly below pipe at y: 218..244)
+    if (m.holWindow && t >= m.holWindow.start && t < m.holWindow.end) {
+      const banner = el('g', { class: 'pulse-warn' });
+      banner.appendChild(el('rect', { x: 248, y: 218, width: 350, height: 26, rx: 9, fill: '#f8e6e2', stroke: '#b44c3a', 'stroke-width': 1.5 }));
+      banner.appendChild(el('text', { x: 423, y: 235, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 800, fill: '#873123' }, '🔒 应用层队头阻塞：app.js 未完，hero.png 被迫等待'));
+      dyn.appendChild(banner);
+    }
+
+    // Migration flash banner (placed cleanly below all pipes at y: 220..246)
+    if (m.migAt !== undefined && t >= m.migAt && t < m.migAt + 1.1) {
+      const isH3 = m.ver === '3.0';
+      const mb = el('g');
+      mb.appendChild(el('rect', { x: 234, y: 220, width: 378, height: 26, rx: 9, fill: isH3 ? '#e1efec' : '#f8e6e2', stroke: isH3 ? '#3e6b63' : '#b44c3a', 'stroke-width': 1.5 }));
+      mb.appendChild(el('text', { x: 423, y: 237, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 800, fill: isH3 ? '#254b44' : '#873123' },
+        isH3 ? '⚡ Wi-Fi → 5G：ConnID 映射同一会话，流直接续传' : '✕ Wi-Fi → 5G：IP 改变，TCP 四元组失效，被迫重连'));
+      dyn.appendChild(mb);
+    }
+
+    // Render moving packets (aligned to pipe centerlines!)
+    const laneY = m.ver === '1.0' ? [108, 150, 192] : (m.ver === '1.1' ? [130, 148, 166] : [102, 146, 190]);
+    const leftX = 196, rightX = 648;
+
+    m.packets.forEach(p => {
+      const held = p.holdUntil !== undefined && t >= p.end && t < p.holdUntil;
+      const inFlight = t >= p.start && t <= p.end;
+      const dropped = p.dropAt !== undefined && t >= p.start + (p.end - p.start) * p.dropAt && t < p.start + (p.end - p.start) * p.dropAt + 0.9;
+      if (!inFlight && !held && !dropped) return;
+
+      let cy = laneY[p.lane];
+      if (m.ver === '1.1') cy = p.dir === 'c2s' ? 130 : 166;
+
+      if (held) {
+        // Place S5 #1 and S5 #2 side-by-side inside TCP freeze box with zero overlap
+        const st = pktStyle(p);
+        const hx = p.label.includes('#2') ? 266 : 214;
+        const hy = 176;
+        const g = el('g');
+        g.appendChild(el('rect', { x: hx - 22, y: hy - 11, width: 44, height: 22, rx: 6, fill: st.fill, stroke: '#b44c3a', 'stroke-width': 1.6 }));
+        g.appendChild(el('text', { x: hx, y: hy + 4, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 9.5, 'font-weight': 800, fill: st.text }, p.label));
+        dyn.appendChild(g);
+        return;
+      }
+
+      const rawProg = Math.max(0, Math.min(1, (t - p.start) / (p.end - p.start)));
+      if (p.dropAt !== undefined && rawProg >= p.dropAt) {
+        const dx = p.dir === 'c2s' ? leftX + (rightX - leftX) * p.dropAt : rightX - (rightX - leftX) * p.dropAt;
+        const g = el('g', { class: 'pulse-warn' });
+        g.appendChild(el('circle', { cx: dx, cy, r: 13, fill: '#f8e6e2', stroke: '#b44c3a', 'stroke-width': 2 }));
+        g.appendChild(el('text', { x: dx, y: cy + 5, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 900, fill: '#b44c3a' }, '✕'));
+        g.appendChild(el('rect', { x: dx - 40, y: cy - 29, width: 80, height: 16, rx: 6, fill: '#b44c3a' }));
+        g.appendChild(el('text', { x: dx, y: cy - 18, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 800, fill: '#fffaf1' }, p.label));
+        dyn.appendChild(g);
+        return;
+      }
+
+      if (!inFlight) return;
+      const px = p.dir === 'c2s' ? leftX + (rightX - leftX) * rawProg : rightX - (rightX - leftX) * rawProg;
+      const st = pktStyle(p);
+      const pw = Math.max(54, Math.ceil(textWidth(p.label, 10) + 18));
+      const g = el('g');
+      g.appendChild(el('rect', { x: px - pw / 2, y: cy - 11, width: pw, height: 22, rx: 7, fill: st.fill, stroke: st.stroke, 'stroke-width': 1.5 }));
+      g.appendChild(el('text', { x: px, y: cy + 4, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 10, 'font-weight': 800, fill: st.text }, p.label));
+      dyn.appendChild(g);
+    });
+
+    const wf = document.getElementById('dyn-wf');
+    wf.innerHTML = '';
+    m.bars.forEach((rowBars, ri) => {
+      const y = 320 + ri * 33;
+      rowBars.forEach(seg => {
+        if (t <= seg.start) return;
+        const visEnd = Math.min(t, seg.end);
+        const sx = tx(seg.start);
+        const sw = Math.max(2, tx(visEnd) - sx);
+        const st = barStyle(seg);
+        wf.appendChild(el('rect', { x: sx, y, width: sw, height: 23, rx: 4, fill: st.fill, stroke: st.stroke, 'stroke-width': 1 }));
+        if (sw >= textWidth(seg.label, 10) + 8) {
+          wf.appendChild(el('text', { x: sx + sw / 2, y: y + 15, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: st.text }, seg.label));
+        }
+      });
+    });
+
+    const phX = tx(t);
+    const ph = document.getElementById('wf-playhead');
+    ph.setAttribute('x1', phX);
+    ph.setAttribute('x2', phX);
+
+    const traceEl = document.getElementById('trace-list');
+    const reached = m.traces.filter(tr => t >= tr.t - 0.01);
+    if (!reached.length) {
+      traceEl.innerHTML = `<li class="trace-item"><span class="trace-t">0.0</span><span>点击「▶ 播放动画」或拖动时间轴，观察 ${verLabel(m.ver)} 的每一步传输。</span></li>`;
+    } else {
+      traceEl.innerHTML = reached.map((tr, idx) => {
+        const isLatest = idx === reached.length - 1;
+        const cls = tr.cls ? tr.cls : (isLatest ? 'active' : '');
+        return `<li class="trace-item ${cls}"><span class="trace-t">${tr.t.toFixed(1)}</span><span>${tr.text}</span></li>`;
+      }).join('');
+    }
+  }
+
+  function renderRaceFrame(t) {
+    const maxT = getMaxT();
+    const x0 = 436, x1 = 964, w = x1 - x0;
+    const tx = v => x0 + (v / maxT) * w;
+
+    const dyn = document.getElementById('race-dyn');
+    dyn.innerHTML = '';
+
+    const finished = [];
+    raceModels.forEach((m, idx) => {
+      const y = 54 + idx * 98;
+      const done = t >= m.total - 0.01;
+      if (done) finished.push(m);
+
+      const finBg = document.getElementById(`race-fin-bg-${idx}`);
+      const finT  = document.getElementById(`race-fin-t-${idx}`);
+      const shownT = Math.min(t, m.total);
+      if (done) {
+        const isWinner = m.ver === '3.0';
+        finBg.setAttribute('fill', isWinner ? '#e1efec' : '#e8ecdf');
+        finBg.setAttribute('stroke', isWinner ? '#3e6b63' : '#65745c');
+        finT.setAttribute('fill', isWinner ? '#254b44' : '#3a4b34');
+        finT.textContent = `${isWinner ? '🏆 ' : '✓ '}${m.total.toFixed(1)} RTT`;
+      } else {
+        finBg.setAttribute('fill', '#f3eee4');
+        finBg.setAttribute('stroke', '#ded5c7');
+        finT.setAttribute('fill', '#5d574c');
+        finT.textContent = `${shownT.toFixed(1)} RTT`;
+      }
+
+      RES.forEach((r, ri) => {
+        const chip = document.getElementById(`race-chip-${idx}-${ri}`);
+        const chipt = document.getElementById(`race-chipt-${idx}-${ri}`);
+        const rDone = t >= m.doneAt[ri] - 0.01;
+        const isFrozen = m.tcpFreeze && ri === 2 && t >= m.tcpFreeze.start && t < m.tcpFreeze.end;
+        if (rDone) {
+          chip.setAttribute('fill', r.color);
+          chipt.setAttribute('fill', '#fffaf1');
+        } else if (isFrozen) {
+          chip.setAttribute('fill', '#f8e6e2');
+          chipt.setAttribute('fill', '#873123');
+        } else {
+          chip.setAttribute('fill', '#e4dccd');
+          chipt.setAttribute('fill', '#6c665b');
+        }
+      });
+
+      m.packets.forEach(p => {
+        const inFlight = t >= p.start && t <= p.end;
+        const held = p.holdUntil !== undefined && t >= p.end && t < p.holdUntil;
+        if (!inFlight && !held) return;
+        const py = y + 26 + p.lane * 18;
+        const st = pktStyle(p);
+        if (held) {
+          dyn.appendChild(el('circle', { cx: 214, cy: py, r: 5.5, fill: '#f8e6e2', stroke: '#b44c3a', 'stroke-width': 1.8 }));
+          return;
+        }
+        const prog = (t - p.start) / (p.end - p.start);
+        if (p.dropAt !== undefined && prog >= p.dropAt) {
+          const dx = p.dir === 'c2s' ? 208 + 172 * p.dropAt : 380 - 172 * p.dropAt;
+          dyn.appendChild(el('text', { x: dx, y: py + 4, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 900, fill: '#b44c3a' }, '✕'));
+          return;
+        }
+        const px = p.dir === 'c2s' ? 208 + 172 * prog : 380 - 172 * prog;
+        dyn.appendChild(el('circle', { cx: px, cy: py, r: 5.2, fill: st.fill, stroke: st.stroke, 'stroke-width': 1.4 }));
+      });
+
+      if (m.tcpFreeze && t >= m.tcpFreeze.start && t < m.tcpFreeze.end) {
+        dyn.appendChild(el('rect', { x: 222, y: y + 55, width: 146, height: 18, rx: 6, fill: '#f8e6e2', stroke: '#b44c3a' }));
+        dyn.appendChild(el('text', { x: 295, y: y + 67, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 800, fill: '#873123' }, '🔒 TCP 缓冲阻塞 PNG'));
+      }
+
+      m.bars.forEach((rowBars, ri) => {
+        const wy = y + 16 + ri * 20;
+        rowBars.forEach(seg => {
+          if (t <= seg.start) return;
+          const visEnd = Math.min(t, seg.end);
+          const sx = tx(seg.start);
+          const sw = Math.max(2, tx(visEnd) - sx);
+          const st = barStyle(seg);
+          dyn.appendChild(el('rect', { x: sx, y: wy, width: sw, height: 15, rx: 3.5, fill: st.fill, stroke: st.stroke, 'stroke-width': 0.9 }));
+          if (sw >= textWidth(seg.label, 9) + 8) {
+            dyn.appendChild(el('text', { x: sx + sw / 2, y: wy + 11, 'text-anchor': 'middle', 'font-size': 9, 'font-weight': 800, fill: st.text }, seg.label));
+          }
+        });
+      });
+    });
+
+    const phX = tx(t);
+    const rph = document.getElementById('race-playhead');
+    rph.setAttribute('x1', phX);
+    rph.setAttribute('x2', phX);
+
+    const leaderEl = document.getElementById('race-leader');
+    const topPill = document.getElementById('stage-pill');
+    if (t === 0) {
+      leaderEl.textContent = '准备就绪 · 点击「播放动画」同屏起跑';
+      leaderEl.className = 'badge-pill';
+    } else if (finished.length === 0) {
+      leaderEl.textContent = `竞速进行中 · ${t.toFixed(1)} RTT（HTTP/3 领跑）`;
+      leaderEl.className = 'badge-pill warn';
+    } else {
+      const names = finished.sort((a, b) => a.total - b.total).map(f => `${verLabel(f.ver).replace('HTTP/', 'H/')}(${f.total.toFixed(1)})`).join(' → ');
+      leaderEl.textContent = `🏆 已冲线：${names}`;
+      leaderEl.className = 'badge-pill good';
+    }
+    topPill.textContent = `四代竞速 · ${scenario === 'normal' ? '正常网络' : (scenario === 'loss' ? '丢包对比' : 'Wi-Fi→5G 对比')}`;
+  }
+
+  function renderWalkthrough() {
+    const box = document.getElementById('explain-box');
+    box.className = 'explain-box';
+
+    if (version === 'race') {
+      if (scenario === 'normal') {
+        box.classList.add('is-teal');
+        box.innerHTML = `<strong>正常网络四代同屏结论：HTTP/3 (3.0 RTT) &lt; HTTP/2 (4.0 RTT) &lt; HTTP/1.1 (5.6 RTT) &lt; HTTP/1.0 (9.6 RTT)</strong>
+          <p>每一次换代都砍掉了一类核心延迟：<strong>1.0 → 1.1</strong> 用默认持久连接砍掉重复握手（省 4 RTT）；<strong>1.1 → 2</strong> 用二进制分帧多路复用消除单连接串行排队（省 1.6 RTT）；<strong>2 → 3</strong> 用 QUIC 合并握手再省 1 RTT（会话恢复支持 0-RTT 时更可降至 2.0 RTT）。</p>`;
+      } else if (scenario === 'loss') {
+        box.classList.add('is-bad');
+        box.innerHTML = `<strong>弱网丢包核心分水岭：为什么 HTTP/2 在高丢包弱网下有时反而不如多连接的 HTTP/1.1？</strong>
+          <p>观察 <code>t = 3.1 ~ 4.8 RTT</code>：<code>app.js</code> 丢包时，<strong>HTTP/2</strong> 虽然在应用层实现了多路复用，但底层仍共用同一条 TCP 字节流，导致已经无损抵达的 <code>hero.png</code> 被扣留在内核 TCP 接收缓冲区里（<strong>TCP 队头阻塞</strong>）。而 <strong>HTTP/3</strong> 的 Stream 8 完全不受 Stream 4 丢包影响，准时在 <code>3.0 RTT</code> 完成交付。</p>`;
+      } else {
+        box.classList.add('is-teal');
+        box.innerHTML = `<strong>移动网络关键优势（Wi-Fi → 5G）：四元组断连 vs Connection ID 连接迁移</strong>
+          <p>在 <code>t = 2.5 RTT</code> 客户端 IP 从 <code>192.168.1.8</code> 变为 <code>10.88.4.21</code>。基于 TCP 的 <strong>HTTP/1.0、1.1、2</strong> 全部连接作废，必须重新执行 TCP + TLS 握手并重传未完成数据；唯有 <strong>HTTP/3 (QUIC)</strong> 凭借独立于 IP 的可变长 <code>Connection ID</code> 识别同一连接并校验新路径，免去重握手，最终 <code>3.2 RTT</code> 完胜 HTTP/2 的 <code>6.9 RTT</code>。</p>`;
+      }
+      return;
+    }
+
+    const m = curModel;
+    const textMap = {
+      '1.0': {
+        normal: ['HTTP/1.0：短连接时代——「聊完一句就挂电话」', '每个资源都必须重新经历 TCP 三次握手（及 HTTPS 下的 TLS 握手）与连接关闭，且每次都要重新走 TCP 慢启动。3 个资源共耗时 9.6 RTT，其中 62.5% 的时间耗费在反复建连上。'],
+        loss:   ['HTTP/1.0 遭遇丢包：慢上加慢', '原本 3 次重复建连就已耗费 6.0 RTT，Conn #2 发生丢包后触发 TCP 重传，又拖慢了后续 Conn #3 的开启，总耗时升至 10.8 RTT。'],
+        migrate:['HTTP/1.0 遇上网络切换：IP 一变连接即断', 'TCP 连接强绑定「源 IP + 端口 + 目标 IP + 端口」四元组。Wi-Fi 切 5G 后当前连接立刻失效，必须在新 IP 下重新握手，总耗时高达 12.5 RTT。']
+      },
+      '1.1': {
+        normal: ['HTTP/1.1：默认持久连接复用，但单连接内仍串行排队', 'HTTP/1.1 将持久连接设为默认（无需显式发送 keep-alive），3 个资源只握手 1 次，省去 4.0 RTT，并强制引入 Host 头部与 chunked 分块传输。但文本报文缺少流编号，同一连接内仍须按顺序一问一答。'],
+        loss:   ['HTTP/1.1 痛点暴露：应用层 HTTP 队头阻塞 (Head-of-Line Blocking)', '当 app.js 在传输中途丢包停滞，排在后面的 hero.png 被挡在队尾。即使启用 Pipelining 提前发送请求，服务端也必须按请求到达的 FIFO 顺序依次返回响应，无法绕过慢响应。'],
+        migrate:['HTTP/1.1 切网：已建好的持久连接直接报废', 't = 2.5 RTT 时客户端切换至 5G，虽然持久连接原本意在复用，但底层 TCP 四元组已失效，只能从头执行 TCP + TLS 握手并重传未完成的 style.css。']
+      },
+      '2.0': {
+        normal: ['HTTP/2：二进制分帧 + 多路复用 + HPACK 头部压缩', 'HTTP/2 将请求和响应切分成带 Stream ID 的二进制帧，在一条 TCP 连接上交错并发传输，配合 HPACK 静态/动态字典显著压缩重复请求头，消除了应用层跨流队头阻塞。'],
+        loss:   ['HTTP/2 的关键短板：TCP 传输层队头阻塞', '观察左侧「🔒 TCP 接收缓冲」：Stream 3 (app.js) 丢了一个 TCP 报文，尽管 Stream 5 (hero.png) 的数据包已无损抵达，但内核 TCP 协议栈强制全局字节流按序交付，将 Stream 5 滞留在缓冲区中直到 Stream 3 重传补齐。这是 HTTP/3 转向 QUIC 的核心动因。'],
+        migrate:['HTTP/2 切网：所有流绑定在同一条 TCP 连接上', '因为 HTTP/2 把全部并发流复用在单条 TCP 连接内，一旦 Wi-Fi 切 5G 导致 IP 变更，整条 TCP 连接中断，所有进行中的流（S1/S3/S5）同时重置，必须重新握手并重发。']
+      },
+      '3.0': {
+        normal: ['HTTP/3：基于 UDP + QUIC 的新一代传输架构', 'QUIC 将传输握手与 TLS 1.3 加密合并为 1-RTT（会话恢复可启用 0-RTT），在用户态提供多条独立保序的可靠流，并用 QPACK 压缩头部，在四代中耗时最短（3.0 RTT）。'],
+        loss:   ['HTTP/3 弱网优势：流级隔离，消除跨流队头阻塞', '观察 Stream 4 (app.js) 丢包后的画面：QUIC 为每条流维护独立的偏移量与接收缓冲，Stream 4 单独等待重传期间，Stream 0 (CSS) 与 Stream 8 (PNG) 照常推进并准时于 3.0 RTT 交付。'],
+        migrate:['HTTP/3 移动场景优势：Connection ID 实现平滑连接迁移', 't = 2.5 RTT 从 Wi-Fi 切到 5G，客户端 IP 变为 10.88.4.21，但 QUIC 通过独立于 IP 的可变长 Connection ID（0~20 字节）映射同一连接并顺带校验新路径，未完成的流直接续传，避免断连重握手。']
+      }
+    };
+
+    const [title, desc] = textMap[m.ver][m.scen];
+    if (m.ver === '3.0') box.classList.add('is-teal');
+    else if (m.scen !== 'normal') box.classList.add('is-bad');
+    box.innerHTML = `<strong>${title}</strong><p>${desc}</p>`;
+  }
+
+  function renderDeepDive() {
+    ['hol', 'header', 'handshake', 'migrate'].forEach(k => {
+      const btn = document.getElementById('tab-' + k);
+      const act = deepTab === k;
+      btn.classList.toggle('active', act);
+      btn.setAttribute('aria-selected', String(act));
+    });
+    const d = DEEP_TABS[deepTab];
+    document.getElementById('deep-svg').innerHTML = d.svg;
+    document.getElementById('deep-notes').innerHTML = d.notes.map(n => `
+      <div class="mini-card ${n.cls}">
+        <b>${n.title}</b>
+        <div>${n.body}</div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('scrubber').addEventListener('input', (e) => {
+    stopPlay();
+    const frac = Number(e.target.value) / 1000;
+    curT = frac * getMaxT();
+    renderFrame(curT);
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); jumpMilestone(1); }
+    else if (e.key === 'ArrowLeft')  { e.preventDefault(); jumpMilestone(-1); }
+  });
+
+  window.setVersion = setVersion;
+  window.setScenario = setScenario;
+  window.setSpeed = setSpeed;
+  window.setDeepTab = setDeepTab;
+  window.togglePlay = togglePlay;
+  window.replay = replay;
+  window.jumpMilestone = jumpMilestone;
+  window.__jumpT = jumpToTime;
+
+  setSpeed(1);
+  rebuild();
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) {
+    curT = 3.2;
+    renderFrame(curT);
+  } else {
+    togglePlay();
+  }
+})();
+</script>
+</body>
+</html>
