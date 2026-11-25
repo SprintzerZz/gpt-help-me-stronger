@@ -86,7 +86,7 @@
     /* Hero */
     .hero {
       display: grid;
-      grid-template-columns: 1.24fr .76fr;
+      grid-template-columns: minmax(0, 1.24fr) minmax(0, .76fr);
       gap: 20px;
       align-items: center;
       padding: 24px;
@@ -361,9 +361,16 @@
     }
 
     /* Main Stage Layout */
+    .hero > *, .two > *, .deep-grid > * {
+      min-width: 0;
+    }
+    .panel, .concept-card, .svg-box, .deep-svg-wrap, .wire-box, .table-wrap {
+      min-width: 0;
+      max-width: 100%;
+    }
     .two {
       display: grid;
-      grid-template-columns: 1.44fr .56fr;
+      grid-template-columns: minmax(0, 1.44fr) minmax(0, .56fr);
       gap: 18px;
       align-items: start;
       margin-top: 18px;
@@ -548,7 +555,7 @@
     }
     .deep-grid {
       display: grid;
-      grid-template-columns: 1.25fr .75fr;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
       gap: 16px;
       align-items: center;
     }
@@ -618,12 +625,14 @@
     .pulse-warn { animation: pulseRing 1.2s ease-in-out infinite; }
 
     @media (max-width: 1020px) {
-      .hero, .two, .deep-grid { grid-template-columns: 1fr; }
+      .hero, .two, .deep-grid { grid-template-columns: minmax(0, 1fr); }
       .stepper { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 640px) {
       .stack-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .stepper, .metrics-grid { grid-template-columns: 1fr; }
+      .stepper, .metrics-grid { grid-template-columns: minmax(0, 1fr); }
+      .scrubber-row { flex-wrap: wrap; }
+      .time-readout { min-width: auto; }
       .hero { padding: 18px 15px; }
       .panel { padding: 16px 14px; }
       h1 { font-size: 24px; }
@@ -2064,9 +2073,9 @@
     const pipeG = el('g', { id: 'pipe-arch' });
     if (m.ver === '1.0') {
       [0, 1, 2].forEach(i => {
-        const cy = 108 + i * 42;
-        pipeG.appendChild(el('rect', { id: `h10-pipe-${i}`, x: 180, y: cy - 14, width: 486, height: 28, rx: 14, fill: '#f3eee4', stroke: '#cfc5b4', 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }));
-        pipeG.appendChild(el('text', { id: `h10-lbl-${i}`, x: 423, y: cy + 4, 'text-anchor': 'middle', 'font-family': 'Consolas,monospace', 'font-size': 11, 'font-weight': 700, fill: '#777267' }, `TCP 短连接 #${i + 1}（未建立）`));
+        const cy = 102 + i * 50;
+        pipeG.appendChild(el('text', { id: `h10-lbl-${i}`, x: 186, y: cy - 16, 'text-anchor': 'start', 'font-family': 'Consolas,monospace', 'font-size': 10.5, 'font-weight': 700, fill: '#777267' }, `Conn #${i + 1}（未建立）`));
+        pipeG.appendChild(el('rect', { id: `h10-pipe-${i}`, x: 180, y: cy - 12, width: 486, height: 24, rx: 12, fill: '#f3eee4', stroke: '#cfc5b4', 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }));
       });
     } else if (m.ver === '1.1') {
       pipeG.appendChild(el('rect', { id: 'h11-pipe', x: 180, y: 106, width: 486, height: 84, rx: 16, fill: '#f3eee4', stroke: '#9c9282', 'stroke-width': 2 }));
@@ -2080,7 +2089,7 @@
       [0, 1, 2].forEach(i => {
         const cy = 102 + i * 44;
         pipeG.appendChild(el('line', { x1: 196, y1: cy, x2: 652, y2: cy, stroke: RES[i].color, 'stroke-opacity': 0.34, 'stroke-width': 2, 'stroke-dasharray': '4 4' }));
-        pipeG.appendChild(el('text', { x: 194, y: cy - 9, 'font-family': 'Consolas,monospace', 'font-size': 10, 'font-weight': 800, fill: RES[i].text }, `Stream ${RES[i].h2Stream}`));
+        pipeG.appendChild(el('text', { x: 652, y: cy - 9, 'text-anchor': 'end', 'font-family': 'Consolas,monospace', 'font-size': 10, 'font-weight': 800, fill: RES[i].text }, `Stream ${RES[i].h2Stream}`));
       });
     } else {
       pipeG.appendChild(el('rect', { id: 'h3-outer', x: 180, y: 72, width: 486, height: 144, rx: 16, fill: '#e1efec', stroke: '#3e6b63', 'stroke-width': 2 }));
@@ -2333,16 +2342,16 @@
         const lbl  = document.getElementById(`h10-lbl-${i}`);
         if (t < cs.open) {
           rect.setAttribute('fill', '#f3eee4'); rect.setAttribute('stroke', '#cfc5b4'); rect.setAttribute('stroke-dasharray', '5 4');
-          lbl.textContent = `TCP 短连接 #${i + 1}（等待前序完成）`; lbl.setAttribute('fill', '#777267');
+          lbl.textContent = `Conn #${i + 1}（等待前序）`; lbl.setAttribute('fill', '#777267');
         } else if (cs.brokenAt && t >= cs.brokenAt && t < cs.brokenAt + 0.5) {
           rect.setAttribute('fill', '#f8e6e2'); rect.setAttribute('stroke', '#b44c3a'); rect.setAttribute('stroke-dasharray', '4 3');
-          lbl.textContent = `✕ IP 改变 → TCP 连接 #1 断开，准备重建`; lbl.setAttribute('fill', '#873123');
+          lbl.textContent = `Conn #1（IP 变更断连）`; lbl.setAttribute('fill', '#873123');
         } else if (t >= cs.close) {
           rect.setAttribute('fill', '#ebe3d5'); rect.setAttribute('stroke', '#cfc5b4'); rect.setAttribute('stroke-dasharray', '2 4');
-          lbl.textContent = `TCP 短连接 #${i + 1}（FIN 已关闭）`; lbl.setAttribute('fill', '#8a8478');
+          lbl.textContent = `Conn #${i + 1}（FIN 已关闭）`; lbl.setAttribute('fill', '#8a8478');
         } else {
           rect.setAttribute('fill', '#e6edf3'); rect.setAttribute('stroke', '#4a6580'); rect.setAttribute('stroke-dasharray', '');
-          lbl.textContent = `TCP 短连接 #${i + 1}（活跃传输中）`; lbl.setAttribute('fill', '#2c4257');
+          lbl.textContent = `Conn #${i + 1}（活跃传输）`; lbl.setAttribute('fill', '#2c4257');
         }
       });
     }
@@ -2411,10 +2420,10 @@
     const dyn = document.getElementById('dyn-packets');
     dyn.innerHTML = '';
 
-    // HTTP/2 TCP Receive Buffer Freeze visual — cleanly scoped to Stream 3 & Stream 5 without overlapping Stream 1
+    // HTTP/2 TCP Receive Buffer Freeze visual — opaque and cleanly scoped to Stream 3 & Stream 5 without overlapping Stream 1
     if (m.tcpFreeze && t >= m.tcpFreeze.start && t < m.tcpFreeze.end) {
       const box = el('g', { class: 'pulse-warn' });
-      box.appendChild(el('rect', { x: 184, y: 122, width: 112, height: 90, rx: 10, fill: '#f8e6e2', 'fill-opacity': 0.96, stroke: '#b44c3a', 'stroke-width': 1.8, 'stroke-dasharray': '5 3' }));
+      box.appendChild(el('rect', { x: 184, y: 122, width: 112, height: 90, rx: 10, fill: '#f8e6e2', 'fill-opacity': 1, stroke: '#b44c3a', 'stroke-width': 1.8, 'stroke-dasharray': '5 3' }));
       box.appendChild(el('text', { x: 240, y: 139, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 900, fill: '#873123' }, '🔒 TCP 接收缓冲'));
       box.appendChild(el('text', { x: 240, y: 153, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 700, fill: '#9f3b2b' }, '缺 S3 #2 序号'));
       box.appendChild(el('text', { x: 240, y: 205, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 800, fill: '#873123' }, 'S5 暂无法上交'));
@@ -2440,7 +2449,7 @@
     }
 
     // Render moving packets (aligned to pipe centerlines!)
-    const laneY = m.ver === '1.0' ? [108, 150, 192] : (m.ver === '1.1' ? [130, 148, 166] : [102, 146, 190]);
+    const laneY = m.ver === '1.0' ? [102, 152, 202] : (m.ver === '1.1' ? [130, 148, 166] : [102, 146, 190]);
     const leftX = 196, rightX = 648;
 
     m.packets.forEach(p => {
