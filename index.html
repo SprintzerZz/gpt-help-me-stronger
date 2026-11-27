@@ -1641,7 +1641,7 @@
           </span>
         </a>
 
-        <a class="card" href="IM/private-chat-flow/index.html" data-topic="im" data-subtopic="flow" data-search="im 即时通讯 私聊 消息链路 http redis lua kafka websocket ack mysql 送达确认 离线 超时">
+        <a class="card" href="IM/private-chat-flow/index.html" data-topic="im" data-subtopic="flow" data-search="im 即时通讯 私聊 消息链路 http redis lua 无锁 批写 kafka dlq websocket ack cmd=7 攒批 mysql 送达确认 离线补拉 拆or 已读水位线 撤回 unipush 超时补推">
           <span class="card-copy">
             <span class="card-icon" aria-hidden="true">
               <svg viewBox="0 0 40 40" fill="none">
@@ -1652,7 +1652,7 @@
             <span>
               <span class="category"><span class="category-dot" aria-hidden="true"></span>IM · MESSAGE FLOW</span>
               <span class="title">私聊消息完整链路</span>
-              <span class="description">交互查看私聊从 HTTP 发送、Redis 暂存、Kafka 投递到 ACK 回程和 MySQL 落库。</span>
+              <span class="description">9 泳道交互查看私聊无锁 Redis Lua 批写、客户端攒批 cmd=7 ACK、ZSet 超时补推、拆 OR 离线补拉、已读水位线与秒撤回。</span>
             </span>
           </span>
           <span class="card-foot">
@@ -1661,7 +1661,7 @@
           </span>
         </a>
 
-        <a class="card" href="IM/group-chat-flow/index.html" data-topic="im" data-subtopic="flow" data-search="im 即时通讯 群聊 消息链路 http redis kafka netty websocket mysql 群成员 路由 群锁 已读回执">
+        <a class="card" href="IM/group-chat-flow/index.html" data-topic="im" data-subtopic="flow" data-search="im 即时通讯 群聊 消息链路 http redis lua 无锁 批写 kafka dlq netty 预编码 websocket mysql 群成员缓存 路由扇出 unipush 离线补拉 已读回执 300ms 聚合 greatest 撤回">
           <span class="card-copy">
             <span class="card-icon" aria-hidden="true">
               <svg viewBox="0 0 40 40" fill="none">
@@ -1673,7 +1673,7 @@
             <span>
               <span class="category"><span class="category-dot" aria-hidden="true"></span>IM · MESSAGE FLOW</span>
               <span class="title">群聊消息完整链路</span>
-              <span class="description">交互查看群聊成员缓存、群级锁、消息落库、节点扇出、离线与已读回执。</span>
+              <span class="description">9 泳道交互查看群聊单段 Redis Lua 无锁发号暂存、500 条/批落库、Kafka 扇出与 DLQ、300ms 已读回执聚合与秒撤回。</span>
             </span>
           </span>
           <span class="card-foot">
@@ -1773,7 +1773,7 @@
         { id: "obs",    num: "28", sym: "Obs", name: "可观测性", r: 4, c: 10, fam: "infra", desc: "指标监控、日志检索与分布式链路追踪体系。", roadmap: ["Metrics / Logs / Traces", "Prometheus 指标采集与告警", "OpenTelemetry 链路透传", "SLO 与故障根因定位"] },
 
         // Row 6 (Detached bottom series, Cols 2-9)
-        { id: "im",     num: "29", sym: "IM",  name: "即时通讯", r: 6, c: 2,  fam: "sys",   desc: "私聊与群聊完整消息链路：Redis 暂存、Kafka 路由扇出、WebSocket 推送、ACK 送达与离线补偿。", roadmap: ["读扩散 vs 写扩散权衡", "弱网断线重连与消息同步"] },
+        { id: "im",     num: "29", sym: "IM",  name: "即时通讯", r: 6, c: 2,  fam: "sys",   desc: "私聊与群聊源码核验消息链路：Redis Lua 无锁发号暂存与批写、Kafka 扇出与 DLQ、WebSocket 推送、cmd=7 ACK、已读水位线与离线补偿。", roadmap: ["读扩散 vs 写扩散权衡", "弱网断线重连与消息同步"] },
         { id: "pay",    num: "30", sym: "Pay", name: "支付交易", r: 6, c: 3,  fam: "sys",   desc: "高一致资金交易系统状态机、幂等与对账设计。", roadmap: ["订单与支付状态机", "全局幂等与防重扣", "异步回调与 T+1 对账"] },
         { id: "seckill",num: "31", sym: "Sk",  name: "秒杀高并发",r: 6, c: 4, fam: "sys",   desc: "瞬时洪峰流量削峰、库存防超卖与热点保护。", roadmap: ["页面静态化与多级缓存", "Redis Lua 原子预扣库存", "MQ 异步下单与限流降级"] },
         { id: "feed",   num: "32", sym: "Fd",  name: "信息流",   r: 6, c: 5,  fam: "sys",   desc: "社交动态时间线分发模型与热点账户治理。", roadmap: ["写扩散、读扩散与推拉结合", "大 V 粉丝热点拆分", "游标分页与已读位点"] },

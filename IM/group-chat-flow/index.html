@@ -1,60 +1,1622 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>IM 群聊 · 消息完整链路交互时序图</title><style>
-:root{font-family:Inter,'Microsoft YaHei',system-ui,sans-serif;color:#e9efff;background:#091020}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#1b3260,transparent 46%),#091020}main{max-width:1350px;margin:auto;padding:30px 20px 55px}h1{font-size:30px;margin:0 0 10px}h2{font-size:19px;margin:0 0 12px}.muted{color:#a4b6d3;line-height:1.7}.eyebrow{font-size:12px;letter-spacing:.12em;color:#8bb8ff;font-weight:800}.panel{background:#111d35;border:1px solid #314563;border-radius:17px;padding:19px;margin-top:18px;box-shadow:0 12px 25px #0003}.legend{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}.tag{border-radius:100px;padding:5px 11px;border:1px solid #3d5274;background:#1b2c4b;color:#bdcef1;font-size:12px}.controls,.scenarios{display:flex;gap:9px;align-items:center;flex-wrap:wrap}button{border-radius:10px;padding:10px 15px;border:1px solid #5475a4;background:#21385c;color:#eef5ff;font-weight:700;cursor:pointer}button:hover{background:#335080}button:disabled{opacity:.38;cursor:not-allowed}.primary{background:#3475e9;border-color:#6aa4ff}.scenarios button[aria-pressed=true]{background:#315ca1;border-color:#85b9ff}.count{margin-left:auto;color:#c3d5f2;font-variant-numeric:tabular-nums}.progress{height:6px;background:#273752;border-radius:10px;overflow:hidden;margin:13px 0}.progress div{height:100%;background:linear-gradient(90deg,#5ba7ff,#53dcba);transition:width .15s}.scroller{overflow-x:auto}.lanes,.seq{min-width:1050px;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}.lanes{margin:10px 0 5px}.lane{background:#203350;border:1px solid #415c83;border-radius:9px;padding:11px 4px;text-align:center;font-size:12px;font-weight:700}.lane small{display:block;font-weight:400;color:#9fb3d0;margin-top:3px}.eventrow{grid-column:1/-1;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;align-items:center;padding:6px 0;border-bottom:1px dashed #293c58;opacity:.25;transition:.16s;cursor:pointer}.eventrow.done,.eventrow.active{opacity:1}.eventrow.active .event{box-shadow:0 0 0 2px #8bbaff,0 0 20px #4587ff55}.num{background:#2c3a54;border-radius:7px;padding:9px 3px;text-align:center;color:#afc4e6;font-weight:700;font-size:12px}.event{position:relative;border-radius:9px;border:1px solid #4e6385;padding:10px 7px;font-size:12px;line-height:1.5;min-height:51px;text-align:center;grid-column:var(--start)/span var(--span);background:#203552;color:#edf4ff}.event::after{content:'➜';position:absolute;right:-14px;top:32%;font-size:16px;color:#97b8e7;z-index:1}.event.reverse::after{content:'⬅';left:-14px;right:auto}.event.local::after{content:'↓';right:3px;top:auto;bottom:-13px}.event.blue{background:#193d68;border-color:#347dc5}.event.green{background:#174c48;border-color:#2f9889}.event.purple{background:#3a2e64;border-color:#8469cf}.event.orange{background:#5a3824;border-color:#b77c45}.event.red{background:#502e3e;border-color:#a95377}.event.gray{background:#263650}.event b{display:block;font-size:13px}.detail{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}.detailbox{background:#1b2a45;border:1px solid #375174;border-radius:12px;padding:16px;min-height:140px}.detailbox h3{font-size:16px;margin:0 0 10px}.detailbox p{line-height:1.8;margin:0;color:#c7d6ed;font-size:14px}.code{font-family:Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1527;border:1px solid #263b5e;padding:13px;border-radius:9px;color:#93d0ff;font-size:12px;line-height:1.7}.notes{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.note{border:1px solid #364e70;background:#1a2a44;border-radius:11px;padding:14px}.note strong{display:block;margin-bottom:7px}.note p{font-size:13px;color:#b9cbe6;line-height:1.7;margin:0}footer{font-size:12px;color:#91a9cc;line-height:1.9;margin-top:20px}@media(max-width:750px){main{padding:20px 10px}.detail,.notes{grid-template-columns:1fr}h1{font-size:23px}.panel{padding:13px}}
-</style></head><body><main><div class="eyebrow">JAVA BACKEND · BOX-IM · KAFKA / REDIS / NETTY</div><h1>群聊消息完整链路 · 交互时序图</h1><p class="muted">以张三向 <b>1000 人群</b>发送「大家好」为例。逐步观察 <b>HTTP → 成员缓存 → 群级锁 / seqNo → MySQL → Redis 路由 → Kafka 节点扇出 → WebSocket</b>。支持在线、部分终端离线、热门群锁竞争、独立群消息已读四种场景。提示：某些条件步骤会被跳过，异步结果回程与 HTTP 返回可并行。</p><div class="legend"><span class="tag">蓝色 HTTP / 业务</span><span class="tag">绿色 Redis</span><span class="tag">紫色 Kafka</span><span class="tag">橙色 MySQL</span><span class="tag">玫红 WebSocket / 离线</span><span class="tag">点击节点查看解释</span></div>
-<section class="panel"><h2>① 场景切换</h2><div class="scenarios" id="scenarios"><button aria-pressed="true" data-s="online">正常群聊 · 多节点扇出</button><button aria-pressed="false" data-s="offline">部分群成员离线</button><button aria-pressed="false" data-s="hot">热门群 · 群锁排队</button><button aria-pressed="false" data-s="read">用户主动阅读 · 已读回执</button></div><div class="progress"><div id="bar"></div></div><div class="controls"><button id="back">← 上一步</button><button id="next" class="primary">下一步 →</button><button id="play">▶ 自动播放</button><button id="all">查看全流程</button><button id="reset">重置</button><span class="count" id="counter"></span></div></section>
-<section class="panel"><h2>② 交互时序图 <span class="muted" style="font-size:13px;font-weight:400">（可横向滚动）</span></h2><div class="scroller"><div class="lanes"><div class="lane">张三客户端<small>HTTP 发送</small></div><div class="lane">Ingress<small>im-api</small></div><div class="lane">im-platform<small>业务 / 群锁</small></div><div class="lane">Redis<small>缓存 / 路由 / 锁</small></div><div class="lane">MySQL<small>成员 / 群消息</small></div><div class="lane">Kafka<small>节点 Topic</small></div><div class="lane">im-server<small>Netty Channel</small></div><div class="lane">群成员客户端<small>WebSocket</small></div></div><div class="seq" id="seq"></div></div></section>
-<section class="panel"><h2>③ 当前步骤解释</h2><div class="detail"><div class="detailbox"><h3 id="stepTitle">请选择场景，点击下一步</h3><p id="stepDesc">各步骤显示后可点击查看详细说明。</p></div><div class="detailbox"><h3>关键代码 / 数据变化（示意）</h3><div id="stepCode" class="code">POST /message/group/send</div></div></div></section>
-<section class="panel"><h2>④ 四个容易被面试官追问的点</h2><div class="notes"><div class="note"><strong>群级 Redis 锁为什么可能影响 P99？</strong><p>同群锁覆盖 Redis INCR 分配 seqNo、MySQL 同步 INSERT、Redis 更新最大 messageId。INCR 自身已确保唯一；锁还用于让 seqNo 与 MySQL 自增 ID 的分配顺序保持一致。</p></div><div class="note"><strong>Kafka 是给每个群成员发送一条吗？</strong><p>不是。当前 IMSender 对接收方在线终端按 <code>serverId</code> 分组，每组一包；发送者其他终端逐个另行同步，即使落在同节点也可能产生额外包。</p></div><div class="note"><strong>HTTP 返回成功表示所有群成员已收到吗？</strong><p>不是。Kafka Broker ACK 只说明 Kafka 确认写入，不等于 Channel 写入成功，也不等于客户端送达。群聊结果回程仅记录 SUCCESS 日志或触发离线处理，不使用私聊 cmd=7 送达 ACK。</p></div><div class="note"><strong>群消息严格按 seqNo 到达吗？</strong><p>不能保证。锁只覆盖保存阶段；释放锁后 Kafka 投递可能因调度差异乱序，例如 seq=101 可能先于 seq=100 到达。客户端需要按 seqNo 排序、缺口补拉。</p></div></div></section>
-<footer>依据本次对话提供的群聊主链路、成员列表 Redis Cache 配置、K8s 双节点架构及 IMSender.sendGroupMessage() 进行绘制。群锁范围、推送结果回程及已读流程依据本轮用户提供的源码审查结论。注意：HTTP 成功不代表客户端收到；HTTP 失败或超时也不保证没有入库或投递。不同终端的在线、离线状态应分别判断。</footer></main>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="安寓家 Box-IM 群聊消息完整链路源码核验交互时序图：覆盖 9 泳道 6 场景、Redis 单段 Lua 无锁发号暂存、500 条/批定时落库、Kafka 单分区扇出与 DLQ、Netty 预编码、300ms 群已读回执聚合、撤回双写一致与异常故障全景。">
+<title>安寓家 Box-IM · 群聊消息完整链路交互时序图（源码核验重构版）</title>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f3eee4;
+  --paper-light: #fbf8f1;
+  --paper-deep: #ebe3d5;
+  --ink: #292923;
+  --ink-soft: #4a453b;
+  --muted: #6c665b;
+  --line: #ded5c7;
+  --line-strong: #c8bca8;
+  --terracotta: #c76c4e;
+  --terracotta-dark: #a74e37;
+  --terracotta-soft: #f6e7df;
+  --olive: #65745c;
+  --olive-soft: #e8ecdf;
+  --shadow: 0 18px 42px #382a1712;
+  --shadow-sm: 0 8px 22px #382a170c;
+  --code-bg: #262520;
+  --code-ink: #efe9dc;
+  --mono: Consolas, Monaco, "Cascadia Code", "Courier New", monospace;
+  --serif: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+
+  /* Harmonized semantic palette on warm paper */
+  --blue-bg: #e7eef5;   --blue-bd: #4a6580;   --blue-ink: #23384c;
+  --green-bg: #e2efec;  --green-bd: #3e6b63;  --green-ink: #20453e;
+  --cyan-bg: #e2eef2;   --cyan-bd: #3b7080;   --cyan-ink: #1f4854;
+  --orange-bg: #f6ead6; --orange-bd: #b5783a; --orange-ink: #6a4116;
+  --purple-bg: #efe7f1; --purple-bd: #7b5e7b; --purple-ink: #4a334a;
+  --red-bg: #f8e6e2;    --red-bd: #b44c3a;    --red-ink: #7a281a;
+  --amber-bg: #f6eed8;  --amber-bd: #a77a31;  --amber-ink: #654614;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 86% 0%, #fffaf0 0, transparent 34rem),
+    linear-gradient(135deg, #f7f3eb, var(--paper) 60%, var(--paper-deep));
+  color: var(--ink);
+  font: 15px/1.68 var(--sans);
+  min-height: 100vh;
+}
+
+main {
+  max-width: 1460px;
+  margin: 0 auto;
+  padding: 22px 22px 60px;
+}
+
+.page-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.page-topline-links {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.page-topline a {
+  color: var(--olive);
+  text-decoration: none;
+  transition: color .15s;
+}
+.page-topline a:hover {
+  color: var(--terracotta-dark);
+  text-decoration: underline;
+}
+.page-topline .sep {
+  color: var(--line-strong);
+  user-select: none;
+}
+
+.hero {
+  background: linear-gradient(120deg, var(--paper-light), #efe8db);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 24px 26px 22px;
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.11em;
+  color: var(--terracotta-dark);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h1, h2, h3 {
+  font-family: var(--serif);
+  color: var(--ink);
+}
+h1 {
+  font-size: clamp(23px, 3.1vw, 31px);
+  margin: 8px 0 10px;
+  line-height: 1.26;
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: 18px;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  line-height: 1.35;
+}
+h3 {
+  font-size: 15.5px;
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.muted {
+  color: var(--ink-soft);
+  line-height: 1.72;
+  font-size: 14px;
+  margin: 6px 0;
+}
+.hero .muted b,
+.hero .muted strong,
+.panel strong {
+  color: var(--ink);
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--paper-deep);
+  color: var(--terracotta-dark);
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+.panel {
+  background: var(--paper-light);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 22px;
+  margin-top: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 11px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.tag.sync-tag {
+  border-style: solid;
+  border-color: var(--blue-bd);
+  background: var(--blue-bg);
+  color: var(--blue-ink);
+}
+.tag.async-tag {
+  border-style: dashed;
+  border-color: var(--purple-bd);
+  background: var(--purple-bg);
+  color: var(--purple-ink);
+}
+.tag.err-tag {
+  border-color: var(--red-bd);
+  background: var(--red-bg);
+  color: var(--red-ink);
+}
+
+.scenarios, .controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.controls { margin-top: 11px; }
+
+button {
+  border-radius: 10px;
+  padding: 8px 13px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color .14s, border-color .14s, color .14s, box-shadow .14s, transform .12s;
+}
+button:hover:not(:disabled) {
+  background: var(--paper-deep);
+  border-color: var(--terracotta);
+  color: var(--terracotta-dark);
+}
+button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+button.primary {
+  background: var(--terracotta);
+  border-color: var(--terracotta-dark);
+  color: #fffaf5;
+}
+button.primary:hover:not(:disabled) {
+  background: var(--terracotta-dark);
+  border-color: #8f3e29;
+  color: #fffaf5;
+}
+.scenarios button[aria-pressed="true"] {
+  background: var(--terracotta);
+  border-color: var(--terracotta-dark);
+  color: #fffaf5;
+  box-shadow: 0 4px 12px #c76c4e30;
+}
+
+.toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid #d7a59a;
+  background: var(--red-bg);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--red-ink);
+  cursor: pointer;
+  user-select: none;
+}
+.toggle-wrap input {
+  accent-color: var(--terracotta-dark);
+  cursor: pointer;
+}
+
+.count {
+  margin-left: auto;
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+.progress {
+  height: 7px;
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 13px 0 4px;
+}
+.progress div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--terracotta), var(--olive));
+  transition: width .18s ease;
+}
+
+.scroller {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.grid-cols {
+  min-width: 1180px;
+  display: grid;
+  grid-template-columns: 46px repeat(9, minmax(115px, 1fr));
+  gap: 6px;
+}
+.lanes { margin: 8px 0 6px; }
+.lane-num {
+  background: var(--paper-deep);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 800;
+}
+.lane {
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 9px 6px;
+  text-align: center;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.lane small {
+  display: block;
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--muted);
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.seq {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 1180px;
+}
+.eventrow {
+  display: grid;
+  grid-template-columns: 46px repeat(9, minmax(115px, 1fr));
+  gap: 6px;
+  align-items: center;
+  padding: 5px 2px;
+  border-bottom: 1px dashed var(--line);
+  border-radius: 8px;
+  opacity: .56;
+  transition: opacity .16s, background-color .16s;
+  cursor: pointer;
+}
+.eventrow:hover {
+  background: #c76c4e0b;
+  opacity: .92;
+}
+.eventrow.done, .eventrow.active { opacity: 1; }
+.eventrow.active { background: #c76c4e14; }
+.eventrow.active .event {
+  box-shadow: 0 0 0 2.5px var(--terracotta), 0 8px 20px #c76c4e24;
+}
+.num {
+  grid-column: 1;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 8px 2px;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  transition: background-color .14s, color .14s, border-color .14s;
+}
+.eventrow.done .num {
+  background: var(--olive-soft);
+  border-color: #b4c3ac;
+  color: #3a4c34;
+}
+.eventrow.active .num {
+  background: var(--terracotta);
+  border-color: var(--terracotta-dark);
+  color: #fffaf5;
+}
+
+.event {
+  position: relative;
+  border-radius: 10px;
+  border: 1.5px solid var(--blue-bd);
+  border-right-width: 3.5px;
+  padding: 9px 28px 8px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  min-height: 56px;
+  text-align: center;
+  grid-column: var(--start) / span var(--span);
+  background: var(--blue-bg);
+  color: var(--blue-ink);
+  transition: box-shadow .16s;
+}
+.event.async { border-style: dashed; }
+.event.err { border-width: 2px; border-right-width: 3.5px; }
+.event.reverse {
+  border-right-width: 1.5px;
+  border-left-width: 3.5px;
+  padding: 9px 12px 8px 28px;
+}
+.event.reverse.err { border-right-width: 2px; border-left-width: 3.5px; }
+.event.local {
+  border-right-width: 1.5px;
+  padding: 9px 26px 8px 12px;
+}
+.event.local.err { border-width: 2px; }
+
+.event::after {
+  content: '→';
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 252, 247, 0.82);
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  color: inherit;
+  z-index: 2;
+}
+.event.reverse::after {
+  content: '←';
+  left: 7px;
+  right: auto;
+}
+.event.local::after {
+  content: '↻';
+  right: 6px;
+  top: 6px;
+  transform: none;
+  width: 17px;
+  height: 17px;
+  font-size: 11px;
+}
+
+.event.blue   { background: var(--blue-bg);   border-color: var(--blue-bd);   color: var(--blue-ink); }
+.event.green  { background: var(--green-bg);  border-color: var(--green-bd);  color: var(--green-ink); }
+.event.purple { background: var(--purple-bg); border-color: var(--purple-bd); color: var(--purple-ink); }
+.event.orange { background: var(--orange-bg); border-color: var(--orange-bd); color: var(--orange-ink); }
+.event.red    { background: var(--red-bg);    border-color: var(--red-bd);    color: var(--red-ink); }
+.event.cyan   { background: var(--cyan-bg);   border-color: var(--cyan-bd);   color: var(--cyan-ink); }
+.event.amber  { background: var(--amber-bg);  border-color: var(--amber-bd);  color: var(--amber-ink); }
+
+.event b {
+  display: block;
+  font-size: 12.5px;
+  margin-bottom: 2px;
+  overflow-wrap: anywhere;
+  color: inherit;
+}
+.event .sub {
+  color: inherit;
+  opacity: .84;
+  font-size: 11.5px;
+}
+.badges {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.b-sync  { background: #d5e2ee; color: #20374c; border: 1px solid #9bb4cb; }
+.b-async { background: #e3d6e8; color: #472e4c; border: 1px solid #b597bc; }
+.b-opt   { background: #d3e7e1; color: #1b433c; border: 1px solid #7ab0a4; }
+.b-cond  { background: #efe2be; color: #5f4210; border: 1px solid #c9aa63; }
+.b-err   { background: #f1d3cd; color: #7a2316; border: 1px solid #cb7f71; }
+
+.state-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.kv {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  background: var(--paper-light);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+.kv span {
+  color: var(--muted);
+  font-weight: 600;
+}
+.kv code {
+  background: var(--olive-soft);
+  color: #2c4432;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 14px;
+}
+.detailbox {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+#stepDesc {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.74;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.mini-card {
+  background: var(--paper-light);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 12.8px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+.mini-card strong {
+  display: block;
+  color: var(--olive);
+  font-size: 12.2px;
+  margin-bottom: 4px;
+}
+.mini-card.risk {
+  background: #fcf4f2;
+  border-color: #e4c2ba;
+}
+.mini-card.risk strong {
+  color: var(--terracotta-dark);
+}
+
+.code {
+  font-family: var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--code-bg);
+  border: 1px solid #3c3930;
+  padding: 13px 14px;
+  border-radius: 10px;
+  color: var(--code-ink);
+  font-size: 12.2px;
+  line-height: 1.68;
+}
+
+details.src-box {
+  margin-top: 12px;
+  background: var(--paper-light);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+details.src-box summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--blue-ink);
+  list-style: none;
+}
+details.src-box summary::-webkit-details-marker { display: none; }
+details.src-box summary::before { content: '▸ '; display: inline-block; color: var(--terracotta-dark); }
+details.src-box[open] summary::before { content: '▾ '; }
+.src-list {
+  margin: 8px 0 2px;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-soft);
+}
+.src-list code {
+  background: var(--paper-deep);
+  color: var(--terracotta-dark);
+  font-family: var(--mono);
+  word-break: break-all;
+}
+
+.parallel-box {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 14px;
+}
+.parallel-summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+.oral-text {
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.8;
+  margin: 0;
+}
+pre.flow-ascii {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--code-bg);
+  border: 1px solid #3c3930;
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--code-ink);
+  font-family: var(--mono);
+  font-size: 12.2px;
+  line-height: 1.78;
+}
+
+.notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.note {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 14px 15px;
+}
+.note strong {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.note p {
+  font-size: 12.8px;
+  color: var(--ink-soft);
+  line-height: 1.72;
+  margin: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper-light);
+  margin-top: 6px;
+}
+table.diff-tbl {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 12.8px;
+}
+table.diff-tbl th,
+table.diff-tbl td {
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.62;
+}
+table.diff-tbl th:last-child,
+table.diff-tbl td:last-child { border-right: 0; }
+table.diff-tbl tbody tr:last-child td { border-bottom: 0; }
+table.diff-tbl th {
+  background: var(--paper-deep);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-weight: 700;
+}
+table.diff-tbl td {
+  background: var(--paper-light);
+  color: var(--ink-soft);
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.pill-fix    { background: var(--red-bg);    color: var(--red-ink);    border: 1px solid #d99f94; }
+.pill-add    { background: var(--green-bg);  color: var(--green-ink);  border: 1px solid #8eb8b0; }
+.pill-keep   { background: var(--blue-bg);   color: var(--blue-ink);   border: 1px solid #9ab2c8; }
+.pill-verify { background: var(--olive-soft); color: #364730;          border: 1px solid #aebda6; }
+
+footer {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.85;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--paper-light);
+}
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-weight: 700;
+}
+.footer-nav a {
+  color: var(--olive);
+  text-decoration: none;
+}
+.footer-nav a:hover {
+  color: var(--terracotta-dark);
+  text-decoration: underline;
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+.eventrow:focus-visible,
+input:focus-visible {
+  outline: 3px solid #c76c4e80;
+  outline-offset: 2px;
+}
+
+@media (max-width: 960px) {
+  .detail, .notes, .detail-grid, .parallel-box { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  main { padding: 14px 12px 44px; }
+  .hero { padding: 18px 16px; }
+  .panel { padding: 15px 14px; }
+  .count { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+<main>
+  <nav class="page-topline" aria-label="页面导航">
+    <a href="../../index.html">← 返回学习资料索引</a>
+    <span class="page-topline-links">
+      <a href="../../index.html#topic=im">即时通讯（IM）专题</a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a href="../private-chat-flow/index.html">对照：私聊消息完整链路 →</a>
+    </span>
+  </nav>
+
+  <header class="hero">
+    <div class="eyebrow">JAVA BACKEND · BOX-IM（安寓家）· REDIS LUA / KAFKA / NETTY / MYSQL · SOURCE VERIFIED</div>
+  <h1>群聊消息完整链路 · 源码核验重构版交互时序图</h1>
+  <p class="muted">
+    以用户向 <b>1000 人群（上限 3000 人）</b>发送文本消息为例，基于当前仓库真实源码重构：全面修正旧图中已过时的「群级分布式锁 + 同步落库」与「同步查库推已读回执」，补齐 <b>限流/敏感词校验 → Redis 单段 Lua 原子发号与暂存 → 500 条/批定时落库 → 单分区 Kafka 扇出与 DLQ → Netty 预编码复用 → 异步结果回程与 UniPush → 300ms 已读回执聚合 / 500ms GREATEST 落库 → 撤回双写一致 → 异常与故障分支</b>。
+  </p>
+  <div class="legend">
+    <span class="tag"><i class="dot" style="background:#4a6580"></i>蓝色 HTTP / 业务</span>
+    <span class="tag"><i class="dot" style="background:#3e6b63"></i>绿色 Redis / Lua</span>
+    <span class="tag"><i class="dot" style="background:#3b7080"></i>青色 定时任务 / 异步池</span>
+    <span class="tag"><i class="dot" style="background:#b5783a"></i>橙色 MySQL</span>
+    <span class="tag"><i class="dot" style="background:#7b5e7b"></i>紫色 Kafka / DLQ</span>
+    <span class="tag"><i class="dot" style="background:#b44c3a"></i>砖红 WebSocket / 离线 / 异常</span>
+    <span class="tag sync-tag">实线边框 = 同步步骤</span>
+    <span class="tag async-tag">虚线边框 = 异步/定时步骤</span>
+    <span class="tag err-tag">ERR 标记 = 异常/容错分支</span>
+  </div>
+  </header>
+
+  <section class="panel">
+    <h2>① 场景切换与播放控制</h2>
+    <div class="scenarios" id="scenarios">
+      <button aria-pressed="true" data-s="online">1. 正常群聊 · 无锁批写与扇出</button>
+      <button aria-pressed="false" data-s="offline">2. 部分离线 · 终端分流与补拉</button>
+      <button aria-pressed="false" data-s="hot">3. 热点大群 · 冷启动与批写排空</button>
+      <button aria-pressed="false" data-s="read">4. 群已读 · 300ms 聚合与 GREATEST</button>
+      <button aria-pressed="false" data-s="recall">5. 发后秒撤回 · 暂存与 DB 一致</button>
+      <button aria-pressed="false" data-s="error">6. 异常与故障分支全景</button>
+    </div>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="controls">
+      <button id="back">← 上一步</button>
+      <button id="next" class="primary">下一步 →</button>
+      <button id="play">▶ 自动播放</button>
+      <button id="all">展开全流程</button>
+      <button id="reset">重置</button>
+      <label class="toggle-wrap" title="在主流程场景中显示或隐藏条件/异常容错节点">
+        <input type="checkbox" id="toggleErr" checked> 显示条件/异常分支
+      </label>
+      <span class="count" id="counter"></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>② 九泳道交互时序图 <span class="muted" style="font-size:12.5px;font-weight:400">（点击任意节点定位详情；支持横向滚动）</span></h2>
+    <div class="scroller">
+      <div class="grid-cols lanes">
+        <div class="lane-num">#</div>
+        <div class="lane">发送方客户端<small>Web / App</small></div>
+        <div class="lane">Ingress<small>im-api</small></div>
+        <div class="lane">im-platform<small>Controller / Service</small></div>
+        <div class="lane">Redis<small>Lua / 缓存 / 路由</small></div>
+        <div class="lane">定时任务 / 异步池<small>Batch / Receipt / Push</small></div>
+        <div class="lane">MySQL<small>主表 / 归档 / 已读表</small></div>
+        <div class="lane">Kafka<small>节点 / 结果 / DLQ</small></div>
+        <div class="lane">im-server<small>Netty / Epoll</small></div>
+        <div class="lane">群成员 / UniPush<small>WS / 离线通知</small></div>
+      </div>
+      <div class="seq" id="seq"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>③ 当前步骤深度解析与数据状态</h2>
+    <div class="state-strip" id="stateStrip"></div>
+    <div class="detail">
+      <div class="detailbox">
+        <h3 id="stepTitle">点击「下一步」或任意泳道节点开始</h3>
+        <p id="stepDesc" class="muted"></p>
+        <div class="detail-grid">
+          <div class="mini-card">
+            <strong>设计动机与收益</strong>
+            <div id="stepWhy">—</div>
+          </div>
+          <div class="mini-card risk">
+            <strong>风险边界与面试注意</strong>
+            <div id="stepRisk">—</div>
+          </div>
+        </div>
+        <details class="src-box" id="srcDetails" open>
+          <summary>源码定位与核验状态（点击折叠/展开）</summary>
+          <ul class="src-list" id="stepSrc"></ul>
+        </details>
+      </div>
+      <div class="detailbox">
+        <h3>关键调用 / Redis Key / SQL 示意</h3>
+        <div id="stepCode" class="code">POST /message/group/send</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>④ 面试高频追问卡片（基于当前真实源码）</h2>
+    <div class="notes">
+      <div class="note">
+        <strong>1. 群消息发完 HTTP 返回成功，数据落 MySQL 了吗？</strong>
+        <p>没有。HTTP 返回前仅由 Redis 单段 Lua 完成发号与写入 <code>im:message:group:pending</code> 暂存区，真正落库由后台 <code>@Scheduled(fixedDelay=100)</code> 500 条/批异步写入。MySQL 写后若 ACK 删暂存失败，显式主键 + <code>ON DUPLICATE KEY UPDATE id=id</code> 保证重试幂等；但若 Redis 宕机丢内存则存在丢消息窗口。</p>
+      </div>
+      <div class="note">
+        <strong>2. 去掉群级锁后，怎么保证同一群内 id 与 seqNo 同序？</strong>
+        <p><code>GroupMessageBatchStore.ENQUEUE</code> 在同一段单线程 Lua 脚本里同时 <code>INCR</code> 全局 <code>id</code> 与群内 <code>seqNo</code>，因此两者顺序天然严格一致，无需群级分布式锁；且显式校验 <code>&lt; 2^53 - 1</code> 防止 Lua/JS 双精度浮点丢精度。</p>
+      </div>
+      <div class="note">
+        <strong>3. Kafka 节点 Topic 单分区就能保证群消息绝对零乱序吗？</strong>
+        <p>存储序号层（<code>id/seqNo</code>）严格有序；但推送层 <code>MQPublisher</code> 仅保证单 JVM 内按提交顺序入单分区。在多线程并发或多实例 <code>im-platform</code> 下，先拿到 <code>seq=100</code> 的线程若停顿，<code>seq=101</code> 仍可能先进入 Kafka 被推送，客户端需按 <code>seqNo</code> 排序与缺号补拉。</p>
+      </div>
+      <div class="note">
+        <strong>4. 为什么 <code>PullGroupMessageTask</code> 把 <code>retries</code> 设为 0？</strong>
+        <p>节点推送队列是单分区，负责整台 <code>im-server</code> 所有群的实时下发。若某条毒丸消息反复退避重试，会队头阻塞整节点推送；配合 <code>BatchListenerFailedException(i)</code> 仅将第 <code>i</code> 条直投 <code>.dlq</code>，前 <code>0..i-1</code> 条正常提交 offset，不丢不堵。</p>
+      </div>
+      <div class="note">
+        <strong>5. 群已读回执怎么避免大群 500 人同时点开压垮 DB？</strong>
+        <p><code>PUT /message/group/readed</code> 只执行 <code>ADVANCE_GROUP</code> Lua 推进 Redis 水位线并合并回执区间 <code>minOld:maxNew</code>，不查 DB；后台 300ms 定时任务原子弹出区间，每群只查 1 次 DB（<code>LIMIT 20</code>）并向发送方汇总推 1 次 <code>RECEIPT</code>；另由 500ms 任务用 <code>GREATEST</code> 批量持久化到 <code>im_group_read_position</code>。</p>
+      </div>
+      <div class="note">
+        <strong>6. 群已读异步落库源码里藏着什么微竞态？</strong>
+        <p><code>ReadPositionStore.flushGroupReadPositions()</code> 先 <code>multiGet</code> 读游标，写完 MySQL 后直接对 <code>im:readed:group:dirty</code> Set 执行 <code>SREM</code>，没有像私聊 <code>ACK_PRIVATE_DIRTY</code> 那样比对版本号。若在读与删之间用户再次推进游标，新水位要等下次已读才会被重新标脏落库。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>⑤ 旧图（index.html）→ 当前源码核验修订对照</h2>
+    <div class="table-wrap"><table class="diff-tbl">
+      <thead>
+        <tr>
+          <th style="width:110px">修订类型</th>
+          <th style="width:240px">链路环节</th>
+          <th>旧图内容</th>
+          <th>当前真实源码实现（核验依据）</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pill pill-fix">重大修正</span></td>
+          <td>群消息发号与落库</td>
+          <td>按 <code>groupId</code> 加 Redisson 群级锁 → 锁内 <code>INCR seqNo</code> → 锁内同步 <code>INSERT</code> → 更新 <code>maxId</code></td>
+          <td>已改为<strong>无群锁单段 Redis Lua</strong>（<code>ENQUEUE</code>）原子分配 <code>id + seqNo</code>、写 Hash/ZSet 暂存与 <code>maxId</code>（60天 TTL），后台 100ms 定时 500 条/批 <code>ON DUPLICATE KEY UPDATE id=id</code> 落库（<code>GroupMessageBatchStore.java:44-255</code>）。</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-fix">重大修正</span></td>
+          <td>群已读回执与持久化</td>
+          <td>HTTP 内先推多端再改 Redis，并同步查 <code>WHERE receipt=true LIMIT 10</code> 计算人数推送</td>
+          <td>HTTP 仅调 <code>ADVANCE_GROUP</code> Lua 推进水位、登记脏 Set、合并回执区间，仅推进成功才推多端；后台 <strong>300ms</strong> <code>flushGroupReceiptPushes</code> 查区间内 <strong>LIMIT 20</strong> 汇总推 <code>RECEIPT</code>，<strong>500ms</strong> <code>flushGroupReadPositions</code> 以 <code>GREATEST</code> 批量落库 <code>im_group_read_position</code>（<code>ReadPositionStore.java:103-458</code>）。</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-fix">修正</span></td>
+          <td>离线拉取前置一致与网格错位</td>
+          <td>称“群消息已同步落库”；且 CSS 8 列网格中序号列与第一泳道重叠</td>
+          <td><code>loadOffineMessage</code> 开头先 <code>batchStore.flushPending()</code> 排空暂存区，再走 60 天窗 ID 下界 + 遗漏会话补拉 + 退群消息 + 回源已读水位；本图改用 <code>46px + 9 泳道</code> 消除重叠。</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-add">新增补全</span></td>
+          <td>前置治理 / Kafka DLQ / UniPush / 撤回 / 异常全景</td>
+          <td>缺失参数与业务卡片拦截、滑动窗口限流、Trie 敏感词、<code>retries=0</code> + DLQ、UniPush 免打扰与 @ 穿透、撤回双写一致</td>
+          <td>全部基于源码补齐，并新增「发后秒撤回」与「异常与故障分支全景」场景及可切换异常过滤器。</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-keep">验证保留</span></td>
+          <td>缓存、路由分组、一次编码、无 cmd=7</td>
+          <td>成员缓存 TTL 600s、<code>MGET</code> 按 <code>serverId</code> 分组、<code>EncodedSendInfo</code> 一次编码、群聊无 cmd=7 ACK</td>
+          <td>逐一核实与 <code>RedisConfig.java:55</code>、<code>IMSender.java:174-255</code>、<code>GroupMessageProcessor.java:45-75</code>、<code>GroupMessageListener.java:29-50</code> 一致，原样保留并补全行号。</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <footer>
+    <b>可信度说明：</b>本图全部 6 个场景共 60 个交互步骤均基于工作区 <code>D:\Project\box-im</code> 真实 Java/SQL/YAML 源码逐行核验（<span class="pill pill-verify">源码已验证</span>）；未修改原项目任何代码或配置。客户端具体重连/按 seqNo 排序行为以服务端协议约定为准（前端细节未作为本图主核验范围）。
+    <div class="footer-nav">
+      <a href="../../index.html">← 返回学习资料总览</a>
+      <a href="../../index.html#topic=im">即时通讯（IM）专题目录</a>
+      <a href="../private-chat-flow/index.html">对照：私聊消息完整链路 →</a>
+    </div>
+  </footer>
+</main>
+
 <script>
-const S=(name,from,to,title,desc,code,type='blue')=>({name,from,to,title,desc,code,type});
-const head=[
- S('HTTP 请求',0,2,'POST /message/group/send','发送消息经 im-api Ingress 到任一 im-platform 实例。','POST /message/group/send\ngroupId=1001\ncontent=大家好'),
- S('成员校验',2,4,'校验发送者的群成员身份','根据 group_id + user_id 查询成员关系；联合索引帮助快速定位。','SELECT * FROM im_group_member\nWHERE group_id=? AND user_id=?','orange'),
- S('共享缓存',2,3,'读取 Redis 群成员 ID 列表','@Cacheable 先查询共享 Redis，命中则无需查 MySQL。失效后按需回源，TTL 600 秒。','Redis 缓存：groupId → [userId...]\nTTL=600s','green'),
- S('缓存 miss（条件步骤）',2,4,'im-platform 查 MySQL，再回填 Redis','注意 Redis 不会自己请求 MySQL：由 im-platform 调用查询方法拿到所有 quit=false 的 user_id，返回后 Spring Cache 将其写入 Redis。命中时跳过此步骤。','im-platform → MySQL：\nSELECT user_id FROM im_group_member\nWHERE group_id=? AND quit=0;\n然后 im-platform → Redis 回填','orange'),
- S('获取群级锁',2,3,'按 groupId 获取 Redisson 锁','只有同一群的保存临界区会竞争同一把锁；群成员查询发生在加锁之前。','lock:group:1001\n[锁内开始]','green'),
- S('锁内分配 seqNo',2,3,'Redis INCR 分配群 seqNo','INCR 本身保证取号不重复；加群锁的重要目的是让同群 seqNo 与随后 MySQL 自增 ID 的分配顺序一致。','INCR group:seq:1001 → seqNo=101\n（仍持有群锁）','green'),
- S('锁内同步落库',2,4,'MySQL INSERT 一条群消息','1000 人的群发一条消息，只插入 1 条 im_group_message 记录，不会按 1000 个群成员分别 INSERT。MySQL AUTO_INCREMENT 生成群 messageId。','INSERT INTO im_group_message (...) VALUES (...);\n→ messageId=5001\n写入条数=1','orange'),
- S('锁内更新最大 ID',2,3,'Redis 写入本群最大 messageId','消息 INSERT 后，更新本群最新消息 ID；这一步同样在锁内完成。','SET group:max-message-id:1001 5001\n（键名示意，实际以常量为准）','green'),
- S('释放群级锁',2,3,'释放锁，进入投递阶段','锁仅保护 seqNo、同步 INSERT、更新最大 ID；后面的 Redis 路由查询、Kafka 投递均不在锁内。','[锁内结束]\nRedisson unlock','green'),
- S('在线路由查询',2,3,'MGET 用户各终端的 serverId','查群成员的 WEB/APP/PC 等在线终端，并查发送者其他终端；无路由的终端进入 offlineUsers。某人 Web 在线不代表 App 在线。','MGET userId+terminal → serverId / null\n在线 → serverMap\n离线终端 → offlineUsers','green')
+const mk = (cfg) => Object.assign({
+  type:'blue', mode:'sync', badges:[], isErr:false,
+  why:'—', risk:'—', state:{}, src:[]
+}, cfg);
+
+// 泳道下标: 0客户端 1Ingress 2im-platform 3Redis 4定时/异步池 5MySQL 6Kafka 7im-server 8群成员/UniPush
+const sendHead = [
+  mk({
+    name:'HTTP 发送入口', from:0, to:2, type:'blue', mode:'sync', badges:['sync'],
+    title:'POST /message/group/send（经 im-api Ingress）',
+    desc:'发送方携带 JWT 与 GroupMessageDTO，经 K8s Ingress (im-api) 路由到任意 im-platform 实例进入 GroupMessageController.sendMessage()。',
+    why:'HTTP 业务服务无状态可水平扩展，与有状态 Netty 长连接层解耦；Ingress 配 proxy-next-upstream 提升入口容错。',
+    risk:'HTTP 请求超时或失败时，无法保证服务端未完成发号暂存，客户端重试可能产生重复消息（当前未做 localId 服务端幂等去重）。',
+    code:'POST /message/group/send\n{"groupId":1001,"type":0,"content":"大家好","atUserIds":[]}',
+    state:{stage:'入口路由', sync:'同步 HTTP', status:'—', store:'im-api → im-platform'},
+    src:['im-platform/.../controller/GroupMessageController.java:28-32','deploy/k8s/ingress.yaml:28-47']
+  }),
+  mk({
+    name:'校验 + 限流 + 敏感词', from:2, to:3, type:'green', mode:'sync', badges:['sync','opt'],
+    title:'参数校验 · Redis 滑动窗口限流 · Trie 敏感词过滤',
+    desc:'先由 validMessage() 拦截伪造租房业务卡片(5/6/7)及超 1024 字文本；再调 RateLimiter.checkGroupMessage() 执行 Redis ZSet 滑动窗口 Lua（默认 10s 内 30 条，使用 Redis TIME 消除时钟漂移）；TEXT 消息经内存 Trie 树 SensitiveFilterUtil 替换为 ***。',
+    why:'在访问 DB 和发号前快速拦截非法流量与刷屏攻击；使用 Redis 服务器时钟确保多实例限流口径一致。',
+    risk:'RateLimiter 在 Redis 异常时主动降级放行（fail-open），优先保核心发消息可用性。',
+    code:'KEY: im:rate:limit:group_message:{userId}\nRULE: 30 req / 10s (ZREMRANGEBYSCORE + ZCARD + ZADD)\nvalidMessage: 禁止 HOUSE/APPOINTMENT/CONTRACT_CARD',
+    state:{stage:'前置治理', sync:'同步', status:'校验中', key:'im:rate:limit:group_message:{uid}'},
+    src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:74-76,94-96,492-509','im-platform/.../util/RateLimiter.java:25-73','im-platform/.../config/props/RateLimitProperties.java:19']
+  }),
+  mk({
+    name:'成员身份校验', from:2, to:5, type:'orange', mode:'sync', badges:['sync','opt'],
+    title:'查 im_group_member 校验发送者仍在群内',
+    desc:'调用 groupMemberService.findByGroupAndUserId(groupId, userId) 查 MySQL，若记录不存在或 quit=true 直接抛 GlobalException 拒发；查询命中联合索引 idx_group_user_id(group_id, user_id)。',
+    why:'优化前分别命中 idx_group_id 与 idx_user_id 触发 index_merge 交集；合并为联合索引后点查直达单行，消除交集回表开销。',
+    risk:'强实时查库确保退群/被踢用户立刻无法发言，但每次发言会有 1 次轻点查。',
+    code:'SELECT * FROM im_group_member\nWHERE group_id = 1001 AND user_id = 10001;\n-- 索引: idx_group_user_id (group_id, user_id)',
+    state:{stage:'权限核验', sync:'同步 DB 点查', status:'member.quit=false', table:'im_group_member'},
+    src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:77-81','im-platform/.../service/impl/GroupMemberServiceImpl.java:46-51','db/更新脚本/v_4.3_group_member_index.sql:1-2']
+  }),
+  mk({
+    name:'成员列表共享缓存', from:2, to:3, type:'green', mode:'sync', badges:['sync'],
+    title:'@Cacheable 读取群成员 ID 列表（TTL 600s）',
+    desc:'调用 findUserIdsByGroupId(groupId)，先查共享 Redis Cache（cacheName=im:cache:group_member_ids，默认 TTL 600s）；拿到成员列表后在内存剔除发送者自身，并设置初始状态 status=PENDING(0)。',
+    why:'大群每次发言都要查几百上千个成员 ID，共享缓存避免高频全量扫描成员表；成员增删/退群通过 @CacheEvict 失效。',
+    risk:'极端并发下若缓存失效瞬间遇到退群，存在极短暂脏成员读（最多到 @CacheEvict 完成或过期）。',
+    code:'KEY: im:cache:group_member_ids::1001 (TTL=600s)\nuserIds = findUserIdsByGroupId(1001) - {sendId}',
+    state:{stage:'成员缓存命中', sync:'同步 Redis', status:'PENDING(0)', key:'im:cache:group_member_ids::1001'},
+    src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:83-92','im-platform/.../service/impl/GroupMemberServiceImpl.java:26,86-94','im-platform/.../config/RedisConfig.java:53-58']
+  }),
+  mk({
+    name:'缓存未命中回源', from:2, to:5, type:'orange', mode:'sync', badges:['sync','cond'], isErr:true,
+    title:'[条件分支] 群成员缓存 Miss → 回查 MySQL 并回填 Redis',
+    desc:'仅当 Redis 缓存缺失时由 im-platform 执行 SELECT user_id FROM im_group_member WHERE group_id=? AND quit=0，再由 Spring Cache 将列表回填 Redis（注意：Redis 本身不会主动查 MySQL）。',
+    why:'冷群或 600s 过期后自动按需回源，无需全量预热。',
+    risk:'超大热点群缓存过期瞬间若无 single-flight 保护，可能短时并发穿透 DB。',
+    code:'SELECT user_id FROM im_group_member\nWHERE group_id = 1001 AND quit = 0;\n-- 返回后 Spring Cache 写回 Redis (TTL=600s)',
+    state:{stage:'缓存回源(条件)', sync:'条件同步', status:'PENDING(0)', table:'im_group_member'},
+    src:['im-platform/.../service/impl/GroupMemberServiceImpl.java:86-94']
+  }),
+  mk({
+    name:'单段 Lua 无锁发号+暂存', from:2, to:3, type:'green', mode:'sync', badges:['sync','opt'],
+    title:'GroupMessageBatchStore.ENQUEUE 原子分配 id & seqNo 并暂存',
+    desc:'【取代旧图群级锁+同步INSERT】单段 Redis Lua 原子完成 5 件事：① 校验计数器/群序号存在且 < 2^53-1；② INCR 全局 id；③ INCR 群内 seqNo；④ 将含 seqNo 的消息 JSON 写入 pending Hash 并以 id 为 score 加入 pending:ids ZSet；⑤ 刷新群 max_id（TTL 60天）。',
+    why:'彻底消除热点群 Redisson 锁排队和逐条 MySQL 磁盘提交瓶颈；同一 Lua 内同步分配 id 与 seqNo，天然保证同群两者顺序严格一致。',
+    risk:'① HTTP 返回前消息仅落 Redis 暂存区，若 Redis 宕机未持久化存在丢消息窗口；② 脚本跨 5 个无相同 hash tag 的 key，暂不能直接迁移 Redis Cluster。',
+    code:'KEYS: [id:counter, pending(Hash), pending:ids(ZSet), max_seq:1001, max_id:1001]\nLua -> INCR id(=5001), INCR seq(=101)\nHSET pending 5001 "{...,\"seqNo\":101}"\nZADD pending:ids 5001 5001\nSET max_id:1001 5001 EX 5184000',
+    state:{stage:'无锁原子发号+暂存', sync:'同步 Lua', msgId:'5001', seqNo:'101', status:'PENDING(0) @ Redis'},
+    src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:98,463-479','im-platform/.../service/impl/GroupMessageBatchStore.java:44-52,105-131']
+  }),
+  mk({
+    name:'定时 500 条/批入库', from:4, to:5, type:'cyan', mode:'async', badges:['async','opt'],
+    title:'[异步后台] flush() 100ms 定时批量 INSERT MySQL + ACK 清理',
+    desc:'GroupMessageBatchStore.flush() 每 100ms（fixedDelay）运行，单次预算 1000ms；每批先 tryLock(im:lock:message:group:batch)，ZRANGE+HMGET 取最多 500 条，执行多值 INSERT INTO im_group_message ... ON DUPLICATE KEY UPDATE id=id，成功后调 ACK Lua 原子删 Hash/ZSet 并立刻释放锁再进入下一批。',
+    why:'将 500 次 MySQL 网络往返与事务提交合并为 1 次；每批之间释放分布式锁，让撤回/读前刷盘有机会插入防锁饥饿；显式主键+ON DUPLICATE KEY 保障崩溃重试幂等。',
+    risk:'若 MySQL 短暂不可用，待写消息留在 Redis 暂存区等待重试；批量积压过大时离线拉取调 flushPending() 会有排队延迟。',
+    code:'@Scheduled(fixedDelay = 100) // budget=1000ms, batch=500\nINSERT INTO im_group_message (id,local_id,group_id,seq_no,...) VALUES (...)\nON DUPLICATE KEY UPDATE id=id;\n-- 随后执行 ACK Lua: HDEL pending + ZREM pending:ids',
+    state:{stage:'异步批量持久化', sync:'异步 100ms 批写', msgId:'5001', status:'PENDING(0) @ MySQL', table:'im_group_message'},
+    src:['im-platform/.../service/impl/GroupMessageBatchStore.java:32-34,54-56,169-255']
+  }),
+  mk({
+    name:'一次 MGET 查在线路由', from:2, to:3, type:'green', mode:'sync', badges:['sync','opt'],
+    title:'IMSender.sendGroupMessage() 合并 MGET 查成员与本人多端路由',
+    desc:'用 LinkedHashMap 拼出“所有接收成员×全部终端”和“发送者其他终端”的路由 key（im:user:server_id:{userId}:terminal），合并为 1 次 Redis MGET；前半段按 serverId 分组进 serverMap、缺失进 offlineUsers，后半段用于同步发送者其他在线端。',
+    why:'把上千个成员的多端查询压缩为 1 次 Redis 网络 RTT，并用 {userId} hash tag 保证单用户多端共 slot。',
+    risk:'超大群（如 3000 人 × 多终端）单次 MGET key 数量近万，大包会造成 Redis 瞬时毛刺。',
+    code:'MGET im:user:server_id:{uid}:{terminal} ...\n在线接收者 → serverMap<serverId, List<IMUserInfo>>\n离线终端   → offlineUsers\n本人其他端 → selfKeys (sendResult=false)',
+    state:{stage:'在线路由寻址', sync:'同步 1 次 MGET', msgId:'5001', key:'im:user:server_id:{uid}:{term}'},
+    src:['im-client/.../sender/IMSender.java:174-255','im-common/.../contant/IMRedisKey.java:33-35','im-common/.../model/IMGroupMessage.java:26-36']
+  })
 ];
-const online=[...head,
- S('接收方分组；发送者另行同步',2,5,'按 serverId 投递节点专属 Kafka Topic','同一 serverId 的接收方终端合成一包；发送者的其他在线终端逐个另行同步，可能出现额外消息包。','serverId=101 → 接收方 [A/WEB,B/APP]\nserverId=102 → 接收方 [C/WEB]\n发送者其他终端：单独调用 pushGroupMessage()','purple'),
- S('Broker ACK',5,2,'等待 Kafka Broker ACK','MQPublisher.send() 对节点消息同步等待 Kafka 确认。Broker ACK 不代表节点已消费、更不代表客户端已收到。','MQPublisher.send(queue, recvInfo)\n→ 等待 sendTimeoutMs','purple'),
- S('HTTP 返回（独立分支）',2,0,'发送接口返回张三','正常路径在发送调用完成后 HTTP 可返回；Kafka 消费和客户端收包可能已经发生，也可能稍后发生。该步骤不是等待 WS 完成的顺序屏障。','HTTP 成功 ≠ 群成员收到\nHTTP 失败/超时 ≠ 没有写入 MySQL','blue'),
- S('节点消费',5,6,'im-server 消费节点 Topic','每个 im-server 消费自身 serverId 对应 Topic，再处理接收者列表。','group topic :101 / :102\nIMRecvInfo.receivers=[...]','purple'),
- S('性能优化：一次编码',6,6,'同一接收包只序列化一次','GroupMessageProcessor 首先执行 EncodedSendInfo.of(sendInfo)，之后对包内各目标 Channel 复用编码后的字节，避免每个成员重复序列化。','EncodedSendInfo.of(sendInfo)\nfor (Channel ch : receivers) {\n    write(encodedBytes);\n}','green'),
- S('WebSocket 推送',6,7,'cmd=4 → 群成员在线终端','根据 (userId, terminal) 在本机找 Channel 进行推送；Channel 不存在时走失败结果，不应当成成功送达。','cmd=4（群消息）\nuserId + terminal → Channel','red'),
- S('发送结果回程',6,5,'im-server → Kafka 群消息结果 Topic','im-server 监听 ChannelFuture，向群消息发送结果队列上报 SUCCESS 或失败/离线结果；这是服务器写 Channel 的结果，不是客户端送达 ACK。','ChannelFuture → Kafka 群消息结果 Topic','purple'),
- S('业务侧处理结果',5,2,'im-platform 的 GroupMessageListener','SUCCESS 只记录日志；APP 离线、找不到 Channel 等失败分支可能触发离线通知。不会登记私聊 DeliveryAckTracker，也不使用 cmd=7。','GroupMessageListener.process()\nSUCCESS → log\nAPP 离线/Channel 缺失 → 离线通知条件判断','blue')
+
+const onlineTail = [
+  mk({
+    name:'按节点分组投递 Kafka', from:2, to:6, type:'purple', mode:'sync', badges:['sync','opt'],
+    title:'MQPublisher.send() 投递各 im-server 单分区节点 Topic',
+    desc:'每个在线 serverId 仅打包 1 条 IMRecvInfo 发往单分区节点 Topic（im.message.group.<serverId>）；发送者其他在线终端逐个单独调用 pushGroupMessage(sendResult=false)。内部经单线程 dispatcher 串行提交 KafkaTemplate，同步等待 Broker ACK（默认超时 5000ms）。',
+    why:'按节点并包把千人扇出从千条 MQ 消息压成 2~N 条节点消息；节点 Topic 仅 1 分区 + 单 dispatcher 线程保单 JVM 发送顺序，且禁止发送端自动建节点 Topic 防止僵尸 Topic 复活。',
+    risk:'① Broker ACK 仅代表写入 Kafka，不代表 im-server 已消费或客户端收到；② 跨线程/多实例 im-platform 下仍可能在 Lua 与入队之间乱序。',
+    code:'Topic: im.message.group.101 (partitions=1)\nTopic: im.message.group.102 (partitions=1)\nMQPublisher.send(queueKey, recvInfo) // timeout=5000ms',
+    state:{stage:'节点并包入 MQ', sync:'同步等 Broker ACK', msgId:'5001', topic:'im.message.group.{serverId}'},
+    src:['im-client/.../sender/IMSender.java:229-246,349-361','im-common/.../mq/MQPublisher.java:31-61,90-107','im-common/.../mq/MQTopology.java:21-24,83-86']
+  }),
+  mk({
+    name:'HTTP 返回 VO', from:2, to:0, type:'blue', mode:'sync', badges:['sync'],
+    title:'HTTP 返回 GroupMessageVO（同步/异步分水岭）',
+    desc:'所有节点投递拿到 Broker ACK（以及本机离线回调触发完成）后，HTTP 立即返回含 id、seqNo、localId 的 GroupMessageVO 给张三客户端。注意：此时 MySQL 批写、im-server 消费和 WS 推送均可能正在并行或尚未完成！',
+    why:'把耗时的批量写库与大规模 WS 扇出解耦出 HTTP 响应路径，大幅压低发送 P99 延迟。',
+    risk:'HTTP 返回成功 ≠ 已落 MySQL ≠ 群成员已收到。',
+    code:'200 OK -> Result<GroupMessageVO>\n{"id":5001,"seqNo":101,"groupId":1001,"status":0}',
+    state:{stage:'HTTP 响应完成', sync:'同步链路终点', msgId:'5001', seqNo:'101', status:'PENDING(0)'},
+    src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:100-107']
+  }),
+  mk({
+    name:'批量消费节点 Topic', from:6, to:7, type:'purple', mode:'async', badges:['async'],
+    title:'[异步] PullGroupMessageTask 消费专属节点 Topic（retries=0）',
+    desc:'im-server 的 MQConsumerStarter 以 AckMode.BATCH 批量拉取本节点 Topic（im.message.group.<serverId>），经 ResolvableType 准确反序列化 IMRecvInfo 后分发到 GroupMessageProcessor.process()。',
+    why:'每台 im-server 只消费连在本机的用户消息，单分区顺序消费且避免无关消息空耗带宽。',
+    risk:'PullGroupMessageTask 显式配 retries=0，异常记录直接进 .dlq 避免单分区队头阻塞。',
+    code:'@MQListener(queue="im:message:group", retries=0)\nTopic: im.message.group.101 -> GroupMessageProcessor',
+    state:{stage:'节点消费', sync:'异步 Kafka BATCH', msgId:'5001', topic:'im.message.group.101'},
+    src:['im-server/.../task/PullGroupMessageTask.java:16-23','im-common/.../mq/MQConsumerStarter.java:118-171']
+  }),
+  mk({
+    name:'一次预编码复用', from:7, to:7, type:'green', mode:'async', badges:['async','opt'],
+    title:'EncodedSendInfo 一次预编码复用',
+    desc:'遍历接收列表前，仅构造 1 份 IMSendInfo(cmd=4) 并调用 EncodedSendInfo.of() 序列化成不可变 byte[]；后续对包内数百上千个在线 Channel 全部复用该字节数组，WS 编码器以 Unpooled.wrappedBuffer 零拷贝封装为 TextWebSocketFrame。',
+    why:'消除原版每帧 new ObjectMapper() 与千人重复序列化热点，实测将千人群推送速率推升至 22万~28万条/秒量级。',
+    risk:'EncodedSendInfo.bytes() 返回内部数组引用，所有下游严禁修改该 byte[]。',
+    code:'EncodedSendInfo encoded = EncodedSendInfo.of(sendInfo); // 仅 1 次 JSON\nfor (receiver : receivers) channel.writeAndFlush(encoded);\n// Encoder: new TextWebSocketFrame(Unpooled.wrappedBuffer(bytes))',
+    state:{stage:'预编码复用', sync:'本地零拷贝', msgId:'5001', cmd:'cmd=4 (GROUP_MESSAGE)'},
+    src:['im-server/.../netty/processor/GroupMessageProcessor.java:45-61','im-server/.../netty/EncodedSendInfo.java:11-56','im-server/.../netty/ws/endecode/MessageProtocolEncoder.java:12-24']
+  }),
+  mk({
+    name:'WebSocket 扇出推送', from:7, to:8, type:'red', mode:'async', badges:['async'],
+    title:'Netty Epoll 推送 cmd=4 群消息帧至群成员在线终端',
+    desc:'从 UserChannelCtxMap 按 (userId, terminal) 查找 Channel 并异步 writeAndFlush(encoded)；共享 @Sharable 编解码器与 IMChannelHandler 减少内存与 GC，热路径日志降为 DEBUG。',
+    why:'异步非阻塞写出配合 Netty 原生 Epoll，单机可支撑 30 万长连接稳定承载大群扇出。',
+    risk:'ChannelFuture 成功仅说明写入内核发送缓冲，不代表客户端已接收（群聊不使用私聊 cmd=7 逐条 ACK，弱网漏推靠客户端按 seqNo/minId 补拉）。',
+    code:'WS Frame: {"cmd":4,"data":{"id":5001,"seqNo":101,"groupId":1001,"content":"大家好"}}',
+    state:{stage:'WS 实时推送', sync:'异步 Netty IO', msgId:'5001', cmd:'cmd=4'},
+    src:['im-server/.../netty/processor/GroupMessageProcessor.java:56-71','im-server/.../netty/ws/WebSocketServer.java:67-95']
+  }),
+  mk({
+    name:'异步聚合发送结果', from:7, to:6, type:'purple', mode:'async', badges:['async'],
+    title:'ChannelFuture 原子聚合 → 异步回推结果队列',
+    desc:'GroupMessageProcessor.listenPushResults() 用 AtomicInteger pendingPush + AtomicBoolean loopFinished + AtomicBoolean completed (CAS) 等待全部异步写完成，按 SUCCESS / NOT_FIND_CHANNEL / UNKONW_ERROR 分组，在异步线程池调 MQPublisher.sendAsync() 写回共享结果 Topic（im.result.group.<appName>）。',
+    why:'避免在 Netty EventLoop 中同步阻塞发 Kafka，同时用 CAS 门闩保证并发回调下结果严格回推一次。',
+    risk:'sendAsync 队列满或 Broker 不可用时会丢弃结果回程（仅影响离线推送兜底，不影响主消息）。',
+    code:'if (loopFinished && pendingPush==0 && completed.compareAndSet(false,true))\n  mqPublisher.sendAsync("im:result:group:im-platform", batchResult);',
+    state:{stage:'发送结果回程', sync:'异步回调', topic:'im.result.group.im-platform'},
+    src:['im-server/.../netty/processor/GroupMessageProcessor.java:77-123']
+  }),
+  mk({
+    name:'业务侧处理回程', from:6, to:2, type:'blue', mode:'async', badges:['async'],
+    title:'GroupMessageResultResultTask → GroupMessageListener',
+    desc:'im-platform 消费结果队列并多播给 GroupMessageListener：SUCCESS 仅打 DEBUG 日志（不写库、不登记私聊 DeliveryAckTracker）；若为 APP 端的 NOT_ONLINE 或 NOT_FIND_CHANNEL，按消息聚合后触发离线推送。',
+    why:'群聊不维护按成员×消息粒度的送达态，大幅削减大群回写成本。',
+    risk:'群聊不走 cmd=7 端到端送达确认，假死连接的实时漏推需靠心跳超时重连后的离线补拉恢复。',
+    code:'GroupMessageListener.process(results):\n  SUCCESS -> log.debug(...)\n  APP + (NOT_ONLINE | NOT_FIND_CHANNEL) -> offlinePushService.pushGroup()',
+    state:{stage:'回程闭环', sync:'异步消费', status:'无 DB 回写'},
+    src:['im-client/.../task/GroupMessageResultResultTask.java:15-24','im-platform/.../listener/GroupMessageListener.java:29-50']
+  })
 ];
-const offline=[...head,
- S('路由后按终端分流',3,2,'部分终端有路由，部分离线','某成员可能 Web 在线而 App 离线。只为有路由的终端建立节点投递；无路由的终端加入 offlineUsers，业务回调处理。','李四 WEB → serverId 101\n李四 APP → null（离线）\n按终端而不是整个人判断','green'),
- ...online.slice(10,16),
- S('第二种离线',6,5,'Redis 有路由，但本地 Channel 不存在','路由信息可能还未过期，但 im-server 上 Channel 已关闭。节点推送发现没有本地 Channel 时上报失败结果，而不是算投递成功。','Redis serverId=101 ≠ Channel 一定存在\nChannelMap lookup → missing','red'),
- ...online.slice(16),
- S('离线恢复',2,7,'APP 离线通知与 HTTP 补拉','离线通知要看设备类型和业务条件；客户端重新在线后通过 HTTP 历史/离线同步拿到遗漏消息。群消息已同步 MySQL 落库。','终端离线 / Channel 不存在\n→ 可选 APP 离线通知\n→ 重连后 HTTP 补拉','red')
-];
-const hot=[...head.slice(0,4),
- S('同群抢锁',2,3,'热门群：请求 A、B、C 排队','同群多个发送请求竞争相同群级锁；不同群通常可以并行。','A 获得 lock:group:1001\nB、C 排队','green'),
- ...head.slice(4,9),
- S('P99 来自临界区',3,2,'锁等待与同步落库拉长尾延迟','锁覆盖 Redis seqNo、MySQL INSERT、Redis maxMessageId 更新；持锁时间越长，同群后续发送等待越久。','P99 ≈ 锁等待 + 持锁操作 + 路由 + Kafka 等待 + ...','orange'),
- ...online.slice(9),
- S('顺序陷阱',2,7,'数据库有序 ≠ 客户端严格按序收到','请求 A 写入 seq=100 并释放锁后暂停；请求 B 写入 101 后先投递 Kafka，客户端可能先见 101 再见 100。','A: seq100 → unlock → 暂停 → send\nB: seq101 → unlock → send（先到）\n客户端应按 seqNo 处理/缺口补拉','red')
-];
-const read=[
- S('主动阅读（不是自动 ACK）',7,0,'用户打开群聊并阅读消息','这是一条独立的业务操作，不是收到每条群消息就自动产生的客户端 ACK。','群成员在客户端打开群 / 阅读到某位置','red'),
- S('HTTP 已读接口',0,2,'PUT /message/group/readed','客户端发送“我已经读到哪条群消息”的请求，由 im-platform 处理。','PUT /message/group/readed\ngroupId / messageId（示意）','blue'),
- S('同步本人其他终端',2,3,'其他终端同步清空未读数','服务端向用户其他在线终端发送已读/未读更新，确保多个设备的会话未读状态一致。','sendToSelf=true\n其他终端更新未读数','green'),
- S('更新群已读位置',2,3,'Redis Hash 保存用户的群已读位置','Redis 中记录“该用户在该群读到哪条消息”；再次进入可以从该位置恢复。','Redis Hash：用户-群已读位置\n（具体 key 以源码为准）','green'),
- S('查需要回执的消息',2,4,'查询 receipt=true 的消息（最多 10 条）','只对需要回执的群消息处理已读人数，当前代码最多查询 10 条；不是每条普通消息都推一次已读。','WHERE receipt=true ... LIMIT 10\n（伪 SQL，非原始查询语句）','orange'),
- S('计算已读人数',2,3,'计算已读人数','根据成员已读位置等业务数据统计消息的已读人数，供发送者查看。','该消息已读人数 = N','green'),
- S('发送已读人数变化',2,5,'向原发送者发送 RECEIPT','通过群消息投递通道向原消息发送者发送回执更新；这是业务已读，不是私聊 cmd=7 送达 ACK。','cmd=4，type=RECEIPT\n包含相关消息与已读人数','purple'),
- S('发送者端收到通知',6,7,'发送者客户端刷新已读人数','节点消费并经 WebSocket cmd=4 推送 RECEIPT，客户端刷新群消息已读人数。','cmd=4 + type=RECEIPT','red')
-];
-const scenarios={online,offline,hot,read};let scenario='online',current=-1,timer=null;const seq=document.getElementById('seq');
-function render(){const steps=scenarios[scenario];seq.innerHTML='';steps.forEach((s,i)=>{const row=document.createElement('div');row.className='eventrow'+(i<current?' done':i===current?' active':'');const n=document.createElement('div');n.className='num';n.textContent=String(i+1).padStart(2,'0');row.appendChild(n);const e=document.createElement('div');e.className='event '+s.type+(s.from>s.to?' reverse':'')+(s.from===s.to?' local':'');e.style.setProperty('--start',Math.min(s.from,s.to)+1);e.style.setProperty('--span',Math.abs(s.to-s.from)+1);e.innerHTML='<b>'+s.title+'</b><span>'+s.name+'</span>';row.appendChild(e);row.onclick=()=>{current=i;stop();render()};seq.appendChild(row)});document.getElementById('counter').textContent=(current<0?'0':current+1)+' / '+steps.length;document.getElementById('bar').style.width=((current+1)/steps.length*100)+'%';document.getElementById('back').disabled=current<0;document.getElementById('next').disabled=current>=steps.length-1;const s=steps[current];document.getElementById('stepTitle').textContent=s?s.title:'点击「下一步」开始';document.getElementById('stepDesc').textContent=s?s.desc:'选择场景逐步查看链路。条件步骤只在对应条件满足时发生；不同异步分支不表示严格时间顺序。';document.getElementById('stepCode').textContent=s?s.code:'POST /message/group/send';}
-function stop(){if(timer)clearInterval(timer);timer=null;document.getElementById('play').textContent='▶ 自动播放'}document.getElementById('next').onclick=()=>{current=Math.min(current+1,scenarios[scenario].length-1);render()};document.getElementById('back').onclick=()=>{current=Math.max(current-1,-1);render()};document.getElementById('reset').onclick=()=>{stop();current=-1;render()};document.getElementById('all').onclick=()=>{stop();current=scenarios[scenario].length-1;render()};document.getElementById('play').onclick=()=>{if(timer){stop();return}if(current>=scenarios[scenario].length-1)current=-1;document.getElementById('play').textContent='⏸ 暂停';timer=setInterval(()=>{current++;render();if(current>=scenarios[scenario].length-1)stop()},1050)};document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{stop();scenario=b.dataset.s;current=-1;document.querySelectorAll('[data-s]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));render()});render();
-</script></body></html>
+
+const scenarios = {
+  online: [...sendHead, ...onlineTail],
+
+  offline: [
+    ...sendHead,
+    mk({
+      name:'按终端分流离线', from:3, to:2, type:'green', mode:'sync', badges:['sync','cond'],
+      title:'第一种离线：Redis 无路由 → 本地直接回调 NOT_ONLINE',
+      desc:'MGET 返回 null 的终端（例如李四 Web 在线但 App 离线）归入 offlineUsers；IMSender 无需绕道 Kafka，直接在本地调用 listenerMulticaster.multicast(GROUP_MESSAGE, NOT_ONLINE) 进入 GroupMessageListener。',
+      why:'严格按“用户×终端”而非整个人判离线，且无路由终端直接本地短路，省掉一次无效 Kafka 往返。',
+      risk:'仅当 receiver.terminal == APP 时才触发系统通知推送，Web/PC 离线不推 UniPush。',
+      code:'李四 WEB -> serverId=101 (走 Kafka 推送)\n李四 APP -> null (offlineUsers -> 本地回调 NOT_ONLINE)',
+      state:{stage:'终端级离线分流', sync:'本地回调', code:'IMSendCode.NOT_ONLINE'},
+      src:['im-client/.../sender/IMSender.java:220-226,248-254','im-platform/.../listener/GroupMessageListener.java:41-49']
+    }),
+    onlineTail[0],
+    onlineTail[1],
+    onlineTail[2],
+    onlineTail[3],
+    mk({
+      name:'Channel 缺失兜底', from:7, to:6, type:'red', mode:'async', badges:['async','err'], isErr:true,
+      title:'第二种离线：Redis 有路由但本机 Channel 已关闭',
+      desc:'节点重启/网络断连瞬间，Redis 路由 TTL(600s) 尚未过期但 UserChannelCtxMap 查不到本地 Channel；GroupMessageProcessor 将其归入 noChannelReceivers，回推 NOT_FIND_CHANNEL 到结果 Topic。',
+      why:'区分“路由滞后”与“推送成功”，防止连接已断却静默吞掉离线推送触发机会。',
+      risk:'依赖结果队列回程，会有毫秒级异步延迟。',
+      code:'UserChannelCtxMap.getChannelCtx(uid, term) == null\n-> sendResult(noChannelReceivers, IMSendCode.NOT_FIND_CHANNEL)',
+      state:{stage:'第二种离线', sync:'异步回程', code:'IMSendCode.NOT_FIND_CHANNEL'},
+      src:['im-server/.../netty/processor/GroupMessageProcessor.java:58-72']
+    }),
+    mk({
+      name:'异步离线推送过滤', from:4, to:8, type:'cyan', mode:'async', badges:['async','opt'],
+      title:'OfflinePushService 独立线程池 → 免打扰/@穿透 → 5s 节流 → UniPush',
+      desc:'GroupMessageListener 聚合 APP 离线成员提交至 offline-push 线程池（2–4 线程、队列 10,000）：① 剔除发信人与已上线用户；② 查 im_group_member 过滤已退群和免打扰成员（但被 @ 或 @所有人 穿透免打扰提醒）；③ 按用户×群 5 秒节流（im:push:throttle）；④ 按最大批次分片调用 UniPush，带 10~32 位幂等 request_id。',
+      why:'独立线程池隔离云函数网络抖动，免打扰与 5s 节流避免大群刷屏炸通知栏，request_id 防止重复推。',
+      risk:'队列满时采用 AbortPolicy 丢弃离线通知（可接受：重连后仍有离线拉取兜底）；注意配置项 im.push.enabled 默认为 false，需生产开启。',
+      code:'KEY: im:push:throttle:{uid}:g{groupId} (TTL=5s)\n被@组: "[有人@我] 张三: 大家好" (prefix=ga)\n普通组: "张三: 大家好" (prefix=g)',
+      state:{stage:'APP 离线通知', sync:'异步线程池', key:'im:push:throttle:{uid}:g1001'},
+      src:['im-platform/.../service/impl/OfflinePushService.java:68-73,100-107,161-244','im-platform/.../config/props/OfflinePushProperties.java:15,37']
+    }),
+    mk({
+      name:'重连离线补拉', from:0, to:5, type:'orange', mode:'sync', badges:['sync','opt'],
+      title:'重连后 GET /message/group/loadOfflineMessage（读前强刷盘 + 60 天窗）',
+      desc:'离线用户重新上线后携带本地 minId 拉离线：① 先调 batchStore.flushPending() 排空 Redis 暂存区防漏查；② 60 天时间窗映射 id 下界（缓存 30 分钟）；③ 按主键范围拉最多 1 万条 + 遗漏群补拉最后 1 条 + 退群前消息；④ 过滤加群前与已删会话，叠加 Redis 群已读水位线修正状态返回。',
+      why:'因为写路径改为异步批写，离线读前必须 flushPending() 保证已确认消息绝不被 minId 跳过。',
+      risk:'高并发重连风暴时，多个请求同时调 flushPending() 会争抢全局批量锁 IM_LOCK_GROUP_MESSAGE_BATCH。',
+      code:'1) batchStore.flushPending()\n2) finalMinId = max(minId, timeWindowBoundId_60d)\n3) SELECT ... WHERE id > finalMinId AND group_id IN (...) ORDER BY id DESC LIMIT 10000',
+      state:{stage:'离线完整同步', sync:'同步读(强一致)', table:'im_group_message'},
+      src:['im-platform/.../controller/GroupMessageController.java:41-45','im-platform/.../service/impl/GroupMessageServiceImpl.java:168-261,568-611']
+    })
+  ],
+
+  hot: [
+    mk({
+      name:'高并发同时发言', from:0, to:2, type:'blue', mode:'sync', badges:['sync'],
+      title:'热点千人群：请求 A、B、C 并发打入 im-platform',
+      desc:'同一 1000 人群瞬间涌入大量发言请求，不再在服务层按 groupId 排 Redisson 群级锁，请求直接并行完成限流、成员校验与敏感词过滤后进入 Lua 发号阶段。',
+      why:'旧版热点群瓶颈在于单群串行持锁 + 同步 MySQL INSERT；重构后热路径彻底无锁化。',
+      risk:'发号无锁化后，并发请求在“拿到 seqNo”到“提交 Kafka”之间不再互斥，带来后续的乱序边界。',
+      code:'并发请求 A / B / C -> GroupMessageServiceImpl.sendMessage()\n(无 IM_LOCK_GROUP_MESSAGE_SAVE 群级锁)',
+      state:{stage:'无锁高并发入口', sync:'并行 HTTP', status:'无群级锁'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:73-108']
+    }),
+    mk({
+      name:'Lua 命中缺失码', from:2, to:3, type:'amber', mode:'sync', badges:['sync','cond'], isErr:true,
+      title:'[冷启动条件] 计数器或群序号缺失 → 返回 0 / -2 触发懒加载',
+      desc:'若 Redis 重启或冷群首次发言，ENQUEUE Lua 检测到 id:counter 缺失返回 {0,0}，或 max_seq:{groupId} 缺失返回 {-2,0}，触发 Java 侧最多 4 次重试循环初始化。',
+      why:'不在启动时全量扫库预热所有群，按需懒恢复兼顾启动速度与内存占用。',
+      risk:'4 次重试仍失败或 ID 触顶 2^53-1 将抛出 IllegalStateException。',
+      code:'ENQUEUE Lua:\nif EXISTS(id:counter)==0 -> return {0,0}\nif EXISTS(max_seq:1001)==0 -> return {-2,0}',
+      state:{stage:'冷启动探测', sync:'条件重试(<=4次)', code:'CODE_NO_ID(0) / CODE_NO_SEQ(-2)'},
+      src:['im-platform/.../service/impl/GroupMessageBatchStore.java:45-47,114-130']
+    }),
+    mk({
+      name:'按群/全局锁回源(含归档)', from:2, to:5, type:'orange', mode:'sync', badges:['sync','cond','opt'], isErr:true,
+      title:'[冷启动条件] 联查主表 + 归档表恢复最大 ID 与群最大 seqNo',
+      desc:'① id:counter 缺失：拿 id:init 锁 + batch 锁，查 GREATEST(主表 MAX(id), 归档表 MAX(id)) 并合并 pending ZSet 最大值；② 群 seqNo 缺失：仅按群粒度加锁 im:lock:message:group:max_seq:{groupId}，先查主表最新 seq_no，若群消息已全部归档则查 im_group_message_archive，最后 StringRedisTemplate.setIfAbsent 写入纯数字字符串。',
+      why:'避免 180 天冷热归档搬空冷群后序号回退撞车；按群粒度加锁防止冷启动时不同群串行排队。',
+      risk:'只有缓存冷启动那 1 次请求会加群锁，热路径 99.99%+ 请求完全无锁。',
+      code:'SELECT GREATEST((SELECT COALESCE(MAX(id),0) FROM im_group_message),\n                (SELECT COALESCE(MAX(id),0) FROM im_group_message_archive));\n-- 群序号回源: 主表无记录 -> selectArchivedMaxSeqNo(groupId)',
+      state:{stage:'防回退回源', sync:'冷启动加锁', table:'im_group_message + _archive'},
+      src:['im-platform/.../service/impl/GroupMessageBatchStore.java:62-96','im-platform/.../service/impl/GroupMessageServiceImpl.java:514-541','im-platform/.../mapper/GroupMessageMapper.java:10-11']
+    }),
+    mk({
+      name:'微秒级原子发号', from:2, to:3, type:'green', mode:'sync', badges:['sync','opt'],
+      title:'请求 A/B/C 经 Redis 单线程 Lua 串行拿到连续 (id, seqNo)',
+      desc:'Redis 单线程依次执行 A→(5001,101)、B→(5002,102)、C→(5003,103)，同时暂存 payload 至 pending Hash/ZSet 并更新 max_id，不等待 MySQL 落盘即可向下游路由。',
+      why:'把锁争用从毫秒级 DB 事务压缩到微秒级纯内存 Lua，100 人群 P99 显著下降。',
+      risk:'全局所有群共用同一个 pending Hash 与 pending:ids ZSet。',
+      code:'A: id=5001, seqNo=101\nB: id=5002, seqNo=102\nC: id=5003, seqNo=103',
+      state:{stage:'连续发号', sync:'微秒级 Lua', msgId:'5001~5003', seqNo:'101~103'},
+      src:['im-platform/.../service/impl/GroupMessageBatchStore.java:48-52']
+    }),
+    mk({
+      name:'1s 预算分批排空', from:4, to:5, type:'cyan', mode:'async', badges:['async','opt'],
+      title:'积压排空：1000ms 时间预算内循环 500 条/批落库，每批释放锁',
+      desc:'高峰积压超过 500 条时，flush() 在 1000ms 预算内连续多批落库直到 flushed < 500；关键是每批在 while 内 tryLock → insertBatch → ACK → unlock，批次间隙把锁让给撤回或读前刷盘。',
+      why:'既能在突发洪峰下持续追平写入速度，又避免长持锁饿死撤回与离线拉取请求。',
+      risk:'单把全局 batch 锁在极大规模多实例集群下仍有吞吐天花板（未来可按 groupId 分片桶）。',
+      code:'while (now < deadline) {\n  if (!lock.tryLock()) return;\n  try { flushed = flushBatch(500); } finally { lock.unlock(); }\n  if (flushed < 500) return;\n}',
+      state:{stage:'防饥饿批写排空', sync:'异步循环批写', batch:'500/批, budget=1s'},
+      src:['im-platform/.../service/impl/GroupMessageBatchStore.java:169-191']
+    }),
+    onlineTail[0],
+    onlineTail[3],
+    mk({
+      name:'推送乱序边界', from:2, to:8, type:'red', mode:'async', badges:['async','err'], isErr:true,
+      title:'[重要边界] 落库 seqNo 严格有序 ≠ 实时 WS 推送绝对按序',
+      desc:'请求 A 拿到 seq=101 后若遇 GC 或线程调度暂停，请求 B 拿到 seq=102 先进入 MQPublisher 队列发到 Kafka，客户端就可能先收到 seq=102 再收到 seq=101（多实例 im-platform 时更明显）。',
+      why:'理解同步发号与异步投递的并发窗口是 IM 面试必考点。',
+      risk:'数据库与离线/历史拉取严格零乱序，实时端展示必须由客户端按 seqNo 排序并做缺口补拉。',
+      code:'线程 A: Lua(seq=101) -> [GC 暂停] -> MQPublisher.send(101)\n线程 B: Lua(seq=102) -> MQPublisher.send(102) 先到达客户端!',
+      state:{stage:'乱序边界', sync:'并发窗口', seqNo:'DB有序 / 实时可交错'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:98-105','im-common/.../mq/MQPublisher.java:26-36']
+    })
+  ],
+
+  read: [
+    mk({
+      name:'主动打开阅读', from:8, to:0, type:'red', mode:'sync', badges:['sync'],
+      title:'群成员打开群聊并阅读到某条消息（独立业务动作，非自动 ACK）',
+      desc:'群聊不会在每次收到 WS 帧时自动回送达 ACK，而是用户真正进入/滑动阅读群聊时，主动上报最新已读位置。',
+      why:'分离“送达”与“已读”语义，大幅减少大群上行流量。',
+      risk:'若前端未传 messageId，服务端会查 findMaxMessageId(groupId) 取群最新消息 ID。',
+      code:'用户阅读至 groupId=1001, messageId=5001',
+      state:{stage:'用户主动阅读', sync:'客户端触发', msgId:'5001'},
+      src:['im-platform/.../controller/GroupMessageController.java:48-53','im-platform/.../service/impl/GroupMessageServiceImpl.java:264-272']
+    }),
+    mk({
+      name:'HTTP 已读接口', from:0, to:2, type:'blue', mode:'sync', badges:['sync'],
+      title:'PUT /message/group/readed?groupId=1001&messageId=5001',
+      desc:'请求经 Ingress 到达 GroupMessageServiceImpl.readedMessage()，完全不在 HTTP 线程里做重 DB 查询或群回执统计。',
+      why:'让大群 500 人同时点开群聊时的 HTTP 接口耗时稳定在毫秒级。',
+      risk:'旧图错画成“HTTP 里同步查 LIMIT 10 并同步推 RECEIPT”，当前源码已彻底异步聚合化。',
+      code:'PUT /message/group/readed?groupId=1001&messageId=5001',
+      state:{stage:'已读入口', sync:'同步 HTTP', msgId:'5001'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:264-291']
+    }),
+    mk({
+      name:'缓存缺失安全回源', from:2, to:5, type:'orange', mode:'sync', badges:['sync','cond'], isErr:true,
+      title:'[条件分支] ensureGroupLoaded() 回源 im_group_read_position 防覆盖',
+      desc:'若 Redis 中 im:readed:group:position:1001 与 24h 加载标记 im:readed:group:loaded:1001 均不存在，从 im_group_read_position 查全群游标，通过 BACKFILL_GROUP Lua（仅当 field 不存在或 cur < incoming 才写入）回填，再写 24h loaded 标记防空群穿透。',
+      why:'既防止 Redis 重启丢失历史已读位置，又避免回源旧值把并发推进的新游标覆盖回退。',
+      risk:'若回源 DB 失败，代码降级打 warn 日志继续使用 Redis，不阻断用户操作。',
+      code:'SELECT user_id, max_readed_id FROM im_group_read_position WHERE group_id=1001;\nLua BACKFILL_GROUP: if (not cur) or (cur < incoming) then HSET ...',
+      state:{stage:'已读水位回源', sync:'条件回源 Lua', table:'im_group_read_position'},
+      src:['im-platform/.../service/impl/ReadPositionStore.java:151-161,241-242,426-458']
+    }),
+    mk({
+      name:'Lua 原子推进与合并', from:2, to:3, type:'green', mode:'sync', badges:['sync','opt'],
+      title:'ADVANCE_GROUP Lua：单调推进水位 + 标脏 + 合并回执区间',
+      desc:'单段 Lua 原子判断 newId > oldId：① 若未推进直接返回 {0} 幂等退出；② 更新 im:readed:group:position:1001 中该用户水位；③ SADD im:readed:group:dirty "1001:uid"；④ 在 im:readed:group:receipt:pending 中将该群受影响区间合并为 min(oldId):max(newId)。',
+      why:'天然幂等防回退，把短时间内几百人的已读推进折叠成每群一条区间记录。',
+      risk:'只有真正推进游标时才会触发后续多端同步与回执统计。',
+      code:'KEYS: [position:1001, group:dirty, receipt:pending]\nHSET position:1001 uid 5001\nSADD group:dirty "1001:uid"\nHSET receipt:pending 1001 "minOld:maxNew"',
+      state:{stage:'水位推进+区间合并', sync:'同步 Lua', key:'im:readed:group:receipt:pending'},
+      src:['im-platform/.../service/impl/ReadPositionStore.java:103-123,241-252']
+    }),
+    mk({
+      name:'多端清空未读数', from:2, to:6, type:'purple', mode:'sync', badges:['sync'],
+      title:'[仅推进成功] sendToSelf=true 同步本人其他终端清空未读',
+      desc:'若 advance.advanced()==true，构造 type=READED(11) 的 IMGroupMessage（sendToSelf=true, sendResult=false）推送给自己的其他在线终端，然后 HTTP 立即返回。',
+      why:'先保证水位已推进再同步多端（旧图画反了顺序），且重复点已读不发无效同步消息。',
+      risk:'sendResult=false，无需回程日志与离线推送。',
+      code:'type=MessageType.READED(11), sendToSelf=true, sendResult=false\n-> imClient.sendGroupMessage() -> HTTP 200 OK',
+      state:{stage:'本人多端同步', sync:'同步发 MQ 后返回', type:'READED(11)'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:276-290']
+    }),
+    mk({
+      name:'300ms 窗口弹出区间', from:4, to:3, type:'cyan', mode:'async', badges:['async','opt'],
+      title:'[300ms 定时] flushGroupReceiptPushes() 原子弹出待刷新群窗口',
+      desc:'每 300ms 执行 POP_GROUP_RECEIPT_PENDING Lua，原子弹出最多 100 个群及其合并区间 [minOldId, maxNewId]，确保多实例部署下同一批回执不会被重复计算与推送。',
+      why:'用 300ms 微批窗口把大群瞬间几百人已读削峰为每群 1 次汇总。',
+      risk:'POP 后立即 HDEL；若下游 DB 瞬断抛出异常，该窗口的实时回执推送本次不会自动重入队（但已读人数在拉历史/详情时仍可实时从水位线算准）。',
+      code:'@Scheduled(fixedDelay = 300)\nLua POP_GROUP_RECEIPT_PENDING(limit=100) -> [(groupId, minOld, maxNew), ...]',
+      state:{stage:'300ms 窗口聚合', sync:'异步定时', key:'im:readed:group:receipt:pending'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:297-311','im-platform/.../service/impl/ReadPositionStore.java:132-144,284-308']
+    }),
+    mk({
+      name:'按需刷盘 + 查回执消息', from:4, to:5, type:'orange', mode:'async', badges:['async','opt'],
+      title:'检查 minPendingId 按需刷盘 → 查区间内未完成回执消息（LIMIT 20）',
+      desc:'processGroupReceiptWindow() 先查 batchStore.findMinPendingId()，若 <= maxNewId 先排空群消息暂存区防漏算；再查 im_group_message 区间 (minOldId, maxNewId] 内 status!=RECALL 且 receipt=true 且 receipt_ok=false 的消息（按 id DESC LIMIT 20，旧图误写为 10）。读 1 次全群游标算各消息已读人数，若全员已读（>=成员数-1）更新 receipt_ok=true。',
+      why:'把读放大从 O(已读人次) 降为 O(每 300ms 1 次查询)，并与批写暂存区严密衔接。',
+      risk:'单窗口最多处理 20 条未完成回执消息；超过 20 条的极旧回执需下次窗口或查看详情时计算。',
+      code:'if (minPendingId <= maxNewId) batchStore.flushPending();\nSELECT * FROM im_group_message\nWHERE group_id=? AND id>? AND id<=? AND status<>2 AND receipt=1 AND receipt_ok=0\nORDER BY id DESC LIMIT 20;',
+      state:{stage:'区间回执计算', sync:'异步查 DB', limit:'LIMIT 20', table:'im_group_message'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:313-341']
+    }),
+    mk({
+      name:'推送 RECEIPT 给发送方', from:4, to:8, type:'red', mode:'async', badges:['async'],
+      title:'经 Kafka + im-server 向原消息发送者推 cmd=4 / type=RECEIPT(12)',
+      desc:'对每条受影响的回执消息组装最新 readedCount 与 receiptOk，仅向原发送者（recvIds=[sendId], sendToSelf=false, sendResult=false）推送 type=RECEIPT(12)，前端刷新已读人数。',
+      why:'只推发送者本人、每 300ms 汇总一次，极大减少推送流量。',
+      risk:'属于业务已读回执，与私聊 cmd=7 传输层送达 ACK 完全不同。',
+      code:'cmd=4, type=RECEIPT(12)\n{"id":5001,"groupId":1001,"readedCount":86,"receiptOk":false}',
+      state:{stage:'回执通知到达', sync:'异步 WS 推送', type:'RECEIPT(12)'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:342-356']
+    }),
+    mk({
+      name:'500ms GREATEST 落库', from:4, to:5, type:'cyan', mode:'async', badges:['async','opt'],
+      title:'[500ms 定时] flushGroupReadPositions() 批量 GREATEST 持久化',
+      desc:'ReadPositionStore.flushGroupReadPositions() 每 500ms 从 im:readed:group:dirty 随机取最多 500 个 groupId:userId，HMGET 拿最新水位，执行批量 INSERT INTO im_group_read_position ... ON DUPLICATE KEY UPDATE max_readed_id = GREATEST(max_readed_id, VALUES(max_readed_id))，随后 SREM 清理脏记录。',
+      why:'把高频单行更新削峰为每 500ms 一条批量 Upsert，GREATEST 防止多实例乱序写回退水位。',
+      risk:'【源码级微竞态】HMGET 与 SREM 之间若同一用户再次推进游标，直接 SREM 会误删脏标记，需等下次已读再落库（未来可将 dirty Set 改为 Hash + Lua 条件清理）。',
+      code:'@Scheduled(fixedDelay = 500) // batch=500\nINSERT INTO im_group_read_position (group_id,user_id,max_readed_id,update_time) VALUES ...\nON DUPLICATE KEY UPDATE max_readed_id = GREATEST(max_readed_id, VALUES(max_readed_id));',
+      state:{stage:'已读游标落库', sync:'异步 500ms 批写', table:'im_group_read_position'},
+      src:['im-platform/.../service/impl/ReadPositionStore.java:363-421','db/更新脚本/v_4.4_group_read_position.sql:1-11']
+    })
+  ],
+
+  recall: [
+    mk({
+      name:'发起撤回请求', from:0, to:2, type:'blue', mode:'sync', badges:['sync'],
+      title:'DELETE /message/group/recall/{id}',
+      desc:'发送方在消息发出后立刻发起撤回（此时消息很可能还在 Redis 暂存区，尚未被 100ms 定时任务刷进 MySQL）。',
+      why:'写缓冲架构下“刚发就撤”是最经典的读写竞态场景。',
+      risk:'需校验发送者身份、仍在群内及 5 分钟撤回窗口（ALLOW_RECALL_SECOND = 300s）。',
+      code:'DELETE /message/group/recall/5001',
+      state:{stage:'撤回入口', sync:'同步 HTTP', msgId:'5001'},
+      src:['im-platform/.../controller/GroupMessageController.java:34-38','im-platform/.../service/impl/GroupMessageServiceImpl.java:111-131','im-common/.../contant/IMConstant.java:15']
+    }),
+    mk({
+      name:'先查 DB 再查暂存区', from:2, to:3, type:'green', mode:'sync', badges:['sync','opt'],
+      title:'MySQL 未命中 → 回退查 batchStore.findPending(id)',
+      desc:'recallMessage() 先调用 this.getById(id) 查 MySQL；若返回 null，立刻查 Redis pending Hash（batchStore.findPending(id)），避免出现“刚发成功却提示消息不存在”的幽灵错误。',
+      why:'打通热缓冲与冷存储的透明读取视图。',
+      risk:'需同时校验 sendId、5 分钟窗口与成员未退群。',
+      code:'GroupMessage msg = this.getById(5001);\nif (msg == null) msg = batchStore.findPending(5001);',
+      state:{stage:'双介质查原消息', sync:'同步查 DB/Redis', msgId:'5001', status:'PENDING(0)'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:113-119','im-platform/.../service/impl/GroupMessageBatchStore.java:133-141']
+    }),
+    mk({
+      name:'锁内更新暂存副本', from:2, to:3, type:'green', mode:'sync', badges:['sync','opt'],
+      title:'持 batch 锁执行 batchStore.updatePendingStatus(5001, RECALL)',
+      desc:'获取与 flushBatch() 同一把分布式锁 im:lock:message:group:batch，若 5001 仍在 pending Hash 中，直接将其 JSON 内的 status 改写为 RECALL(2) 并回写 Hash；若已被刷盘删除则返回 false。',
+      why:'与批量刷盘互斥：若刷盘还没开始，后续刷盘直接把 RECALL 状态插入 MySQL；若刷盘已把 PENDING 写完但 ACK 失败，改暂存可防重试误写旧态。',
+      risk:'依赖与 flush() 同一把批量锁（flush 每批释锁正是为了避免撤回被长时阻塞）。',
+      code:'lock(im:lock:message:group:batch)\nHGET -> setStatus(RECALL=2) -> HSET im:message:group:pending 5001 ...',
+      state:{stage:'改暂存为撤回', sync:'持批写锁互斥', msgId:'5001', status:'RECALL(2) @ Redis'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:133-134','im-platform/.../service/impl/GroupMessageBatchStore.java:153-167']
+    }),
+    mk({
+      name:'再更新 MySQL 记录', from:2, to:5, type:'orange', mode:'sync', badges:['sync'],
+      title:'this.updateById(recallMessage) 双保险更新 DB',
+      desc:'释放批量锁后继续执行 MySQL UPDATE SET status=2 WHERE id=5001：若消息此前已落库，此步将其改为 RECALL；若尚未落库则影响 0 行（已由上一步保证稍后落库即 RECALL）；若 DB 已提交但 ACK 失败，重试 INSERT ... ON DUPLICATE KEY UPDATE id=id 也不会覆盖已改好的 RECALL。',
+      why:'覆盖“未刷盘 / 已刷盘 / 已提交未 ACK”全部三种物理状态，彻底杜绝撤回状态被覆盖回退。',
+      risk:'撤回成功后不会阻止在途已推送帧，需依靠下一步发撤回提示消息通知前端覆盖展示。',
+      code:'UPDATE im_group_message SET status = 2 WHERE id = 5001;\n-- 重试批写 ON DUPLICATE KEY UPDATE id=id 不会覆盖 status=2',
+      state:{stage:'双写一致落定', sync:'同步 DB 更新', msgId:'5001', status:'RECALL(2)'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:132-135','im-platform/.../service/impl/GroupMessageBatchStore.java:235-237']
+    }),
+    mk({
+      name:'发新撤回提示消息', from:2, to:3, type:'green', mode:'sync', badges:['sync'],
+      title:'生成 type=RECALL(10) 新消息 → 走同一套 Lua 发号与批写暂存',
+      desc:'构造一条新的撤回提示消息（content={"id":5001,"tip":"张三 撤回了一条消息"}, type=10），调用 saveMessage() 分配新的 id=5002 与 seqNo=102 并入暂存区。',
+      why:'撤回动作本身作为一条可持久化的群消息事件，让离线成员上线拉离线时也能把原消息替换为撤回提示。',
+      risk:'注意此时撤回广播给全群所有成员（包括发送者本人其他端）。',
+      code:'saveMessage(recallTipMsg) -> Lua -> id=5002, seqNo=102, type=RECALL(10)',
+      state:{stage:'撤回事件入暂存', sync:'同步 Lua', msgId:'5002', seqNo:'102', type:'RECALL(10)'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:137-153']
+    }),
+    mk({
+      name:'全群广播撤回通知', from:2, to:8, type:'purple', mode:'async', badges:['async'],
+      title:'IMSender → Kafka 节点 Topic → im-server 一次编码推全群',
+      desc:'复用同一套 MGET 路由、按 serverId 分组、Kafka 单分区节点 Topic 与 EncodedSendInfo 预编码，将 type=RECALL(10) 推送给全部在线群成员（含发送者其他端），前端按 content.id 替换原消息气泡。',
+      why:'撤回广播与普通群聊共用全部扇出优化，大群秒撤同样低延迟。',
+      risk:'离线成员通过重连后 loadOffineMessage() 拉到原消息(status=RECALL)与撤回提示消息完成同步。',
+      code:'cmd=4, type=RECALL(10), content={"id":5001,"tip":"张三 撤回了一条消息"}',
+      state:{stage:'全群撤回同步', sync:'异步扇出', type:'RECALL(10)'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:154-164']
+    })
+  ],
+
+  error: [
+    mk({
+      name:'非法卡片/超长/限流', from:2, to:0, type:'red', mode:'sync', badges:['sync','err'], isErr:true,
+      title:'异常 1：参数/卡片越权、非群成员或触发限流 → 快速失败',
+      desc:'① 客户端尝试直接发送租房业务卡片(5/6/7)或正文超 1024 字、非文本非合法 JSON；② 10s 内超过 30 条触发滑动窗口限流；③ 查库不在群或已退群——均在写 Redis/发 MQ 前抛 GlobalException 直接返回错误码。',
+      why:'前置防御避免无效请求污染序号空间和下游 Kafka 扇出。',
+      risk:'限流组件遇 Redis 故障默认放行（fail-open），防止限流故障反向拖垮正常聊天。',
+      code:'throw new GlobalException("不支持发送该类型的消息" / "操作过于频繁" / "您已不在群聊里面")',
+      state:{stage:'入口拦截', sync:'同步快速失败', status:'未发号未入队'},
+      src:['im-platform/.../service/impl/GroupMessageServiceImpl.java:74-81,492-509','im-platform/.../util/RateLimiter.java:53-65']
+    }),
+    mk({
+      name:'发号重试耗尽/溢出', from:2, to:3, type:'red', mode:'sync', badges:['sync','err'], isErr:true,
+      title:'异常 2：ID 达 2^53-1 上限或 4 次初始化重试失败',
+      desc:'ENQUEUE Lua 检测到全局 id >= 9007199254740991 返回 {-1,0}，或连续 4 次尝试均无法完成计数器/群序号初始化，直接抛出 IllegalStateException 终止发送。',
+      why:'硬拦截精度溢出，防止 JS 前端与 Redis Lua double 丢精度造成消息 ID 错乱。',
+      risk:'不会继续投递 Kafka，避免产生无 ID 脏消息。',
+      code:'if tonumber(GET(counter)) >= 9007199254740991 then return {-1, 0}\n-> throw IllegalStateException("无法分配群聊消息 ID...")',
+      state:{stage:'发号异常中止', sync:'同步抛错', code:'CODE_ID_OVERFLOW(-1)'},
+      src:['im-platform/.../service/impl/GroupMessageBatchStore.java:47,114-130']
+    }),
+    mk({
+      name:'MQ 队列满或超时', from:2, to:6, type:'red', mode:'sync', badges:['sync','err'], isErr:true,
+      title:'异常 3：MQPublisher 队列满(10万) AbortPolicy 或 Broker ACK 超 5s',
+      desc:'MQPublisher.dispatcher 为单线程 + 有界队列(100,000) + AbortPolicy（禁用 CallerRunsPolicy 防止阻塞业务/Netty IO 线程）；队列满抛 RejectedExecutionException，Broker 不可达超过 5000ms 抛 TimeoutException，均转为 IllegalStateException 返回给 HTTP 调用方。',
+      why:'保护 JVM 内存与调用线程不被慢 Broker 拖死。',
+      risk:'【关键一致性边界】此时消息已完成 Lua 发号并进入 Redis 暂存区，稍后仍会被批写进 MySQL——即“HTTP 报错不代表消息没入库”，离线补拉仍可见该消息！',
+      code:'dispatcher: 1 thread, LinkedBlockingQueue(100_000), AbortPolicy\nsend(): future.get(5000ms) -> Timeout/ExecutionException',
+      state:{stage:'MQ 投递失败', sync:'同步抛错(已入暂存)', status:'已暂存 / 推送失败'},
+      src:['im-common/.../mq/MQPublisher.java:21,31-36,50-61,78-88']
+    }),
+    mk({
+      name:'批写失败 / ACK 失败', from:4, to:5, type:'amber', mode:'async', badges:['async','err'], isErr:true,
+      title:'异常 4：批量 INSERT 失败保留重试 / 提交后 ACK 失败幂等恢复',
+      desc:'① 若 MySQL 抖动导致 insertBatch() 抛异常：flush() 捕获记录 error 并提前 return，待写记录完整留在 Redis Hash/ZSet，100ms 后自动重试；② 若 MySQL 已提交但 ACK Lua 清理 Redis 失败：下轮重试再次执行 INSERT ... ON DUPLICATE KEY UPDATE id=id，安全跳过已存在行再完成 ACK 清理。',
+      why:'先落库、后清理暂存（At-Least-Once）+ 显式主键 Upsert 幂等，实现 MySQL 侧零丢零重。',
+      risk:'若 pending:ids ZSet 中某个 ID 对应的 pending Hash payload 缺失，flushBatch 会抛 IllegalStateException 导致该批头部卡住，需告警人工清理。',
+      code:'try { insertBatch(messages); redis.execute(ACK, ...); }\ncatch (Exception e) { log.error("保留以便重试"); return; }',
+      state:{stage:'批写容错重试', sync:'异步至少一次', table:'ON DUPLICATE KEY'},
+      src:['im-platform/.../service/impl/GroupMessageBatchStore.java:180-185,218-230,235-237']
+    }),
+    mk({
+      name:'消费毒丸直进 DLQ', from:6, to:7, type:'red', mode:'async', badges:['async','err'], isErr:true,
+      title:'异常 5：批量消费反序列化/处理异常 → 部分提交 + 毒丸直进 .dlq',
+      desc:'MQConsumerStarter.dispatch() 在批量解析 JSON 第 i 条失败时，先把已解析成功的 0..i-1 条交给 consumer.onMessage()，再抛 BatchListenerFailedException(i)；MQConsumer.onMessage(List) 逐条回调抛错同样携带下标 i。因 PullGroupMessageTask retries=0，DefaultErrorHandler 提交 0..i-1 offset，将第 i 条送入同分区 .dlq 后继续消费 i+1..n。',
+      why:'精确到单条的故障隔离，防止一条损坏消息阻死整台 im-server 的单分区实时推送队列。',
+      risk:'recoverer.setFailIfSendResultIsError(true)：若连 .dlq 都写入失败，不提交 offset 并停止推进，防止静默丢消息。',
+      code:'throw new BatchListenerFailedException("...", e, i);\nDefaultErrorHandler(DeadLetterPublishingRecoverer, FixedBackOff(1000, retries=0))\nDLQ: im.message.group.101.dlq (partitions=1)',
+      state:{stage:'单条隔离进 DLQ', sync:'异步容错', topic:'im.message.group.{id}.dlq'},
+      src:['im-common/.../mq/MQConsumerStarter.java:125-136,157-171','im-common/.../mq/MQConsumer.java:16-24','im-server/.../task/PullGroupMessageTask.java:16']
+    }),
+    mk({
+      name:'Redis 宕机/主从丢数', from:3, to:4, type:'red', mode:'async', badges:['async','err'], isErr:true,
+      title:'异常 6：架构可靠性边界 —— 暂存区尚未刷盘时 Redis 异常丢数据',
+      desc:'在消息写入 Redis 暂存区到 100ms 批量落库完成的微窗口内，如果 Redis 无持久化宕机或主从异步复制切换丢掉最后几百毫秒写入，尚未刷盘的消息会永久丢失，并可能造成 seqNo 断档（即便在线用户已通过 WS 看到实时消息）。',
+      why:'架构设计的核心权衡：用极小异步刷盘窗口换取无锁高吞吐与低 P99。',
+      risk:'生产需开启 Redis AOF（appendfsync everysec）+ 监控 pending ZSet 积压长度；若业务要求强金融级零丢失，应改回同步写 MySQL 或持久化 WAL。',
+      code:'窗口期: [ENQUEUE Lua 完成] ---> (~0..100ms) ---> [MySQL insertBatch 提交]\n若此窗口内 Redis 丢内存: 实时推可能已发出，但 DB 离线拉取缺失该条',
+      state:{stage:'可靠性边界', sync:'架构权衡', risk:'AOF/主从异步窗口'},
+      src:['im-platform/.../service/impl/GroupMessageBatchStore.java:23-26','deploy/bench/README.md:9']
+    })
+  ]
+};
+
+let scenario = 'online';
+let current = -1;
+let timer = null;
+let showErr = true;
+
+const seqEl = document.getElementById('seq');
+const barEl = document.getElementById('bar');
+const counterEl = document.getElementById('counter');
+const titleEl = document.getElementById('stepTitle');
+const descEl = document.getElementById('stepDesc');
+const whyEl = document.getElementById('stepWhy');
+const riskEl = document.getElementById('stepRisk');
+const codeEl = document.getElementById('stepCode');
+const srcEl = document.getElementById('stepSrc');
+const stateStripEl = document.getElementById('stateStrip');
+
+function esc(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function formatInlineBold(str){
+  return esc(str).replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+}
+
+function activeSteps(){
+  const list = scenarios[scenario];
+  if (scenario === 'error' || showErr) return list;
+  return list.filter(s => !s.isErr);
+}
+
+const badgeMap = {
+  sync:['b-sync','SYNC'],
+  async:['b-async','ASYNC'],
+  opt:['b-opt','OPT 亮点'],
+  cond:['b-cond','条件分支'],
+  err:['b-err','ERR/边界']
+};
+
+function render(){
+  const steps = activeSteps();
+  if (current >= steps.length) current = steps.length - 1;
+  seqEl.innerHTML = '';
+  steps.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'eventrow' + (i < current ? ' done' : i === current ? ' active' : '');
+    const num = document.createElement('div');
+    num.className = 'num';
+    num.textContent = String(i + 1).padStart(2, '0');
+    row.appendChild(num);
+
+    const e = document.createElement('div');
+    const dirCls = s.from > s.to ? ' reverse' : (s.from === s.to ? ' local' : '');
+    const modeCls = s.mode === 'async' ? ' async' : '';
+    const errCls = s.isErr ? ' err' : '';
+    e.className = 'event ' + s.type + dirCls + modeCls + errCls;
+    // col 1 is .num, lane 0 starts at col 2
+    e.style.setProperty('--start', Math.min(s.from, s.to) + 2);
+    e.style.setProperty('--span', Math.abs(s.to - s.from) + 1);
+
+    const badgesHtml = (s.badges || []).map(b => {
+      const [cls, txt] = badgeMap[b] || ['b-sync', b];
+      return '<span class="badge ' + cls + '">' + txt + '</span>';
+    }).join('');
+    e.innerHTML = (badgesHtml ? '<div class="badges">' + badgesHtml + '</div>' : '')
+      + '<b>' + esc(s.title) + '</b><span class="sub">' + esc(s.name) + '</span>';
+
+    row.appendChild(e);
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-label', '步骤 ' + String(i + 1).padStart(2, '0') + '：' + s.title);
+    row.onclick = () => { current = i; stop(); render(); };
+    row.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); current = i; stop(); render(); } };
+    seqEl.appendChild(row);
+  });
+
+  counterEl.textContent = (current < 0 ? '0' : current + 1) + ' / ' + steps.length;
+  barEl.style.width = steps.length ? ((current + 1) / steps.length * 100) + '%' : '0%';
+  document.getElementById('back').disabled = current < 0;
+  document.getElementById('next').disabled = current >= steps.length - 1;
+
+  const s = steps[current];
+  if (!s) {
+    titleEl.textContent = '点击「下一步」或直接点击时序图中的任意节点';
+    descEl.textContent = '支持按步骤单步播放、自动播放、展开全流程及切换条件/异常分支。虚线边框为异步/后台定时链路，实线为同步调用链。';
+    whyEl.textContent = '每个节点均附源码级设计动机、收益、边界风险与精确文件路径行号。';
+    riskEl.textContent = '重点关注同步返回与异步刷盘/扇出之间的边界。';
+    codeEl.textContent = 'POST /message/group/send\nPUT  /message/group/readed\nDELETE /message/group/recall/{id}';
+    srcEl.innerHTML = '<li><code>im-platform/.../GroupMessageServiceImpl.java</code></li><li><code>im-platform/.../GroupMessageBatchStore.java</code></li><li><code>im-platform/.../ReadPositionStore.java</code></li><li><code>im-server/.../GroupMessageProcessor.java</code></li>';
+    stateStripEl.innerHTML = '<div class="kv"><span>当前场景</span><code>' + esc(scenario) + '</code></div><div class="kv"><span>步骤数</span><code>' + steps.length + '</code></div><div class="kv"><span>核验状态</span><code>源码已核验</code></div>';
+    return;
+  }
+
+  titleEl.textContent = String(current + 1).padStart(2, '0') + '. ' + s.title;
+  descEl.innerHTML = formatInlineBold(s.desc);
+  whyEl.textContent = s.why;
+  riskEl.textContent = s.risk;
+  codeEl.textContent = s.code;
+  srcEl.innerHTML = (s.src || []).map(x => '<li><code>' + esc(x) + '</code> <span class="pill pill-verify">已验证</span></li>').join('');
+
+  const stateEntries = Object.entries(s.state || {});
+  stateStripEl.innerHTML = stateEntries.map(([k, v]) =>
+    '<div class="kv"><span>' + esc(k) + '</span><code>' + esc(v) + '</code></div>'
+  ).join('');
+}
+
+function stop(){
+  if (timer) clearInterval(timer);
+  timer = null;
+  document.getElementById('play').textContent = '▶ 自动播放';
+}
+
+document.getElementById('next').onclick = () => {
+  const len = activeSteps().length;
+  current = Math.min(current + 1, len - 1);
+  render();
+};
+document.getElementById('back').onclick = () => {
+  current = Math.max(current - 1, -1);
+  render();
+};
+document.getElementById('reset').onclick = () => { stop(); current = -1; render(); };
+document.getElementById('all').onclick = () => { stop(); current = activeSteps().length - 1; render(); };
+document.getElementById('play').onclick = () => {
+  if (timer) { stop(); return; }
+  const len = activeSteps().length;
+  if (current >= len - 1) current = -1;
+  document.getElementById('play').textContent = '⏸ 暂停';
+  timer = setInterval(() => {
+    const l = activeSteps().length;
+    current++;
+    render();
+    if (current >= l - 1) stop();
+  }, 1250);
+};
+document.getElementById('toggleErr').onchange = (ev) => {
+  showErr = ev.target.checked;
+  stop();
+  current = Math.min(current, activeSteps().length - 1);
+  render();
+};
+document.querySelectorAll('#scenarios button').forEach(b => {
+  b.onclick = () => {
+    stop();
+    scenario = b.dataset.s;
+    current = 0;
+    document.querySelectorAll('#scenarios button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+    render();
+  };
+});
+
+// 默认高亮展示全流程第一步以便一眼看清全貌，用户也可点下一步/展开全流程
+current = 0;
+render();
+</script>
+</body>
+</html>
