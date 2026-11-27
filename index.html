@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="后端与计算机知识周期表索引：按学科元素浏览 MySQL、网络协议、即时通讯、Linux 等交互式学习资料与核心知识点。">
+  <meta name="description" content="后端与计算机知识周期表索引：按学科元素浏览 MySQL、网络协议、即时通讯、LLM 工程、Linux 等交互式学习资料与核心知识点。">
   <title>技术知识周期表 · 学习资料索引</title>
   <style>
     :root {
@@ -942,7 +942,8 @@
       background: linear-gradient(90deg, var(--fam-core), #6d9a91 72%, #a5bfb8);
     }
 
-    .card[data-topic="im"]::before {
+    .card[data-topic="im"]::before,
+    .card[data-topic="llm"]::before {
       background: linear-gradient(90deg, var(--olive), #899d7d 72%, #b9c5ad);
     }
 
@@ -1220,13 +1221,13 @@
       <div class="hero-copy">
         <span class="eyebrow">KNOWLEDGE PERIODIC TABLE</span>
         <h1>技术知识周期表</h1>
-        <p class="hero-desc">按学科元素构建后端与计算机核心图谱。点击点亮的元素（如 <strong>MySQL</strong>、<strong>网络协议</strong>、<strong>即时通讯</strong>）即可进入对应知识目录；浅色元素为后续规划方向，可点击预览路线。</p>
+        <p class="hero-desc">按学科元素构建后端与计算机核心图谱。点击点亮的元素（如 <strong>MySQL</strong>、<strong>网络协议</strong>、<strong>即时通讯</strong>、<strong>LLM 工程</strong>）即可进入对应知识目录；浅色元素为后续规划方向，可点击预览路线。</p>
       </div>
       <div class="hero-search">
         <div class="search">
           <label for="resource-search">全站检索知识点或学科</label>
           <div class="search-field">
-            <input id="resource-search" type="search" placeholder="搜 MVCC、B+树、HTTP/3、Linux、Redis…" autocomplete="off">
+            <input id="resource-search" type="search" placeholder="搜 MVCC、B+树、HTTP/3、T3 Code、Agent、Redis…" autocomplete="off">
           </div>
           <div class="search-meta">
             <span>输入关键词可跨学科检索并高亮周期表元素</span>
@@ -1260,7 +1261,7 @@
           <div class="ptable-legend-bay" aria-label="学科分组图例">
             <div class="bay-top">
               <span class="bay-title">学科族分类 · 点击高亮</span>
-              <span class="bay-stats" id="bay-stats">已点亮 3 / 36</span>
+              <span class="bay-stats" id="bay-stats">已点亮 4 / 36</span>
             </div>
             <div class="family-legend" id="family-legend">
               <button type="button" class="fam-key" data-family="core"><i class="fam-dot" style="background:var(--fam-core)"></i>计算机基础</button>
@@ -1293,10 +1294,10 @@
           <div class="dir-title-wrap">
             <div class="dir-kicker">
               <span id="dir-kicker-text">KNOWLEDGE DIRECTORY</span>
-              <span class="dir-status-pill" id="dir-status-pill">已收录 17 篇</span>
+              <span class="dir-status-pill" id="dir-status-pill">已收录 18 篇</span>
             </div>
             <h2 id="dir-title">全部已收录知识点</h2>
-            <p class="dir-desc" id="dir-desc">涵盖 MySQL、网络协议与即时通讯的交互式可视化学习页面；点击上方周期表元素可专注浏览单个学科目录。</p>
+            <p class="dir-desc" id="dir-desc">涵盖 MySQL、网络协议、即时通讯与 LLM 工程的交互式可视化学习页面；点击上方周期表元素可专注浏览单个学科目录。</p>
           </div>
         </div>
 
@@ -1314,7 +1315,7 @@
         <button type="button" class="action-btn" id="btn-back-all">← 返回已收录知识目录</button>
       </div>
 
-      <!-- All 17 Learning Page Cards (static HTML for crawlability & automatic element counts) -->
+      <!-- All 18 Learning Page Cards (static HTML for crawlability & automatic element counts) -->
       <div class="resource-grid" id="resource-grid" aria-label="知识点学习卡片列表">
         <a class="card" href="MySQL/normalization/index.html" data-topic="mysql" data-subtopic="query" data-search="mysql 三大范式 1nf 2nf 3nf 数据库 规范化 反范式 建模">
           <span class="card-copy">
@@ -1680,6 +1681,28 @@
             <span class="arrow" aria-hidden="true">↗</span>
           </span>
         </a>
+
+        <a class="card" href="LLM/t3-code-tutorial/index.html" data-topic="llm" data-subtopic="agent" data-search="llm ai agent t3 code t3code codex claude code 多agent 任务编排 delegate_task git worktree 代码审查 tailscale vps 远程开发 skills mcp agents.md workflows 实战教程">
+          <span class="card-copy">
+            <span class="card-icon" aria-hidden="true">
+              <svg viewBox="0 0 40 40" fill="none">
+                <rect x="7" y="8" width="11" height="10" rx="2.5" stroke="currentColor" stroke-width="1.7"></rect>
+                <rect x="22" y="8" width="11" height="10" rx="2.5" stroke="#85f3df" stroke-width="1.7"></rect>
+                <rect x="14.5" y="23" width="11" height="10" rx="2.5" stroke="currentColor" stroke-width="1.7"></rect>
+                <path d="M12.5 18v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3M20 21v2" stroke="#85f3df" stroke-width="1.7" stroke-linecap="round"></path>
+              </svg>
+            </span>
+            <span>
+              <span class="category"><span class="category-dot" aria-hidden="true"></span>LLM · AGENT WORKFLOW</span>
+              <span class="title">T3 Code 从入门到进阶实战教程</span>
+              <span class="description">七课实战覆盖 Codex × Claude Code 多 Agent 编排、Git Worktree 隔离、跨模型审查、远程开发与 Skills / MCP / Workflows。</span>
+            </span>
+          </span>
+          <span class="card-foot">
+            <span class="card-subtag">Agent 工程</span>
+            <span class="arrow" aria-hidden="true">↗</span>
+          </span>
+        </a>
       </div>
 
       <p class="empty-state" id="empty-state" role="status" hidden>没有找到匹配的学习资料，试试更换关键词或点击周期表切换其他学科。</p>
@@ -1755,7 +1778,7 @@
         { id: "seckill",num: "31", sym: "Sk",  name: "秒杀高并发",r: 6, c: 4, fam: "sys",   desc: "瞬时洪峰流量削峰、库存防超卖与热点保护。", roadmap: ["页面静态化与多级缓存", "Redis Lua 原子预扣库存", "MQ 异步下单与限流降级"] },
         { id: "feed",   num: "32", sym: "Fd",  name: "信息流",   r: 6, c: 5,  fam: "sys",   desc: "社交动态时间线分发模型与热点账户治理。", roadmap: ["写扩散、读扩散与推拉结合", "大 V 粉丝热点拆分", "游标分页与已读位点"] },
         { id: "short",  num: "33", sym: "Sd",  name: "短链服务", r: 6, c: 6,  fam: "sys",   desc: "高并发短网址生成、跳转重定向与统计分析。", roadmap: ["发号器与 Base62 编码", "301 与 302 重定向取舍", "布隆过滤器防穿透"] },
-        { id: "llm",    num: "34", sym: "Ai",  name: "LLM 工程", r: 6, c: 7,  fam: "sys",   desc: "大模型应用架构、检索增强与 Agent 工程实践。", roadmap: ["RAG 分块与向量索引 HNSW", "Tool Calling 与状态编排", "上下文压缩与流式输出"] },
+        { id: "llm",    num: "34", sym: "Ai",  name: "LLM 工程", r: 6, c: 7,  fam: "sys",   desc: "大模型应用架构、多 Agent 协作工作台、Git Worktree 隔离与 Skills / MCP / Workflows 工程实践。", roadmap: ["RAG 分块与向量索引 HNSW", "Tool Calling 与状态编排", "上下文压缩与流式输出"] },
         { id: "arch",   num: "35", sym: "Arc", name: "系统设计", r: 6, c: 8,  fam: "sys",   desc: "高可用高扩展架构方法论与容量规划。", roadmap: ["读写分离与分库分表", "同城双活与异地多活", "全链路压测与容量估算"] },
         { id: "perf",   num: "36", sym: "Prf", name: "性能调优", r: 6, c: 9,  fam: "sys",   desc: "从应用层到数据库与内核的端到端性能定位。", roadmap: ["CPU 火焰图与锁竞争分析", "慢 SQL 定位与索引重构", "连接池与线程池配比调优"] }
       ];
@@ -2089,7 +2112,7 @@
           dirStatusPill.className = "dir-status-pill";
           dirStatusPill.textContent = `已收录 ${totalPages} 篇`;
           dirTitle.textContent = "全部已收录知识点";
-          dirDesc.textContent = "点击上方周期表中的 MySQL、网络协议、即时通讯等点亮元素，可单独进入对应学科知识目录。";
+          dirDesc.textContent = "点击上方周期表中的 MySQL、网络协议、即时通讯、LLM 工程等点亮元素，可单独进入对应学科知识目录。";
 
           subFilterBar.hidden = true;
           plannedPanel.hidden = true;

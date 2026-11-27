@@ -1,0 +1,3655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="T3 Code 从入门到进阶七课实战教程：围绕 Windows 与 Java 后端项目，涵盖模型切换与权限配置、多 Agent 并行编排、Git Worktree 隔离、跨模型代码审查、Tailscale 远程控制及 Skills / MCP / Workflows。" />
+  <title>T3 Code 从入门到进阶实战教程</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f3eee4;
+      --paper-light: #fbf8f1;
+      --paper-deep: #ebe3d5;
+      --ink: #292923;
+      --ink-soft: #4e493f;
+      --muted: #777267;
+      --line: #ded5c7;
+      --terracotta: #c76c4e;
+      --terracotta-dark: #a74e37;
+      --terracotta-soft: #f7e7df;
+      --olive: #65745c;
+      --olive-dark: #4a5842;
+      --olive-soft: #e8ecdf;
+      --shadow: 0 18px 42px #382a1712;
+      --shadow-sm: 0 6px 18px #382a170d;
+      --code-bg: #262520;
+      --code-ink: #efe9dc;
+      --code-btn: #3a3730;
+      --serif: Georgia, "Noto Serif SC", "Songti SC", "SimSun", serif;
+      --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      --mono: Consolas, Monaco, "Courier New", monospace;
+    }
+
+    body.dark {
+      color-scheme: dark;
+      --paper: #1c1a16;
+      --paper-light: #25221d;
+      --paper-deep: #2f2b24;
+      --ink: #efe9dc;
+      --ink-soft: #d5cdbd;
+      --muted: #a9a08f;
+      --line: #3e3930;
+      --terracotta: #dc8263;
+      --terracotta-dark: #eea084;
+      --terracotta-soft: #3a2720;
+      --olive: #8ea383;
+      --olive-dark: #a9be9e;
+      --olive-soft: #273024;
+      --shadow: 0 18px 42px #00000042;
+      --shadow-sm: 0 6px 18px #0000002e;
+      --code-bg: #151411;
+      --code-ink: #f3ede0;
+      --code-btn: #2d2a24;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      scroll-behavior: smooth;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 86% 0%, #fffaf0 0, transparent 36rem),
+        linear-gradient(135deg, #f7f3eb, var(--paper) 60%, var(--paper-deep));
+      color: var(--ink);
+      font: 15.5px/1.78 var(--sans);
+    }
+
+    body.dark {
+      background:
+        radial-gradient(ellipse at 86% 0%, #2d271e 0, transparent 34rem),
+        linear-gradient(135deg, #1f1d18, var(--paper) 60%, #171511);
+    }
+
+    /* Sidebar Navigation */
+    aside {
+      position: fixed;
+      inset: 0 auto 0 0;
+      width: 286px;
+      padding: 22px 20px 26px;
+      background: var(--paper-light);
+      border-right: 1px solid var(--line);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 20;
+    }
+
+    .sidebar-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--olive-dark);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+    }
+
+    .sidebar-back:hover {
+      border-color: var(--terracotta);
+      color: var(--terracotta-dark);
+      background: var(--paper-light);
+    }
+
+    aside strong {
+      font-family: var(--serif);
+      font-size: 24px;
+      line-height: 1.2;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    aside .muted {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    #progress {
+      margin: 6px 0 6px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--olive-dark);
+    }
+
+    .meter {
+      height: 8px;
+      background: var(--paper-deep);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .meter span {
+      display: block;
+      background: linear-gradient(90deg, var(--olive), var(--terracotta));
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      transition: width 220ms ease;
+    }
+
+    aside nav {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin: 6px 0 14px;
+    }
+
+    aside nav a {
+      display: block;
+      padding: 8px 11px;
+      color: var(--ink-soft);
+      text-decoration: none;
+      border-radius: 9px;
+      border-left: 3px solid transparent;
+      font-size: 13.5px;
+      font-weight: 600;
+      line-height: 1.45;
+      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+    }
+
+    aside nav a:hover {
+      background: var(--paper);
+      color: var(--terracotta-dark);
+    }
+
+    aside nav a.active {
+      background: var(--terracotta-soft);
+      border-left-color: var(--terracotta);
+      color: var(--terracotta-dark);
+      font-weight: 700;
+    }
+
+    #reset {
+      margin-top: auto;
+      width: 100%;
+    }
+
+    /* Main Content Stage */
+    main {
+      margin-left: 286px;
+      max-width: 1120px;
+      padding: 24px clamp(20px, 4.5vw, 52px) 72px;
+    }
+
+    .page-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .page-topline a {
+      color: var(--olive-dark);
+      text-decoration: none;
+      letter-spacing: 0;
+    }
+
+    .page-topline a:hover {
+      color: var(--terracotta-dark);
+      text-decoration: underline;
+    }
+
+    /* Editorial Hero Header */
+    header {
+      position: relative;
+      isolation: isolate;
+      overflow: clip;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: clamp(24px, 3.8vw, 40px);
+      margin-bottom: 22px;
+      background:
+        radial-gradient(circle, #c76c4e18 0 2.5px, transparent 3.5px) 0 0 / 26px 26px,
+        linear-gradient(120deg, var(--paper-light), var(--paper-deep));
+      box-shadow: var(--shadow);
+      color: var(--ink);
+    }
+
+    header::after {
+      position: absolute;
+      z-index: 0;
+      right: -84px;
+      bottom: -175px;
+      width: 300px;
+      height: 300px;
+      border: 1px solid #c76c4e30;
+      border-radius: 50%;
+      box-shadow: 0 0 0 26px #c76c4e09, 0 0 0 54px #65745c09;
+      content: "";
+      pointer-events: none;
+    }
+
+    header > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    header small {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--terracotta-dark);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+    }
+
+    header small::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--terracotta);
+      content: "";
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: var(--serif);
+      color: var(--ink);
+    }
+
+    h1 {
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.2;
+      letter-spacing: -0.015em;
+      margin: 12px 0 14px;
+    }
+
+    header p {
+      margin: 6px 0;
+      color: var(--ink-soft);
+      font-size: 0.96rem;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--paper-light);
+      color: var(--olive-dark);
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    /* Callout Note */
+    .note {
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--terracotta);
+      border-radius: 12px;
+      padding: 13px 16px;
+      background: var(--paper-light);
+      color: var(--ink-soft);
+      font-size: 14px;
+      margin: 0 0 22px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Lesson Cards */
+    section {
+      position: relative;
+      background: var(--paper-light);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: clamp(22px, 3.2vw, 36px);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+      scroll-margin-top: 20px;
+      overflow-wrap: break-word;
+    }
+
+    section::before {
+      position: absolute;
+      inset: 0 24px auto;
+      height: 3px;
+      border-radius: 0 0 999px 999px;
+      background: linear-gradient(90deg, var(--terracotta), var(--olive));
+      opacity: 0.8;
+      content: "";
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid #c76c4e44;
+      background: var(--terracotta-soft);
+      color: var(--terracotta-dark);
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    section > h2:first-of-type {
+      font-size: clamp(22px, 2.8vw, 29px);
+      line-height: 1.32;
+      margin: 0 0 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed var(--line);
+    }
+
+    section h2 {
+      font-size: clamp(18px, 2.1vw, 21px);
+      line-height: 1.4;
+      margin: 30px 0 12px;
+      color: var(--ink);
+    }
+
+    section h3 {
+      font-size: 17px;
+      line-height: 1.45;
+      margin: 24px 0 10px;
+      color: var(--olive-dark);
+    }
+
+    section h4 {
+      font-size: 15.5px;
+      line-height: 1.4;
+      margin: 0 0 10px;
+      color: var(--ink);
+    }
+
+    p {
+      margin: 10px 0;
+      color: var(--ink-soft);
+    }
+
+    p strong,
+    li strong,
+    td strong {
+      color: var(--ink);
+    }
+
+    ul,
+    ol {
+      margin: 10px 0;
+      padding-left: 22px;
+      color: var(--ink-soft);
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    a {
+      color: var(--terracotta-dark);
+      text-underline-offset: 3px;
+    }
+
+    a:hover {
+      color: var(--terracotta);
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      background: var(--paper-deep);
+      color: var(--terracotta-dark);
+      padding: 1.5px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+    }
+
+    /* Code Blocks */
+    .code {
+      position: relative;
+      margin: 15px 0;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      padding: 40px 18px 18px;
+      border-radius: 13px;
+      border: 1px solid #3f3b33;
+      font: 13.8px/1.68 var(--mono);
+      margin: 0;
+      box-shadow: inset 0 1px 0 #ffffff0d;
+    }
+
+    pre code {
+      color: inherit;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      font: inherit;
+    }
+
+    /* Buttons & Form Controls */
+    button,
+    select,
+    input {
+      font: inherit;
+      font-size: 14px;
+    }
+
+    button,
+    select {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--paper);
+      color: var(--ink);
+      padding: 7px 13px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, transform 150ms ease;
+    }
+
+    button:hover,
+    select:hover {
+      border-color: var(--terracotta);
+      color: var(--terracotta-dark);
+      background: var(--paper-light);
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #c76c4e88;
+      outline-offset: 2px;
+    }
+
+    .copy {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      padding: 4px 11px;
+      font-size: 12.5px;
+      background: var(--code-btn);
+      color: var(--code-ink);
+      border: 1px solid #595349;
+      border-radius: 7px;
+    }
+
+    .copy:hover {
+      border-color: var(--terracotta);
+      background: #4b453b;
+      color: #fffaf1;
+    }
+
+    .copy.is-copied {
+      background: var(--olive);
+      border-color: var(--olive);
+      color: #fffaf1;
+    }
+
+    .primary {
+      background: var(--terracotta);
+      border-color: var(--terracotta-dark);
+      color: #fffaf1;
+    }
+
+    .primary:hover {
+      background: var(--terracotta-dark);
+      border-color: var(--terracotta-dark);
+      color: #fffaf1;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 10px 0 12px;
+    }
+
+    /* Panels, Grids & Mock UI Rows */
+    .cols {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 14px 0;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin: 14px 0;
+      background: var(--paper);
+      min-width: 0;
+    }
+
+    .cols .panel {
+      margin: 0;
+    }
+
+    .panel small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .uirow {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      color: var(--ink);
+      background: var(--paper-light);
+    }
+
+    .uirow:first-of-type {
+      border-radius: 8px 8px 0 0;
+    }
+
+    .uirow:last-of-type {
+      border-bottom: 0;
+      border-radius: 0 0 8px 8px;
+    }
+
+    .uirow:only-of-type {
+      border-radius: 8px;
+    }
+
+    .panel label {
+      display: block;
+      margin: 12px 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .panel select,
+    .panel input {
+      max-width: 100%;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--ink);
+      background: var(--paper-light);
+      font-weight: 500;
+    }
+
+    .panel label > select,
+    .panel label > input {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    #modelResult,
+    #recommend,
+    #reviewStatus,
+    #approvalStatus,
+    #merged {
+      padding: 10px 13px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--paper-light);
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .effortbar {
+      height: 8px;
+      background: var(--paper-deep);
+      border-radius: 999px;
+      margin-top: 7px;
+      overflow: hidden;
+    }
+
+    .effortbar i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--olive), var(--terracotta));
+      border-radius: 999px;
+    }
+
+    /* Flow Diagrams */
+    .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+      padding: 16px;
+      background: var(--paper-deep);
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+    }
+
+    .node {
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--olive);
+      background: var(--paper-light);
+      border-radius: 10px;
+      text-align: center;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .node:first-child {
+      border-left-color: var(--terracotta);
+    }
+
+    .arrow {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--paper-light);
+      border: 1px solid var(--line);
+      color: var(--terracotta-dark);
+      font-weight: 800;
+      font-size: 13px;
+      flex: 0 0 auto;
+    }
+
+    /* Tables */
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin: 16px 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper-light);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    td,
+    th {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 10px 13px;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    th {
+      background: var(--paper-deep);
+      color: var(--ink);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover td {
+      background: var(--paper);
+    }
+
+    /* Acceptance Checklist */
+    .checks {
+      background: var(--olive-soft);
+      border: 1px solid #c3cdb8;
+      padding: 16px 20px;
+      border-radius: 14px;
+      margin: 14px 0 18px;
+    }
+
+    body.dark .checks {
+      border-color: #3f4f3a;
+    }
+
+    .checks > b {
+      display: inline-block;
+      margin-bottom: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: var(--olive-dark);
+      background: var(--paper-light);
+      border: 1px solid var(--line);
+      padding: 2px 9px;
+      border-radius: 999px;
+    }
+
+    .checks label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 8px;
+      color: var(--ink);
+      font-size: 14.5px;
+      transition: background-color 140ms ease;
+    }
+
+    .checks label:hover {
+      background: var(--paper-light);
+    }
+
+    .checks input {
+      accent-color: var(--terracotta);
+      margin-top: 4px;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+
+    .checks label:has(input:checked) {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    /* Footer */
+    footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* Responsive */
+    @media (max-width: 920px) {
+      aside {
+        position: static;
+        width: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        padding: 18px 16px;
+      }
+
+      aside nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      main {
+        margin: 0;
+        padding: 18px 14px 48px;
+      }
+
+      section {
+        padding: 20px 16px;
+        border-radius: 16px;
+      }
+
+      .cols {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        padding: 22px 18px;
+        border-radius: 18px;
+      }
+
+      th {
+        white-space: normal;
+      }
+    }
+
+    @media (max-width: 540px) {
+      aside nav {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+
+    @media print {
+      aside,
+      .page-topline,
+      .actions,
+      .copy,
+      button {
+        display: none !important;
+      }
+
+      main {
+        margin: 0;
+        padding: 0;
+        max-width: none;
+      }
+
+      section {
+        break-before: page;
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+
+      section::before,
+      header::after {
+        display: none;
+      }
+
+      body {
+        background: #fff;
+        color: #111;
+      }
+
+      pre {
+        background: #f2f2f2;
+        color: #111;
+        border-color: #ccc;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside aria-label="课程导航与进度">
+    <a class="sidebar-back" href="../../index.html">← 返回学习资料索引</a>
+    <strong>T3 Code</strong>
+    <div class="muted">Windows · Java 后端实战</div>
+    <p id="progress">学习进度 0%</p>
+    <div class="meter" aria-hidden="true"><span id="bar"></span></div>
+    <div class="actions">
+      <button type="button" id="theme">深浅色切换</button>
+      <button type="button" onclick="window.print()">打印</button>
+    </div>
+    <nav id="nav" aria-label="七课目录"></nav>
+    <button type="button" id="reset">重置学习进度</button>
+  </aside>
+
+  <main>
+    <div class="page-topline">
+      <span>LLM ENGINEERING · MULTI-AGENT WORKBENCH</span>
+      <a href="../../index.html">← 返回学习资料索引</a>
+    </div>
+
+    <header>
+      <small>AI CODING / PRACTICAL GUIDE</small>
+      <h1>T3 Code<br />从入门到进阶实战教程</h1>
+      <p>Codex × Claude Code · 多 Agent 编排 · Git Worktree · 远程开发 · Skills / MCP / Workflows</p>
+      <p>前七课详细原课内容重建版 · Windows / box-im Java 后端实战</p>
+      <div class="hero-pills" aria-label="核心主题标签">
+        <span class="hero-pill">7 节渐进课程</span>
+        <span class="hero-pill">多 Agent 任务委派</span>
+        <span class="hero-pill">Git Worktree 隔离</span>
+        <span class="hero-pill">跨模型代码审查</span>
+        <span class="hero-pill">Skills / MCP / Workflows</span>
+      </div>
+    </header>
+
+    <div class="note">导出说明：按原课顺序重建详细正文、完整 Prompt、命令与配置；聊天中的图解和控件以独立 HTML 重新绘制，不是逐字或像素级聊天导出。实验性功能和命令未重新核验，以本机版本及官方文档为准。</div>
+
+<section id="c1"><div class="tag">LESSON 01</div><h2>第一课：导入项目并运行第一个任务</h2><p>既然 Codex 和 Claude Code 都已经接入成功，我们就跳过安装配置，直接进入实操教学。</p>
+<p>我会以你的盒子 IM（box-im）Java 后端项目作为练习对象，每次只学习一个功能，完成之后再进入下一课。</p>
+<h2>学习路线</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>课程</th>
+<th>内容</th>
+<th>目标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>项目导入与第一个任务</td>
+<td>掌握基本的 Agent 操作</td>
+</tr>
+<tr>
+<td>02</td>
+<td>模型切换与参数配置</td>
+<td>合理分配简单任务和复杂任务</td>
+</tr>
+<tr>
+<td>03</td>
+<td>多 Agent 并行开发</td>
+<td>Codex 与 Claude Code 同时工作</td>
+</tr>
+<tr>
+<td>04</td>
+<td>Git Worktree 工作区隔离</td>
+<td>防止多个 Agent 修改代码发生冲突</td>
+</tr>
+<tr>
+<td>05</td>
+<td>代码审查与任务交接</td>
+<td>一个 Agent 开发，另一个 Agent 审查</td>
+</tr>
+<tr>
+<td>06</td>
+<td>手机远程控制</td>
+<td>实现离开电脑也能管理任务</td>
+</tr>
+</tbody>
+</table></div>
+<p>今天先学习第一课。</p>
+<h2>步骤 1：导入本地项目</h2>
+<p>打开 T3 Code，在键盘上按下 <strong>Ctrl + K</strong>。</p>
+<p>这是 T3 Code 的命令面板快捷键。搜索 <code>Add Project</code>，选择添加本地已有项目的选项。</p>
+<p>选择你的项目目录：</p>
+<pre><code class="language-text">D:\Project\box-im
+├── im-platform
+├── im-server
+├── im-common
+├── im-client
+└── pom.xml
+</code></pre>
+<p>项目目录结构示意。</p>
+<p><strong>操作目的：</strong> 让 Agent 知道你的代码存放在哪里，而不是每次对话都重新指定项目路径。</p>
+<h2>步骤 2：创建 Thread</h2>
+<p>在左侧点击 <code>New thread</code>，选择刚刚导入的项目。</p>
+<p>Thread 可以理解为一个独立的任务会话。每一个 Thread 都可以有自己的模型、上下文和工作区。</p></p>
+<div class="cols"><div class="panel"><h4>box-im（界面示意）</h4><div class="uirow">＋ New thread</div><div class="uirow">New thread</div></div><div class="panel"><h4>New thread（界面示意）</h4><div class="uirow">开始一个新任务</div><div class="uirow">输入你的任务...</div><div class="uirow">Codex　⌄　 Local　⌄</div></div></div>
+<h2>步骤 3：选择工作区</h2>
+<p>创建任务时，注意区分下面两种工作区模式。</p>
+<div class="cols"><div class="panel"><h4>Local / Current checkout</h4><div class="flow"><div class="node">Agent</div><span class="arrow">→</span><div class="node">原始项目<br/>D:/Project/box-im</div></div></div><div class="panel"><h4>New worktree</h4><div class="flow"><div class="node">Agent</div><span class="arrow">→</span><div class="node">独立目录<br/>新分支</div></div><small>原项目 main 保持不变</small></div></div>
+<p><strong>Local / Current checkout：</strong> 直接在当前项目目录中工作，可以看到尚未提交的本地修改。本次练习选择这个。</p>
+<p><strong>New worktree：</strong> 创建独立的 Git 工作目录和分支，适合多 Agent 并行修改代码。第四课重点学习。</p>
+<p>这次我们只是阅读项目源码，因此选择 Local 即可。</p>
+<h2>步骤 4：选择 Codex 模型</h2>
+<p>点击输入框附近的模型选择器，选择 Codex 中你已经接入的模型。</p>
+<p>本次先使用 Codex，下一次再使用 Claude Code 进行交叉验证。如果界面提供推理强度设置，先选择 Medium，不需要消耗最高推理额度。</p>
+<h2>步骤 5：发送第一个任务</h2>
+<p>复制下面这段 Prompt 到 T3 Code 输入框中。</p>
+<p><strong>练习任务：分析项目架构</strong></p>
+<pre><code class="language-text">你是一名资深 Java 后端开发工程师，请阅读当前 box-im 项目的源码。
+
+1. 分析项目整体架构和各模块职责。
+2. 梳理私聊消息从 HTTP 请求、Redis、Kafka 到 WebSocket 的完整链路。
+3. 给出关键类名、方法名、文件路径和行号。
+4. 区分已经实现的功能和潜在问题。
+5. 不要修改任何代码，不要安装依赖，不要执行数据库写入操作。
+
+最终使用 Markdown 输出分析报告，所有结论必须有源码依据。
+</code></pre>
+<p>如果弹出命令执行权限申请，先检查命令内容，不要直接开启 Full Access。</p>
+<h2>步骤 6：观察 Agent 执行过程</h2>
+<p>正常情况下，你应该能够看到类似的执行过程：</p>
+<ol>
+<li><strong>读取项目目录</strong>：了解 Maven 模块和项目结构。</li>
+<li><strong>搜索关键代码</strong>：定位 PrivateMessageServiceImpl 等核心类。</li>
+<li><strong>分析调用链</strong>：追踪 Redis、Kafka、WebSocket 消息链路。</li>
+<li><strong>生成分析报告</strong>：输出源码证据与架构分析。</li>
+</ol>
+<h3>第一课验收</h3><div class="checks" data-items="成功导入 box-im 项目|成功创建 New thread|能够选择 Codex 或 Claude Code|能够区分 Local 和 New worktree|成功发送任务并获得分析结果"></div>
+<p>我参考了 T3 Code 的官方仓库文档，但还没有看到你安装的具体版本，所以上面的界面属于操作示意。</p>
+</section>
+<section id="c2"><div class="tag">LESSON 02</div><h2>第二课：模型切换与参数配置</h2><p>第一课完成！现在进入第二课：<strong>模型切换与参数配置</strong>。</p>
+<p>这一课的目标不是简单地学会切换模型，而是学会根据任务难度选择合适的 Agent、模型和推理强度，避免浪费订阅额度。</p>
+<p>我们需要掌握五个概念：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>选择 Codex 或 Claude Code</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>选择具体的大模型</td>
+</tr>
+<tr>
+<td>Reasoning Effort</td>
+<td>控制模型推理强度</td>
+</tr>
+<tr>
+<td>Interaction Mode</td>
+<td>控制 Agent 的交互或工作方式</td>
+</tr>
+<tr>
+<td>Runtime / Permission</td>
+<td>控制文件修改、命令执行等权限</td>
+</tr>
+</tbody>
+</table></div>
+<p>不同 Provider 支持的参数可能不同，并不是所有模型都可以配置上述全部选项。</p>
+<h2>步骤 1：练习切换模型</h2>
+<p>打开 T3 Code，选择第一课导入的 box-im 项目，新建一个 Thread，然后点击输入框下方的模型名称。</p>
+<p>下面是一个可交互的模拟界面，你可以先在这里练习，再到软件中进行相同操作。</p>
+<div class="panel"><h4>box-im / New thread · 模型配置模拟</h4><p>请分析项目的消息发送链路...</p><label>Provider <select id="provider"><option>Codex</option><option>Claude Code</option></select></label><label>Model（示例模型系列） <select id="model"></select></label><label>Reasoning Effort <select id="effort"><option>Low</option><option selected="">Medium</option><option>High</option><option>XHigh</option></select></label><label>Interaction Mode <select id="mode"><option>Plan</option><option>Default</option></select></label><label>Permissions <select id="permission"><option>Supervised</option><option>Auto-accept edits</option><option>Auto</option><option>Full access</option></select></label><p id="modelResult"></p></div>
+<p>T3 Code 支持在输入区域选择 Provider、模型及其参数，也会记住最近使用的模型配置。项目级默认配置可以覆盖这一行为。</p>
+<h2>步骤 2：理解推理强度</h2>
+<p>Reasoning Effort 是值得重点学习的参数。同一个模型使用不同推理强度，响应时间、额度消耗及解决复杂问题的能力可能不同。</p>
+<div class="panel"><h4>相对推理开销示意</h4><div class="uirow"><b>Low</b> — 简单修改、生成注释、格式调整<div class="effortbar"><i style="width:25%"></i></div></div><div class="uirow"><b>Medium</b> — 常规开发、源码分析、接口实现<div class="effortbar"><i style="width:50%"></i></div></div><div class="uirow"><b>High</b> — 复杂 Bug、并发问题、架构分析<div class="effortbar"><i style="width:75%"></i></div></div><div class="uirow"><b>XHigh</b> — 高难度重构、复杂系统设计<div class="effortbar"><i style="width:100%"></i></div></div></div>
+<p>相对推理开销示意，并非实际 Token 消耗比例。具体档位取决于模型。</p>
+<p>例如，你的盒子 IM 项目可以这样配置：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>任务</th>
+<th>推荐强度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>给 Java 方法添加注释</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>编写普通 CRUD 接口</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>梳理 Kafka 消息发送链路</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>分析 Redis 缓存一致性</td>
+<td>High</td>
+</tr>
+<tr>
+<td>分析消息重复消费</td>
+<td>High</td>
+</tr>
+<tr>
+<td>设计端到端消息幂等机制</td>
+<td>High / XHigh</td>
+</tr>
+<tr>
+<td>排查 K8s 多节点消息丢失</td>
+<td>High / XHigh</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>没有必要所有任务都使用 XHigh。</strong> 推理强度越高，也不意味着每一个任务的结果都一定更好。</p>
+<h2>步骤 3：理解 Plan 和 Default 模式</h2>
+<p>这两个模式决定 Agent 怎样开展任务。</p>
+<div class="cols"><div class="panel"><h4>Plan 模式 · 先分析，再制定方案</h4><div class="flow"><div class="node">读取源码</div><span class="arrow">→</span><div class="node">分析现有问题</div><span class="arrow">→</span><div class="node">制定修改计划</div><span class="arrow">→</span><div class="node">确认后实施</div></div>适合复杂需求、架构设计、大规模重构。</div><div class="panel"><h4>Default 模式 · 常规任务执行</h4><div class="flow"><div class="node">理解需求</div><span class="arrow">→</span><div class="node">定位代码</div><span class="arrow">→</span><div class="node">执行修改</div><span class="arrow">→</span><div class="node">运行测试</div></div>适合需求明确、范围较小的开发任务。</div></div>
+<p>例如你想给 IM 项目增加端到端幂等机制，我建议先用 Plan 模式，让 Agent 提供方案，检查方案是否合理之后再实施。</p>
+<p>注意，Plan 是交互方式，不等同于操作系统级只读权限。</p>
+<h2>步骤 4：配置 Agent 权限</h2>
+<p>根据 T3 Code 官方文档，目前提供以下权限模式，具体选项取决于 Provider。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>权限模式</th>
+<th>行为</th>
+<th>推荐程度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Supervised</td>
+<td>修改文件、执行命令时请求审批，部分只读操作可直接进行</td>
+<td>初学首选</td>
+</tr>
+<tr>
+<td>Auto-accept edits</td>
+<td>自动批准文件编辑，其他操作可能需要确认</td>
+<td>日常开发</td>
+</tr>
+<tr>
+<td>Auto</td>
+<td>自动审查常规操作</td>
+<td>熟练后使用</td>
+</tr>
+<tr>
+<td>Full access</td>
+<td>命令和编辑通常不需要审批</td>
+<td>谨慎使用</td>
+</tr>
+</tbody>
+</table></div>
+<p>建议现在打开：<code>Settings → General → New threads → Permissions</code></p>
+<p>将新会话默认权限设置为 <strong>Supervised</strong>。</p>
+<p>这样可以避免 Agent 未经确认就修改重要文件、执行危险命令或者影响你的项目环境。</p>
+<h2>步骤 5：配置默认模型</h2>
+<p>T3 Code 支持记住模型选择，也支持项目级默认模型。</p>
+<p>如果模型列表缺少某个模型，可以进入：<code>Settings → Providers → Models</code></p>
+<p>添加自定义模型。不过，添加模型名称并不代表你的账号获得了该模型的使用权限。</p>
+<p>结合你的 Java 后端开发和面试准备需求，我建议采用以下三套配置。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>适用</th>
+<th>模型参数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A：轻量任务</td>
+<td>写文档、改注释、简单代码</td>
+<td>Mini / Haiku · Low · Default</td>
+</tr>
+<tr>
+<td>B：日常开发</td>
+<td>Java 接口、源码分析、业务开发</td>
+<td>GPT 主力模型 / Sonnet · Medium · Default</td>
+</tr>
+<tr>
+<td>C：复杂任务</td>
+<td>分布式系统、并发问题、架构重构</td>
+<td>GPT 高能力模型 / Opus · High · Plan</td>
+</tr>
+</tbody>
+</table></div>
+<p>这三套是建议的使用策略，不是 T3 Code 已经内置的三个预设。</p>
+<h2>步骤 6：实战——让两个模型分析同一个问题</h2>
+<p>现在创建两个独立 Thread，都选择 Local 工作区，进行只读源码分析。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>Thread A</th>
+<th>Thread B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>Codex</td>
+<td>Claude Code</td>
+</tr>
+<tr>
+<td>Reasoning</td>
+<td>Medium</td>
+<td>High（如支持）</td>
+</tr>
+<tr>
+<td>Mode</td>
+<td>Plan</td>
+<td>Plan</td>
+</tr>
+<tr>
+<td>Permissions</td>
+<td>Supervised</td>
+<td>Supervised</td>
+</tr>
+</tbody>
+</table></div>
+<p>分别发送相同的 Prompt：</p>
+<pre><code class="language-text">请深入分析当前 box-im 项目中私聊消息的幂等性设计。
+
+1. HTTP 请求重复提交会发生什么？
+2. Kafka 重复消费会发生什么？
+3. Redis 暂存消息重复入库会发生什么？
+4. 客户端重复发送 ACK 会发生什么？
+5. 当前项目是否实现了端到端幂等？
+6. 给出具体的源码证据和改进方案。
+
+仅分析源码，不修改文件，不执行数据库写入操作。
+</code></pre>
+<p>观察两个 Agent 的执行速度、源码定位准确性、分析深度和是否存在错误结论。由于本次模型和推理强度都不同，这属于综合使用体验测试，而不是严格的模型性能对照实验。</p>
+<h3>第二课验收</h3><div class="checks" data-items="能够在 Codex 和 Claude Code 之间切换|能够调整模型推理强度|理解 Plan 和 Default 的区别|成功配置默认权限|完成两个模型的对比测试"></div>
+<p>本课的模拟界面的模型名称和参数不一定与你安装的版本完全一致，以实际软件为准。</p>
+<p><strong>第三课才是 T3 Code 的核心玩法</strong>：多个 Agent 并行执行、主 Agent 委派子任务、跨模型协作，以及让一个 Agent 写代码、另一个 Agent 审查代码。</p>
+</section>
+<section id="c3"><div class="tag">LESSON 03</div><h2>第三课：多 Agent 并行开发与任务编排</h2><p>前两课已经掌握了项目管理、模型切换和权限配置。现在开始学习 T3 Code 最有价值的功能：<strong>让多个 Agent 同时为一个项目工作。</strong></p>
+<p>这一课依然使用你的 box-im 项目进行实战。</p>
+<h2>1. 理解四种多 Agent 协作方式</h2>
+<div class="panel"><h4>① 并行执行</h4><div class="flow"><div class="node">用户分配任务</div><span class="arrow">→</span><div class="node">Codex：分析消息幂等 / Claude Code：分析缓存一致性</div></div>两个 Agent 分别执行独立任务，互不等待。</div><div class="panel"><h4>② 串行协作</h4><div class="flow"><div class="node">Claude：设计方案</div><span class="arrow">→</span><div class="node">Codex：实现代码</div><span class="arrow">→</span><div class="node">Claude：审查代码</div></div>上一个 Agent 的输出作为下一个 Agent 的输入。</div><div class="panel"><h4>③ 竞争与交叉验证</h4><div class="flow"><div class="node">同一个复杂问题</div><span class="arrow">→</span><div class="node">Codex 方案 A / Claude 方案 B</div><span class="arrow">→</span><div class="node">比较并选择方案</div></div>适合复杂 Bug、技术选型、架构设计。</div><div class="panel"><h4>④ 主从式任务编排</h4><div class="flow"><div class="node">主 Agent：拆解任务、汇总结果</div><span class="arrow">→</span><div class="node">后端 Agent / 测试 Agent / 审查 Agent</div></div>由主 Agent 自动拆解和调度子任务，需要相应的 Agent 或编排工具支持。</div>
+<p>注意：<strong>多个 Thread 并行运行，不等于自动化多 Agent 编排。</strong> 前者由你分配任务，后者则由程序或主 Agent 自动分配任务、传递结果和管理依赖关系。我们需要区分 T3 Code 自身的功能与底层 Agent 的能力。</p>
+<h2>2. 实操一：手动启动两个 Agent 并行工作</h2>
+<h3>第一步：创建 Codex 任务</h3>
+<p>在 box-im 项目下点击 <code>New thread</code>，进行以下配置：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Agent A — 消息可靠性分析</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>Codex</td>
+</tr>
+<tr>
+<td>Reasoning</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>Local</td>
+</tr>
+<tr>
+<td>Mode</td>
+<td>Plan</td>
+</tr>
+</tbody>
+</table></div>
+<p>发送下面的任务：</p>
+<pre><code class="language-text">请分析 box-im 项目的消息可靠性机制。
+
+重点分析：
+- Redis 暂存消息与批量入库
+- Kafka 消息重复消费
+- WebSocket ACK 与超时补推
+- 端到端幂等性
+
+给出源码路径、方法名、潜在问题和改进方案。
+
+仅进行只读分析，不修改任何文件，不执行数据库写入操作。
+</code></pre>
+<h3>第二步：不要等待 Codex 完成，直接创建 Claude Code 任务</h3>
+<p>再次点击 <code>New thread</code>，选择同一个项目。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Agent B — 缓存一致性分析</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>Claude Code</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>Sonnet</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>Local</td>
+</tr>
+<tr>
+<td>Mode</td>
+<td>Plan</td>
+</tr>
+</tbody>
+</table></div>
+<p>发送下面的任务：</p>
+<pre><code class="language-text">请分析 box-im 项目中的缓存一致性机制。
+
+重点分析：
+- 群成员列表的 Redis 缓存
+- @Cacheable 和 @CacheEvict
+- 多实例部署下的缓存一致性
+- 延迟双删与版本化缓存的适用性
+
+给出源码路径、方法名、潜在问题和改进方案。
+
+仅进行只读分析，不修改任何文件，不执行数据库写入操作。
+</code></pre>
+<h3>第三步：观察两个任务同时运行</h3>
+<p>此时你的 T3 Code 应该处于类似下面的状态。</p>
+<div class="cols"><div class="panel"><h4>box-im（界面示意）</h4><div class="uirow">● 消息可靠性分析 · Codex Running</div><div class="uirow">● 缓存一致性分析 · Claude Running</div></div><div class="panel"><h4>缓存一致性分析（界面示意）</h4><div class="uirow">正在读取项目源码...</div><div class="uirow">GroupMemberService</div><div class="uirow">@Cacheable</div><div class="uirow">@CacheEvict</div></div></div>
+<p>切换到 Claude Code 的 Thread 时，Codex 仍然可以继续执行任务，不需要你一直停留在对应的对话界面。</p>
+<p>这就是最基本的多 Agent 并行工作。</p>
+<h2>3. 为什么多个 Agent 能同时运行？</h2>
+<div class="panel"><h4>T3 Code 管理层</h4><div class="flow"><div class="node">T3 Code 管理层</div><span class="arrow">→</span><div class="node">Thread A · 独立上下文 / Thread B · 独立上下文</div><span class="arrow">→</span><div class="node">Codex Runtime / Claude Runtime</div><span class="arrow">→</span><div class="node">D:/Project/box-im<br/>共享项目目录（本次只读）</div></div></div>
+<p>每个 Thread 拥有独立的会话上下文和 Agent 执行状态。T3 Code 负责管理这些会话，而 Codex、Claude Code 各自负责实际的推理与工具调用。</p>
+<p>可以类比 Java 中的并发任务：多个任务独立执行，但是可能访问同一份共享资源。</p>
+<p>如果两个 Agent 都只是读取源码，通常没有问题；如果它们同时修改同一个文件，就可能产生冲突。</p>
+<p>这也是后续学习 Git Worktree 的原因。</p>
+<h2>4. 实操二：让 Codex 自动调用 Claude Code</h2>
+<p>这是本课最重要的部分，也是区别于普通多窗口管理工具的地方。</p>
+<p>原课程介绍了 T3 Code 主分支的跨 Provider 任务委派机制，通过内置的 <code>t3-code</code> MCP 工具实现。具体以实际版本为准。</p>
+<div class="panel"><h4>跨 Provider 任务委派</h4><div class="flow"><div class="node">用户复杂任务</div><span class="arrow">→</span><div class="node">Codex 主 Agent</div><span class="arrow">→</span><div class="node">delegate_task</div><span class="arrow">→</span><div class="node">Claude Code：独立审查 / Codex 子 Agent：核查测试覆盖率</div><span class="arrow">→</span><div class="node">主 Agent 汇总最终报告</div></div></div>
+<h3>第一步：检查当前版本是否支持任务委派</h3>
+<p>创建一个新的 Codex Thread，发送：</p>
+<pre><code class="language-text">请检查当前 T3 Code 环境中是否存在内置的 t3-code MCP 工具。
+
+尝试调用 orchestrator_capabilities，列出：
+1. 当前可用的 Provider。
+2. 可用于委派任务的模型。
+3. 是否支持 delegate_task。
+4. 是否支持跨 Provider 调度子 Agent。
+5. 是否支持独立 Worktree。
+
+只检查能力，不启动其他 Agent，不修改任何文件。
+</code></pre>
+<p>这里不需要你手动编写 MCP 配置文件。如果当前版本支持内置编排功能，Agent 应该可以发现这些工具。</p>
+<h3>第二步：尝试自动编排</h3>
+<p>确认支持后，将下面的 Prompt 发送给 Codex。</p>
+<pre><code class="language-text">你现在是 box-im 项目的主 Agent，负责组织多 Agent 协同分析。
+
+请使用 T3 Code 内置的 delegate_task 工具，将以下两个任务并行委派：
+
+**子 Agent A：Claude Code**
+- 分析私聊消息的端到端幂等性。
+- 检查重复提交、Kafka 重试和重复入库问题。
+
+**子 Agent B：Codex**
+- 分析群成员缓存一致性。
+- 检查并发读写和缓存失效问题。
+
+你作为主 Agent 负责：
+- 等待两个子 Agent 完成。
+- 核查子 Agent 提供的源码证据。
+- 汇总问题，按照严重程度排序。
+- 给出最终改进建议。
+
+全部 Agent 仅执行只读分析，不修改源码。
+
+必须实际调用 T3 Code 的任务委派工具，不允许通过角色扮演模拟多个 Agent。如果指定 Provider 不可用，请明确告知。
+</code></pre>
+<h3>第三步：观察是否真的启动了子 Agent</h3>
+<p>重点观察工具调用记录，而不只是模型输出的文字。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>工具名称</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>orchestrator_capabilities</code></td>
+<td>查询编排能力及可用模型</td>
+</tr>
+<tr>
+<td><code>delegate_task</code></td>
+<td>委派子任务</td>
+</tr>
+<tr>
+<td><code>task_status</code></td>
+<td>查询委派任务状态</td>
+</tr>
+<tr>
+<td><code>task_cancel</code></td>
+<td>取消子任务</td>
+</tr>
+<tr>
+<td><code>t3_thread_launch</code></td>
+<td>创建新的顶层 Thread</td>
+</tr>
+<tr>
+<td><code>t3_thread_read</code></td>
+<td>读取指定 Thread</td>
+</tr>
+</tbody>
+</table></div>
+<p>这些是 T3 Code 编排相关的工具，不是需要你在 PowerShell 中直接执行的命令。</p>
+<p>如果当前版本不支持这些功能，先使用前面的手动并行方式，不需要为了本次练习安装额外的第三方 MCP。</p>
+<h2>5. 如何让便宜模型处理简单任务？</h2>
+<p>这是你之前学习 Magpie 时就想实现的功能。在支持跨模型委派的 T3 Code 版本中，可以尝试通过主 Agent 的提示词实现任务分配策略。</p>
+<div class="panel"><label>任务类型 <select id="difficulty"><option>简单文档</option><option>常规开发</option><option>复杂并发</option><option>架构重构</option></select></label><p id="recommend"></p></div>
+<pre><code class="language-text">你是主编排 Agent。按照任务复杂度分配工作：简单任务委派给可用的 Mini 或 Haiku 模型；普通任务使用 Sonnet 或 GPT 主力模型；复杂任务使用 Codex High；核心架构任务采用 Codex 与 Claude Opus 交叉验证。先查询 orchestrator_capabilities，再使用 delegate_task。独立任务并行执行，有依赖的任务串行执行。指定模型不可用时向我报告。最终由你核查结果并汇总。未经批准不要修改项目源码。
+</code></pre>
+<p>这是基于提示词的路由策略，并非 T3 Code 内置的确定性路由算法。</p>
+<h2>6. 多 Agent 使用时的注意事项</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐做法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>多 Agent 阅读源码</td>
+<td>使用 Local</td>
+</tr>
+<tr>
+<td>多 Agent 同时修改代码</td>
+<td>使用独立 Worktree</td>
+</tr>
+<tr>
+<td>两个 Agent 修改同一个方法</td>
+<td>串行执行</td>
+</tr>
+<tr>
+<td>多个 Agent 同时运行 Maven</td>
+<td>注意 CPU、内存和测试资源冲突</td>
+</tr>
+<tr>
+<td>多个 Agent 连接 MySQL、Redis</td>
+<td>隔离测试环境</td>
+</tr>
+<tr>
+<td>简单任务</td>
+<td>单 Agent 即可</td>
+</tr>
+<tr>
+<td>核心架构设计</td>
+<td>多 Agent 交叉验证</td>
+</tr>
+</tbody>
+</table></div>
+<p>特别注意，Git Worktree 只能隔离代码工作目录，不能自动隔离数据库、Redis、Kafka 和端口等运行资源。</p>
+<p>对于 Java 项目，初期建议同时运行 2～3 个 Agent，不要一开始就启动十几个。多 Agent 并行也会消耗更多模型额度。</p>
+<h3>第三课验收</h3><div class="checks" data-items="成功同时运行 Codex 和 Claude Code|理解并行、串行与主从编排|检查 orchestrator_capabilities 工具|尝试 delegate_task 自动委派（或确认版本不支持）|理解共享工作区的代码冲突风险"></div>
+<p>官方参考资料：<a href="https://github.com/pingdotgg/t3code/blob/main/packages/provider-core/src/server/orchestrationInstructions.ts" target="_blank" rel="noopener noreferrer">T3 Code 编排机制源码</a>。</p>
+<p>目前尚未确认你安装的版本是否已经包含全部编排功能。</p>
+<p><strong>建议你重点完成第 4 节。</strong> 如果能成功让 Codex 自动启动 Claude Code 子 Agent，就意味着你已经从手动管理多个 Agent，进入了自动化多 Agent 协作阶段。</p>
+</section>
+<section id="c4"><div class="tag">LESSON 04</div><h2>第四课：Git Worktree 工作区隔离与多 Agent 并行修改代码</h2><p>上一课已经完成了多 Agent 并行执行与任务编排。但是，如果 Codex 和 Claude Code 同时修改一个项目，就可能出现代码覆盖、文件冲突和测试结果不准确等问题。</p>
+<p>这一课我们学习如何利用 <strong>Git Worktree，让多个 Agent 各自在独立的工作目录中开发，最后将代码合并到主分支。</strong></p>
+<h2>1. 为什么需要 Git Worktree？</h2>
+<div class="panel"><h4>优化前：两个 Agent 共享工作目录</h4><div class="flow"><div class="node">Codex：修改消息发送 / Claude Code：修改消息发送</div><span class="arrow">→</span><div class="node">D:/Project/box-im<br/>PrivateMessageServiceImpl.java</div></div><p>可能发生代码覆盖、修改冲突</p></div><div class="panel"><h4>优化后：每个 Agent 拥有独立 Worktree</h4><div class="flow"><div class="node">Codex · feat/idempotency / Claude Code · feat/cache</div><span class="arrow">→</span><div class="node">独立文件目录 A / 独立文件目录 B</div><span class="arrow">→</span><div class="node">审核 / Commit / Merge</div><span class="arrow">→</span><div class="node">原始项目 · main 分支</div></div>开发阶段互不干扰，审核完成后再合并代码。</div>
+<p>Git Worktree 可以让同一个 Git 仓库同时拥有多个工作目录，共享 Git 对象和提交历史，但各自拥有独立的工作文件、索引和 HEAD。</p>
+<p>它不是简单地复制整个项目，也不等同于 Git 分支。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>对比</th>
+<th>Git Branch</th>
+<th>Git Worktree</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>独立分支</td>
+<td>支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>独立文件目录</td>
+<td>不一定</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>同时开发多个分支</td>
+<td>单工作目录下不方便</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>共享 Git 提交历史</td>
+<td>是</td>
+<td>是</td>
+</tr>
+<tr>
+<td>适合多 Agent 并行开发</td>
+<td>单独使用不够</td>
+<td>非常适合</td>
+</tr>
+</tbody>
+</table></div>
+<h2>2. 实操前：检查 Git 仓库状态</h2>
+<p>打开 Windows PowerShell，执行：</p>
+<pre><code class="language-powershell">cd D:\Project\box-im
+
+git status
+
+git branch --show-current
+
+git worktree list
+</code></pre>
+<p>这三个命令分别用于检查：</p>
+<ul>
+<li>当前是否存在尚未提交的代码。</li>
+<li>当前所在的 Git 分支。</li>
+<li>当前已经创建了哪些 Worktree。</li>
+</ul>
+<p>建议先确保重要修改已经提交。因为新 Worktree 通常基于指定分支的提交创建，不会自动继承原目录中尚未提交的修改。</p>
+<p>为了不影响你的正式项目，本次我们创建一个专门的练习分支：</p>
+<pre><code class="language-powershell">git switch -c practice/t3-worktree
+</code></pre>
+<h2>3. 实操一：在 T3 Code 中创建独立 Worktree</h2>
+<h3>第一步：创建 Codex 工作区</h3>
+<p>打开 T3 Code，选择 box-im 项目，点击 <code>New thread</code>。</p>
+<p>在发送消息之前，设置工作区模式和基础分支。</p>
+<div class="panel"><h4>box-im / New thread（界面示意）</h4><div class="uirow">Codex　 High</div><div class="uirow">Base branch: practice/t3-worktree</div><div class="uirow">Local：使用现有项目目录</div><div class="uirow">✓ New worktree：创建独立分支和工作目录</div></div>
+<p>本次必须选择 <strong>New worktree</strong>，不要选择 Local。需要独立分支及工作目录的任务使用该模式。</p>
+<p>发送第一个开发任务：</p>
+<pre><code class="language-text">请在当前独立 Git Worktree 中完成以下任务：
+
+阅读 box-im 私聊消息发送与批量入库相关源码，新建 docs/message-reliability.md，记录消息可靠性、幂等性设计及改进建议。
+
+要求：
+1. 所有结论必须有源码依据。
+2. 只允许新增或修改 docs/message-reliability.md。
+3. 不修改 Java 业务代码。
+4. 完成后展示 git status 和 git diff。
+5. 暂时不要 commit、push 或 merge。
+</code></pre>
+<h3>第二步：创建 Claude Code 工作区</h3>
+<p>不要等待 Codex 完成，再创建一个新的 Thread。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>设置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>Claude Code</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>Sonnet</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>New worktree</td>
+</tr>
+<tr>
+<td>Base branch</td>
+<td>practice/t3-worktree</td>
+</tr>
+<tr>
+<td>Mode</td>
+<td>Default</td>
+</tr>
+<tr>
+<td>Permissions</td>
+<td>Supervised</td>
+</tr>
+</tbody>
+</table></div>
+<p>发送第二个任务：</p>
+<pre><code class="language-text">请在当前独立 Git Worktree 中完成以下任务：
+
+阅读 box-im 群成员缓存相关源码，新建 docs/cache-consistency.md，记录缓存策略、一致性风险及改进方案。
+
+要求：
+1. 所有结论必须有源码依据。
+2. 只允许新增或修改 docs/cache-consistency.md。
+3. 不修改 Java 业务代码。
+4. 完成后展示 git status 和 git diff。
+5. 暂时不要 commit、push 或 merge。
+</code></pre>
+<p>为什么第一次练习选择修改 Markdown，而不是直接修改 Java？因为我们现在重点验证工作区隔离，先排除业务代码和测试环境带来的干扰。</p>
+<h2>4. 实操二：验证两个工作区是否真正隔离</h2>
+<p>重新打开 PowerShell，在原始项目中执行：</p>
+<pre><code class="language-powershell">git worktree list
+</code></pre>
+<p>正常情况下，应该能够看到三个工作目录，类似如下：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>工作区</th>
+<th>目录与分支</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>原始项目</td>
+<td>D:\Project\box-im · practice/t3-worktree</td>
+</tr>
+<tr>
+<td>Codex Worktree</td>
+<td>独立目录 A · t3code/xxxxxxxx</td>
+</tr>
+<tr>
+<td>Claude Code Worktree</td>
+<td>独立目录 B · t3code/yyyyyyyy</td>
+</tr>
+</tbody>
+</table></div>
+<p>T3 Code 会为新 Worktree 创建工作分支，实际分支名称和目录由软件生成，不一定与上面的示例一致。</p>
+<p>接下来，分别让两个 Agent 执行：</p>
+<pre><code class="language-powershell">git rev-parse --show-toplevel
+
+git branch --show-current
+
+git status --short
+</code></pre>
+<p>你应该能够观察到以下现象：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>原项目</th>
+<th>Codex 工作区</th>
+<th>Claude 工作区</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>message-reliability.md</td>
+<td>无</td>
+<td>有</td>
+<td>无</td>
+</tr>
+<tr>
+<td>cache-consistency.md</td>
+<td>无</td>
+<td>无</td>
+<td>有</td>
+</tr>
+<tr>
+<td>原始 Java 代码</td>
+<td>有</td>
+<td>有</td>
+<td>有</td>
+</tr>
+</tbody>
+</table></div>
+<p>这里假设练习前不存在这两个 Markdown 文件。</p>
+<p><strong>这就证明两个 Agent 的文件修改相互隔离。</strong></p>
+<h2>5. Git Worktree 交互模拟实验</h2>
+<p>你可以先在下面模拟整个过程，理解为什么必须 Commit 和 Merge 才能将修改同步到原始项目。</p>
+<div class="cols"><div class="panel"><h4>Codex</h4><p id="wa"></p><button onclick="advance(0)">下一步</button></div><div class="panel"><h4>Claude Code</h4><p id="wb"></p><button onclick="advance(1)">下一步</button></div></div><div class="panel"><b>目标练习分支</b><p id="merged"></p><button onclick="wt=[0,0];renderWT()">重置实验</button></div>
+<p>注意，即使 Agent 已经 Commit，原始工作目录中的文件也不会自动更新，必须进行 Merge 或其他明确的集成操作。</p>
+<h2>6. 实操三：审核、提交与合并代码</h2>
+<h3>第一步：查看 Diff</h3>
+<p>在 Codex 对应 Thread 中打开 Git Diff 或 Changes 面板，检查新增的文件内容。</p>
+<p>重点检查是否出现：</p>
+<ul>
+<li>超出任务范围的代码修改。</li>
+<li>意外修改配置文件。</li>
+<li>删除原有文件。</li>
+<li>将密码、Token 等敏感信息写入文档。</li>
+</ul>
+<p>新增的未跟踪文件也需要检查，因为普通 <code>git diff</code> 默认不会显示未跟踪文件的内容。</p>
+<h3>第二步：分别提交代码</h3>
+<p>确认没有问题之后，让 Codex 执行：</p>
+<pre><code class="language-powershell">git add docs/message-reliability.md
+
+git commit -m "docs: analyze message reliability"
+</code></pre>
+<p>让 Claude Code 执行：</p>
+<pre><code class="language-powershell">git add docs/cache-consistency.md
+
+git commit -m "docs: analyze cache consistency"
+</code></pre>
+<p>也可以通过 T3 Code 的 Git 操作界面完成 Commit。</p>
+<h3>第三步：合并到目标分支</h3>
+<p>T3 Code 支持通过 Git 操作创建 PR，然后进行审查和合并。如果不想上传到 GitHub，也可以直接执行本地 Git Merge。</p>
+<p>本次我们采用本地合并，不需要 Push。</p>
+<p>回到原始项目目录：</p>
+<pre><code class="language-powershell">cd D:\Project\box-im
+
+git status
+
+git branch --show-current
+
+git worktree list
+</code></pre>
+<p>确保当前是 <code>practice/t3-worktree</code> 分支，而且工作目录干净。</p>
+<p>然后将两个 Agent 的实际分支名称填入下面的工具。</p>
+<div class="panel"><h4>Git Merge 命令生成器</h4><label>Codex 的实际分支名称<input id="branchA" placeholder="t3code/abc12345"/></label><label>Claude Code 的实际分支名称<input id="branchB" placeholder="t3code/def67890"/></label><pre id="mergeCmd">git switch practice/t3-worktree
+git status
+git merge --no-ff CODEX_BRANCH
+# 确认第一次合并成功后再执行下一条
+git merge --no-ff CLAUDE_BRANCH
+git status
+git log --oneline --graph -10</pre><small>请逐条执行命令。遇到冲突时先解决冲突，不要继续执行下一次合并。</small></div>
+<p>特别注意：T3 Code 中的 <strong>Settle（结束任务）不等于 Merge（合并代码）</strong>。Settle 只是将任务标记为完成，不会自动把分支代码合并回来。</p>
+<h2>7. 实操四：理解合并冲突</h2>
+<p>假如两个 Agent 都修改了同一个方法的同一行。</p>
+<p><strong>Codex 方案：防止消息重复提交</strong></p>
+<pre><code class="language-java">if (exists(localId)) {
+    return oldMessage;
+}
+</code></pre>
+<p><strong>Claude 方案：使用分布式锁保护</strong></p>
+<pre><code class="language-java">lock.lock();
+try {
+    sendMessage();
+} finally {
+    lock.unlock();
+}
+</code></pre>
+<p>如果两个分支的修改互不兼容，Git 在合并时就可能产生冲突。</p>
+<pre><code class="language-java">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+// Codex 的修改
+&#61;======
+// Claude Code 的修改
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; claude-branch
+</code></pre>
+<p>Worktree 解决的是<strong>开发时的文件隔离问题</strong>，而不是自动解决代码合并时的逻辑冲突。</p>
+<p>遇到冲突，可以让一个 Agent 专门负责处理：</p>
+<pre><code class="language-text">当前 Git Merge 出现了代码冲突。
+
+请检查 git status 和冲突文件，分析两个分支分别实现了什么功能，解释冲突原因，并给出能够保留双方合理业务逻辑的解决方案。
+
+不要直接选择全部接受某一个分支的代码。
+
+先展示解决方案，经过我确认后再修改冲突文件，并运行相关测试。
+</code></pre>
+<h2>8. 实战进阶：多 Agent 并行开发 Java 项目</h2>
+<p>完成文档练习后，就可以尝试真正的代码开发。</p>
+<p>结合你的盒子 IM 项目，我建议按照模块和文件边界拆分任务。</p>
+<div class="panel"><h4>多 Agent 并行开发 Java 项目</h4><div class="flow"><div class="node">box-im 主项目 · 共同基础提交</div><span class="arrow">→</span><div class="node">Codex：消息幂等 / Claude：缓存一致性 / Codex Mini：单元测试</div><span class="arrow">→</span><div class="node">独立 Worktree</div><span class="arrow">→</span><div class="node">集成分支：代码审查</div><span class="arrow">→</span><div class="node">Maven 集成测试</div></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>任务</th>
+<th>推荐强度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Codex</td>
+<td>完善端到端消息幂等</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Claude Code</td>
+<td>完善群成员缓存一致性</td>
+<td>High</td>
+</tr>
+<tr>
+<td>轻量模型</td>
+<td>编写已有功能的单元测试</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>主 Agent</td>
+<td>合并代码、交叉审查</td>
+<td>High</td>
+</tr>
+</tbody>
+</table></div>
+<p>如果测试依赖前两个 Agent 尚未实现的接口，需要先约定接口，或者等功能开发完成后再编写对应测试。</p>
+<p>另外，Worktree 无法自动隔离以下资源：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>共享资源</th>
+<th>解决方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MySQL</td>
+<td>使用不同测试数据库</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>使用不同 Key 前缀或独立实例</td>
+</tr>
+<tr>
+<td>Kafka</td>
+<td>使用独立 Topic、Consumer Group</td>
+</tr>
+<tr>
+<td>Spring Boot 端口</td>
+<td>分配不同端口</td>
+</tr>
+<tr>
+<td>Maven 本地仓库</td>
+<td>避免并发安装不同实现的同坐标 SNAPSHOT</td>
+</tr>
+<tr>
+<td>Docker</td>
+<td>使用不同容器名称、端口和数据卷</td>
+</tr>
+</tbody>
+</table></div>
+<p>对于 Java 微服务项目，这一点尤其重要。</p>
+<h2>9. 两个非常实用的 T3 Code 技巧</h2>
+<p>根据原课程介绍，桌面版还支持以下快捷操作，需确认实际版本。</p>
+<p><strong>Ctrl + Enter：后台启动任务</strong></p>
+<p>发送当前任务后直接打开新的任务草稿。配合 New worktree，可以连续创建多个隔离任务。</p>
+<p><strong>Shift + 点击模型：多模型同时执行同一任务</strong></p>
+<p>在新 Thread 的模型选择器中，按住 Shift 选择多个模型。提交后，为不同模型分别启动 Thread 和 Worktree，适合进行方案竞争和交叉验证。</p>
+<h3>第四课验收</h3><div class="checks" data-items="成功创建 Git 练习分支|为 Codex 创建独立 Worktree|为 Claude Code 创建独立 Worktree|使用 git worktree list 验证隔离|分别审核并 Commit 两个 Agent 的修改|将两个分支合并到练习分支|理解 Worktree 无法隔离数据库等运行资源"></div>
+<p>本课参考了 <a href="https://github.com/pingdotgg/t3code/blob/main/docs/user/source-control.md" target="_blank" rel="noopener noreferrer">T3 Code 官方 Git 管理文档</a> 和 <a href="https://github.com/pingdotgg/t3code/blob/main/docs/user/thread-sidebar.md" target="_blank" rel="noopener noreferrer">Thread 管理文档</a>。界面为教学示意，具体路径和分支名称以你安装的版本为准。我没有直接操作你的本地仓库。</p>
+<p><strong>第五课预告：</strong> 让 Codex 负责开发、Claude Code 负责代码审查，发现问题后自动交回 Codex 修复，形成完整的开发、审查、修复、测试闭环。</p>
+</section>
+<section id="c5"><div class="tag">LESSON 05</div><h2>第五课：跨模型代码审查、自动任务交接与开发工作流</h2><p>前四课已经掌握了模型配置、多 Agent 并行运行、任务委派和 Git Worktree 隔离。</p>
+<p>这一课，我们要将这些功能串起来，形成一套完整的 AI 软件开发流水线。最终目标是：<strong>你只需要提出需求，多个 Agent 就能够分工完成开发、审查、修复和测试，而你主要负责验收。</strong></p>
+<h2>1. 建立完整的多 Agent 开发工作流</h2>
+<div class="panel"><h4>完整开发工作流</h4><div class="flow"><div class="node">用户提出开发需求</div><span class="arrow">→</span><div class="node">Codex 主 Agent：需求分析、任务拆解</div><span class="arrow">→</span><div class="node">Codex 开发 Agent：独立 Worktree 实现代码</div><span class="arrow">→</span><div class="node">Claude Code 审查 Agent：审查逻辑、并发与安全问题</div><span class="arrow">→</span><div class="node">审查是否通过？</div></div><div class="cols"><div class="panel"><h4>否</h4><div class="flow"><div class="node">交回 Codex 修复</div><span class="arrow">→</span><div class="node">重新审查</div></div></div><div class="panel"><h4>通过</h4><div class="flow"><div class="node">测试 Agent：Maven 编译、单元测试</div><span class="arrow">→</span><div class="node">人工验收并合并</div></div></div></div></div>
+<p>这种开发方式的核心是<strong>开发者与审查者相互独立</strong>。不要只让一个模型写完代码，然后让它自己判断代码有没有问题。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>角色</th>
+<th>推荐 Agent</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>项目经理</td>
+<td>Codex High</td>
+<td>需求理解、任务拆解</td>
+</tr>
+<tr>
+<td>开发工程师</td>
+<td>Codex</td>
+<td>编写业务代码</td>
+</tr>
+<tr>
+<td>代码审查员</td>
+<td>Claude Code</td>
+<td>独立发现代码缺陷</td>
+</tr>
+<tr>
+<td>测试工程师</td>
+<td>Mini / Sonnet</td>
+<td>编写并运行测试</td>
+</tr>
+<tr>
+<td>最终决策者</td>
+<td>你</td>
+<td>验收、批准合并</td>
+</tr>
+</tbody>
+</table></div>
+<p>这里的角色是我们人为设计的工作流，并非 T3 Code 强制规定的模型分工。</p>
+<h2>2. 实操一：Codex 开发，Claude Code 审查</h2>
+<p>第一次练习先采用手动交接，理解完整流程后，再实现自动交接。</p>
+<h3>第一步：创建 Codex 开发任务</h3>
+<p>打开 T3 Code，在 box-im 项目下创建一个 Thread。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Thread A — Java 单元测试开发</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>Codex</td>
+</tr>
+<tr>
+<td>Reasoning</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>New worktree</td>
+</tr>
+<tr>
+<td>Mode</td>
+<td>Default</td>
+</tr>
+<tr>
+<td>Permissions</td>
+<td>Supervised</td>
+</tr>
+</tbody>
+</table></div>
+<p>发送以下任务：</p>
+<pre><code class="language-text">你是 box-im 项目的 Java 后端开发工程师。
+
+请分析私聊消息批量入库的幂等机制，并为现有逻辑补充单元测试。
+
+要求：
+1. 先阅读现有源码和测试框架。
+2. 覆盖正常入库、重复消息入库、批量入库异常等场景。
+3. 优先复用项目已有测试依赖。
+4. 不修改生产环境配置，不连接生产数据库。
+5. 运行相关 Maven 测试。
+6. 完成后提交本地 Git Commit，但不要 Push 或 Merge。
+
+最后输出任务交接报告，包括：
+- Worktree 路径和分支名称
+- Commit SHA
+- 修改文件列表
+- 实现思路
+- 测试命令及实际结果
+- 已知问题
+</code></pre>
+<p>为什么这次选择单元测试？因为它比直接修改 IM 消息发送机制风险低，同时可以完整练习代码开发、审查和修复流程。</p>
+<h3>第二步：创建 Claude Code 审查任务</h3>
+<p>Codex 完成后，记录它的工作区路径、分支名称和 Commit SHA。</p>
+<p>然后创建 Claude Code Thread，让它审查 Codex 的成果。</p>
+<p>这里有两种方式：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方式</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>使用开发者所在 Worktree</td>
+<td>审查尚未提交的代码</td>
+</tr>
+<tr>
+<td>基于开发者提交创建独立 Worktree</td>
+<td>审查已经提交的代码，隔离审查环境</td>
+</tr>
+</tbody>
+</table></div>
+<p>本次推荐第二种方式。务必确认 Claude Code 审查的是 Codex 的新提交，而不是原来的主分支。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Thread B — 独立代码审查</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>Claude Code</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>Sonnet / Opus</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>New worktree</td>
+</tr>
+<tr>
+<td>Base branch</td>
+<td>Codex 开发分支</td>
+</tr>
+<tr>
+<td>Mode</td>
+<td>Plan</td>
+</tr>
+</tbody>
+</table></div>
+<p>发送：</p>
+<pre><code class="language-text">你是一名独立的 Java 后端高级代码审查工程师。
+
+请审查 Codex 在上一开发任务中的代码修改。
+
+审查前确认当前 Git HEAD 与开发者提供的 Commit SHA 一致，并检查相对于原始基础提交的完整 Diff。
+
+重点检查：
+1. 业务逻辑是否正确。
+2. 是否存在并发安全问题。
+3. 幂等性测试是否真正覆盖重复入库。
+4. 是否存在无效断言或过度 Mock。
+5. 是否覆盖异常场景和边界条件。
+6. 是否引入不必要的依赖。
+7. 测试结果是否可信。
+
+每个问题必须包含：
+- 严重程度：P0/P1/P2/P3
+- 文件路径及行号
+- 问题原因
+- 可能产生的后果
+- 建议修复方案
+
+仅进行代码审查，不直接修改业务代码。
+
+最终给出 PASS 或 REQUEST_CHANGES 结论。
+</code></pre>
+<h2>3. 实操二：跨 Thread 任务交接</h2>
+<p>T3 Code 不仅可以管理多个 Thread，还可以让 Agent 引用其他 Thread 的上下文。</p>
+<p>支持相关功能的版本，可以通过输入 <code>@</code> 搜索其他 Thread，或者将 Thread 从侧边栏拖入输入框进行引用。</p>
+<div class="cols"><div class="panel"><h4>box-im（界面示意）</h4><div class="uirow">Java 单元测试开发 · Codex</div><div class="uirow">独立代码审查 · Claude Code</div></div><div class="panel"><h4>独立代码审查（界面示意）</h4><div class="uirow">请审查以下 Thread 的开发成果：</div><div class="uirow">@Java 单元测试开发</div></div></div>
+<p>这样就可以减少手动复制上一轮的任务报告。</p>
+<p>但是要注意三个概念：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>操作</th>
+<th>实际作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>引用 Thread</td>
+<td>获取其他会话的任务上下文</td>
+</tr>
+<tr>
+<td>切换 Worktree</td>
+<td>获取对应版本的代码文件</td>
+</tr>
+<tr>
+<td>合并 Git 分支</td>
+<td>将代码修改集成到目标分支</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>引用 Thread 不代表代码已经同步过来。</strong></p>
+<p>这是跨 Agent 协作时最容易出现的错误之一。</p>
+<h2>4. 学习代码审查的严重程度</h2>
+<p>以后让 Agent 审查代码时，不要只让它输出“代码存在一些问题”，而是要求按严重程度输出。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>级别</th>
+<th>含义</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>致命问题：数据丢失、严重安全漏洞、系统崩溃</td>
+<td>必须立即修复</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>严重问题：并发错误、消息重复、核心业务逻辑异常</td>
+<td>合并前必须修复</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>一般问题：边界条件遗漏、性能隐患、测试覆盖不足</td>
+<td>结合影响范围处理</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>改进建议：命名、注释、代码可读性</td>
+<td>可以后续优化</td>
+</tr>
+</tbody>
+</table></div>
+<p>例如，Claude Code 在审查 IM 项目时可能输出：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>级别</th>
+<th>示例问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>消息持久化失败后仍然删除 Redis 暂存数据</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>并发请求使用相同 localId，却生成不同 messageId</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>单元测试没有覆盖 Kafka 重试场景</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>方法命名不够清晰</td>
+</tr>
+</tbody>
+</table></div>
+<p>以上是教学示例，并非本次实际审查你的仓库后发现的问题。</p>
+<h2>5. 实操三：将审查结果交回 Codex 修复</h2>
+<p>回到最初的 Codex 开发 Thread，引用 Claude Code 的审查 Thread，或者复制审查报告。</p>
+<pre><code class="language-text">Claude Code 已经完成独立代码审查，请阅读审查报告。
+
+你的任务：
+1. 逐条核查审查员指出的问题。
+2. 修复所有经过验证的 P0、P1 问题。
+3. 对 P2 问题给出修复或暂缓处理的理由。
+4. 不进行无关重构。
+5. 如果认为审查结论不正确，必须提供源码证据反驳。
+6. 在原开发 Worktree 中完成修改。
+7. 重新运行相关测试。
+8. 生成新的本地 Commit。
+
+完成后输出每项问题的处理结果、新 Commit SHA 和实际测试结果。
+
+不要 Push 或 Merge。
+</code></pre>
+<p>修复完成后，再启动一次 Claude Code 独立审查，审查最新的 Commit。</p>
+<p>不要直接相信审查员的所有意见。AI 审查也可能产生误报，所以要求开发 Agent 先核查再修复。</p>
+<h2>6. 实操四：自动化整个开发闭环</h2>
+<p>前面都是手动完成的，现在尝试让主 Agent 自动进行任务交接。</p>
+<p>原课程介绍了主分支通过 <code>delegate_task</code> 进行跨 Provider 委派、独立工作区执行以及子任务结果交接的能力。对于再次审查，创建新的委派任务，并携带之前的审查发现和未解决的问题。</p>
+<h3>创建一个主 Agent Thread</h3>
+<p>建议配置：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>推荐设置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Provider</td>
+<td>Codex</td>
+</tr>
+<tr>
+<td>Reasoning</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>New worktree</td>
+</tr>
+<tr>
+<td>Mode</td>
+<td>Default</td>
+</tr>
+<tr>
+<td>Permissions</td>
+<td>Supervised</td>
+</tr>
+</tbody>
+</table></div>
+<p>然后发送下面这套完整的自动开发工作流 Prompt。</p>
+<pre><code class="language-markdown"># 多 Agent 自动化软件开发工作流
+
+你是当前 Java 项目的主编排 Agent，负责组织开发、审查、修复和测试。
+
+## 一、执行前检查
+
+调用 orchestrator_capabilities，确认当前可用的 Provider、模型、任务委派能力和工作区隔离能力。
+
+必须使用真实的 T3 Code 编排工具，不允许角色扮演模拟多个 Agent。
+
+## 二、开发阶段
+
+委派 Codex 开发 Agent：
+- 分析项目源码。
+- 为私聊消息批量入库幂等机制补充单元测试。
+- 使用独立 Worktree。
+- 运行相关测试。
+- 提交本地 Git Commit。
+- 返回工作区路径、分支、Commit SHA 和测试结果。
+
+## 三、独立审查阶段
+
+开发完成后，委派 Claude Code 审查 Agent：
+- 确认审查的是开发 Agent 最新提交。
+- 审查相对于基础提交的完整 Diff。
+- 检查业务正确性、并发安全、幂等性、异常处理和测试质量。
+- 输出 P0/P1/P2/P3 分级问题。
+- 禁止直接修改开发代码。
+- 输出 PASS 或 REQUEST_CHANGES。
+
+## 四、自动修复阶段
+
+如果审查发现 P0 或 P1：
+- 将审查报告交回开发 Agent。
+- 要求逐项核查并修复。
+- 重新运行测试并提交新版本。
+- 创建新的 Claude Code 审查任务，审查最新 Commit。
+
+最多进行两轮修复与重新审查。
+
+如果仍有未解决的严重问题，停止并向我报告。
+
+## 五、测试阶段
+
+审查通过后，委派可用的低成本模型：
+- 验证实际测试命令与退出状态。
+- 检查关键测试覆盖情况。
+- 在隔离测试环境中运行必要测试。
+- 禁止连接生产数据库或修改生产配置。
+
+## 六、最终验收
+
+主 Agent 输出：
+- 每个子 Agent 的真实任务标识
+- 完整任务执行记录
+- 修改文件列表
+- Git 分支和最终 Commit SHA
+- 审查问题及修复结果
+- 实际测试结果
+- 剩余风险
+- 是否建议合并
+
+未经我的明确批准，禁止 Push、Merge、部署或删除工作区。
+
+如果当前 T3 Code 版本缺少必要的工具或无法访问指定提交，请停止对应阶段并报告，不得虚构执行结果。
+</code></pre>
+<p>这套 Prompt 可以作为你以后开发 Java 项目的通用工作流模板。修改其中的开发需求即可复用。</p>
+<h2>7. 自动开发流水线交互实验</h2>
+<p>下面模拟完整工作流。你可以选择审查结果，观察 Agent 如何进入修复循环或测试阶段。</p>
+<div class="panel"><p id="reviewStatus"></p><div class="actions" id="reviewButtons"></div><button onclick="review=0;rounds=0;renderReview()">重置实验</button></div>
+<p>这里采用最多两轮审查修复，是为了防止两个模型反复争论同一个问题，导致无限循环、消耗大量额度。</p>
+<h2>8. 以后怎样分配模型才能节省额度？</h2>
+<p>结合你之前希望将简单任务交给低成本模型、复杂任务交给 Codex 高能力模型的需求，可以建立下面的长期分工策略。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>任务类型</th>
+<th>推荐模型</th>
+<th>是否需要独立审查</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>修改注释</td>
+<td>Mini / Haiku</td>
+<td>不需要</td>
+</tr>
+<tr>
+<td>编写技术文档</td>
+<td>Mini / Haiku</td>
+<td>通常不需要</td>
+</tr>
+<tr>
+<td>普通 CRUD</td>
+<td>Sonnet / Codex Medium</td>
+<td>视情况</td>
+</tr>
+<tr>
+<td>单元测试</td>
+<td>Mini / Sonnet</td>
+<td>视情况</td>
+</tr>
+<tr>
+<td>Redis 缓存一致性</td>
+<td>Codex High</td>
+<td>需要</td>
+</tr>
+<tr>
+<td>Kafka 消息可靠性</td>
+<td>Codex High</td>
+<td>需要</td>
+</tr>
+<tr>
+<td>JVM、并发问题</td>
+<td>Codex High / Opus</td>
+<td>需要</td>
+</tr>
+<tr>
+<td>分布式架构重构</td>
+<td>Codex High + Opus</td>
+<td>需要</td>
+</tr>
+</tbody>
+</table></div>
+<p>不要每次都启动完整的开发流水线。简单任务使用单 Agent，复杂任务使用多 Agent，这样才能发挥多模型协作的性价比。</p>
+<h2>9. T3 Code、Magpie、LangGraph 的定位区别</h2>
+<p>学习到这里，你应该能理解这几类工具的区别了。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>能力</th>
+<th>Magpie</th>
+<th>T3 Code</th>
+<th>LangGraph</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>多模型管理</td>
+<td>主要用途之一</td>
+<td>支持</td>
+<td>需要开发</td>
+</tr>
+<tr>
+<td>编程 Agent 管理</td>
+<td>支持情况取决于接入方式</td>
+<td>核心功能</td>
+<td>需要开发</td>
+</tr>
+<tr>
+<td>Git Worktree 管理</td>
+<td>取决于版本</td>
+<td>支持</td>
+<td>需要开发</td>
+</tr>
+<tr>
+<td>跨 Agent 任务委派</td>
+<td>取决于接入能力</td>
+<td>支持相关编排工具的版本可用</td>
+<td>自定义</td>
+</tr>
+<tr>
+<td>确定性任务路由</td>
+<td>取决于配置</td>
+<td>可借助提示词编排</td>
+<td>可通过条件边实现</td>
+</tr>
+<tr>
+<td>自定义状态机</td>
+<td>非主要用途</td>
+<td>非主要用途</td>
+<td>核心能力</td>
+</tr>
+<tr>
+<td>开箱即用的代码开发</td>
+<td>较方便</td>
+<td>较方便</td>
+<td>开发成本较高</td>
+</tr>
+</tbody>
+</table></div>
+<p>T3 Code 更适合作为你日常开发 Java 项目的 AI Agent 工作台；LangGraph 更适合你自己开发一套具有明确状态、条件路由、重试策略和持久化机制的 Agent 系统。</p>
+<p>T3 Code 的提示词编排并不等于 LangGraph 的确定性状态机。</p>
+<h3>第五课验收</h3><div class="checks" data-items="成功让 Codex 完成开发任务并提交 Commit|成功让 Claude Code 独立审查同一提交|掌握跨 Thread 上下文引用与任务交接|能够按照 P0/P1/P2/P3 处理审查问题|完成至少一次审查与修复闭环|尝试使用主 Agent 自动委派开发和审查任务|理解自动编排、Git 合并和人工验收的边界"></div>
+<p>官方参考资料：<a href="https://github.com/pingdotgg/t3code/blob/main/docs/orchestration-v2/orchestrator-mcp-server.md" target="_blank" rel="noopener noreferrer">T3 Code MCP 编排文档</a>。</p>
+<p>本课的自动化方案参考官方仓库主分支，我没有直接验证你本地版本的全部工具能力，也没有实际执行你的项目测试。具体模型、工具和权限以当前环境为准。</p>
+<p><strong>第六课预告：</strong> T3 Code + Tailscale + Windows / VPS，实现手机远程提交任务、查看 Agent 执行进度、审批代码修改，以及管理远程开发环境。</p>
+</section>
+<section id="c6"><div class="tag">LESSON 06</div><h2>第六课：手机远程控制、Tailscale 与远程服务器部署</h2><p>这是基础课程的最后一课。前五课解决了如何让多个 AI Agent 帮你开发项目，这一课解决的是：<strong>如何离开电脑后，仍然通过手机管理 Codex 和 Claude Code。</strong></p>
+<p>结合你之前使用 Windows、考虑购买 VPS，以及希望通过订阅制使用编程 Agent 的需求，我们分两个阶段学习：先实现手机连接 Windows，再考虑将整个开发环境迁移到 VPS。</p>
+<h2>1. 两种远程开发方案</h2>
+<div class="panel"><h4>方案 A：手机 + Windows 电脑</h4><div class="flow"><div class="node">手机：远程管理</div><span class="arrow">→</span><div class="node">Tailscale：加密私有网络</div><span class="arrow">→</span><div class="node">Windows：T3 Code / Codex / Claude / box-im</div><span class="arrow">→</span><div class="node">模型服务商</div></div>代码和 Agent 都运行在家中电脑，手机只是控制端。无需额外购买服务器，但电脑必须保持在线。</div><div class="panel"><h4>方案 B：手机 + 远程 VPS</h4><div class="flow"><div class="node">手机 / Windows</div><span class="arrow">→</span><div class="node">Tailscale：私有网络</div><span class="arrow">→</span><div class="node">Linux VPS：T3 Code Server / Codex / Claude / Java / Maven / Git</div><span class="arrow">→</span><div class="node">模型服务商</div></div>Agent 在远程服务器运行，即使 Windows 关机也能继续执行任务，适合长期远程开发。</div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>对比</th>
+<th>Windows 方案</th>
+<th>VPS 方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>额外服务器费用</td>
+<td>无</td>
+<td>每月付费</td>
+</tr>
+<tr>
+<td>电脑关机后继续运行</td>
+<td>不支持</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>使用已有本地项目</td>
+<td>方便</td>
+<td>需要同步代码</td>
+</tr>
+<tr>
+<td>Java Maven 测试</td>
+<td>利用现有电脑性能</td>
+<td>受 VPS 配置限制</td>
+</tr>
+<tr>
+<td>部署难度</td>
+<td>低</td>
+<td>中等</td>
+</tr>
+<tr>
+<td>推荐学习顺序</td>
+<td>首先学习</td>
+<td>后续进阶</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>建议先完成方案 A，不急着购买 VPS。</strong></p>
+<h2>2. 实操一：使用 T3 Connect 连接手机</h2>
+<p>T3 Code 可以通过官方的 <strong>T3 Connect</strong> 实现远程连接，不一定需要安装 Tailscale（视版本而定）。</p>
+<p>我们先体验最简单的连接方式。</p>
+<h3>第一步：安装手机客户端</h3>
+<p><strong>T3 Code Mobile</strong>，支持 Android 和 iOS：<a href="https://t3.codes/download" target="_blank" rel="noopener noreferrer">官方下载页面</a>。</p>
+<p>也可以在电脑端打开 <code>Settings → About → Mobile app</code>，扫描下载二维码。</p>
+<h3>第二步：开启电脑端远程连接</h3>
+<p>打开 Windows 上的 T3 Code，进入：<code>Settings → Sharing &amp; access</code></p>
+<div class="panel"><h4>Sharing &amp; access（界面示意）</h4><div class="uirow">T3 Connect · ON</div><div class="uirow">Require approval for new devices · ON</div></div>
+<p>登录 T3 Connect 账号，开启连接服务，并建议开启新设备审批。</p>
+<h3>第三步：连接手机</h3>
+<p>在手机 T3 Code 中登录相同的 T3 Connect 账号，选择你的 Windows 环境，按照提示完成设备审批。</p>
+<p>成功连接后，手机应该可以看到电脑上已经创建的项目和 Thread。</p>
+<h3>第四步：测试远程执行</h3>
+<p>在手机上选择 box-im 项目，创建 Codex 任务：</p>
+<pre><code class="language-text">请读取当前项目的 pom.xml，分析 Maven 模块划分，并说明各个模块的主要职责。
+
+仅阅读源码，不修改文件。
+
+完成后给出 Markdown 格式的分析报告。
+</code></pre>
+<p>如果电脑端同步出现任务，手机也能查看执行结果，就说明连接成功。</p>
+<h2>3. 实操二：通过 Tailscale 建立私有网络</h2>
+<p>如果你不想依赖 T3 Connect 的连接服务，或者希望同时远程管理 SSH、数据库及其他开发服务，可以配置 Tailscale。</p>
+<h3>第一步：Windows 安装 Tailscale</h3>
+<p>打开 PowerShell：</p>
+<pre><code class="language-powershell">winget install Tailscale.Tailscale
+</code></pre>
+<p>也可以手动下载安装。<a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">Tailscale 官方下载</a>。</p>
+<p>安装后打开软件并登录。</p>
+<h3>第二步：手机安装 Tailscale</h3>
+<p>手机也安装 Tailscale，并使用相同的账号加入私有网络。</p>
+<p>打开 <a href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener noreferrer">Tailscale 设备管理后台</a>，应该能看到两台设备。</p>
+<div class="panel"><h4>Machines · 2 devices（IP 为虚构示例）（界面示意）</h4><div class="uirow">windows-desktop · 100.80.10.20 · Connected</div><div class="uirow">mobile-phone · 100.80.10.21 · Connected</div></div>
+<p>此时即使手机和电脑不在同一个 Wi-Fi 下，也可以通过 Tailscale 私有网络通信。</p>
+<h3>第三步：获取电脑的 Tailscale IP</h3>
+<p>在 Windows PowerShell 中执行：</p>
+<pre><code class="language-powershell">tailscale ip -4
+</code></pre>
+<p>检查连接状态：</p>
+<pre><code class="language-powershell">tailscale status
+</code></pre>
+<p>返回的 <code>100.x.x.x</code> 就是电脑的 Tailscale IPv4 地址。</p>
+<h3>第四步：开启 T3 Code 网络访问</h3>
+<p>进入 T3 Code 的 <code>Settings → Sharing &amp; access</code>，开启网络访问。</p>
+<p>如果希望使用 HTTPS，先在 Tailscale 管理后台启用 MagicDNS 和 HTTPS Certificates，再开启 T3 Code 的 <code>Tailscale HTTPS</code> 功能。</p>
+<div class="panel"><h4>Sharing &amp; access（界面示意）</h4><div class="uirow">Network access · ON</div><div class="uirow">Tailscale HTTPS · ON</div><div class="uirow">Pairing link · 生成配对链接</div></div>
+<p>如果你已经配置好了 <code>t3</code> 命令，也可以在电脑端运行：</p>
+<pre><code class="language-powershell">t3 pair --tailscale
+</code></pre>
+<p>使用手机扫描生成的真实配对二维码。</p>
+<p>不要把配对二维码或链接分享给别人，它们相当于临时访问凭证。</p>
+<h3>第五步：测试外网环境</h3>
+<p>将手机 Wi-Fi 关闭，切换到移动数据网络，保持 Tailscale 连接，然后重新打开 T3 Code。</p>
+<p>如果仍然可以访问 box-im 项目并提交任务，就说明真正实现了异地远程开发。</p>
+<h2>4. 实操三：让 T3 Code 在后台持续运行</h2>
+<p>有一个非常重要的问题：<strong>默认情况下，关闭 T3 Code 桌面端最后一个窗口，会停止其本地服务。</strong></p>
+<p>官方提供了后台服务模式，可以解决这个问题（需确认版本）。</p>
+<p>首先检查 CLI：</p>
+<pre><code class="language-powershell">t3 --help
+</code></pre>
+<p>如果提示找不到命令，进入 <code>Settings → About → t3 command</code>，将 CLI 添加到 PATH，然后重新打开 PowerShell。</p>
+<p>接下来执行：</p>
+<pre><code class="language-powershell">t3 up
+</code></pre>
+<p>按照提示选择远程访问方式。</p>
+<p>常用后台管理命令如下：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>t3 up</code></td>
+<td>配置并启动后台服务</td>
+</tr>
+<tr>
+<td><code>t3 status</code></td>
+<td>检查连接情况</td>
+</tr>
+<tr>
+<td><code>t3 up --lan</code></td>
+<td>开启私有网络直连</td>
+</tr>
+<tr>
+<td><code>t3 service status</code></td>
+<td>检查后台服务状态</td>
+</tr>
+<tr>
+<td><code>t3 service restart</code></td>
+<td>重启后台服务</td>
+</tr>
+<tr>
+<td><code>t3 service uninstall</code></td>
+<td>停止并移除后台服务</td>
+</tr>
+</tbody>
+</table></div>
+<p>Windows 后台服务通过任务计划程序运行，需要保持用户登录。可以锁屏，但不要注销。</p>
+<p>还需要打开 Windows 的电源设置，将接通电源时的自动睡眠设置为从不。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>电脑状态</th>
+<th>手机能否继续控制</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>显示器关闭</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>Windows 锁屏</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>T3 Code 窗口关闭，后台服务运行</td>
+<td>可以</td>
+</tr>
+<tr>
+<td>Windows 睡眠</td>
+<td>通常不可以</td>
+</tr>
+<tr>
+<td>Windows 用户注销</td>
+<td>后台服务可能停止</td>
+</tr>
+<tr>
+<td>Windows 关机</td>
+<td>不可以</td>
+</tr>
+</tbody>
+</table></div>
+<h2>5. 进阶：将 T3 Code 部署到远程 VPS</h2>
+<p>如果你希望电脑关机后，Codex 和 Claude Code 依然能够运行，就需要将执行环境迁移到服务器。</p>
+<h3>服务器配置建议</h3>
+<p>结合你之前每月 5～10 美元的预算，以及 Java Maven 测试的使用需求：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>轻量 Agent 服务器</th>
+<th>Java 开发服务器</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2 核 2 GB</td>
+<td>4 核 8 GB</td>
+</tr>
+<tr>
+<td>40 GB SSD</td>
+<td>80 GB SSD</td>
+</tr>
+<tr>
+<td>适合源码阅读、文档生成、轻量代码修改</td>
+<td>适合多 Agent、Maven 编译及单元测试</td>
+</tr>
+<tr>
+<td>不推荐同时运行多个 Java 服务</td>
+<td>优先选择此配置</td>
+</tr>
+</tbody>
+</table></div>
+<p>这些是建议配置，并非已经核实的 VPS 套餐报价。若需要同时运行 MySQL、Redis、Kafka 和多个 Spring Boot 服务，还可能需要更多内存。</p>
+<h3>第一步：通过 SSH 登录服务器</h3>
+<p>假设服务器使用 Ubuntu 24.04，并且你已经拥有普通用户账号：</p>
+<pre><code class="language-bash">ssh developer@YOUR_SERVER_IP
+</code></pre>
+<p>不要使用 root 账号长期运行编程 Agent。</p>
+<h3>第二步：安装 Java 开发环境</h3>
+<pre><code class="language-bash">sudo apt update
+
+sudo apt install -y \
+  git curl unzip \
+  openjdk-17-jdk maven
+</code></pre>
+<p>检查：</p>
+<pre><code class="language-bash">java -version
+mvn -version
+git --version
+</code></pre>
+<p>这里以 JDK 17 为示例，实际版本需要与你项目的 <code>pom.xml</code> 保持一致。</p>
+<h3>第三步：安装 Node.js</h3>
+<p>安装 NVM，并使用 Node.js 24 LTS：</p>
+<pre><code class="language-bash">curl -fsSL \
+https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh \
+-o /tmp/nvm-install.sh
+
+bash /tmp/nvm-install.sh
+
+source ~/.bashrc
+
+nvm install 24
+nvm use 24
+</code></pre>
+<p>检查：</p>
+<pre><code class="language-bash">node -v
+npm -v
+</code></pre>
+<h3>第四步：安装 Codex 和 Claude Code</h3>
+<pre><code class="language-bash">npm install -g @openai/codex
+
+npm install -g @anthropic-ai/claude-code
+</code></pre>
+<p>登录：</p>
+<pre><code class="language-bash">codex login
+
+claude auth login
+</code></pre>
+<p>按照各自的官方认证流程完成登录。</p>
+<p>服务器上的 Agent 登录状态与 Windows 是不同的，需要单独完成认证。T3 Code 不会自动迁移你的本地订阅凭证。</p>
+<h3>第五步：安装 T3 Code Server</h3>
+<p>官方提供了 CLI 安装脚本。</p>
+<pre><code class="language-bash">curl -fsSL https://t3.codes/install.sh \
+  -o /tmp/t3-install.sh
+
+sh /tmp/t3-install.sh
+</code></pre>
+<p>执行远程安装脚本前，建议先检查脚本内容。</p>
+<p>重新登录终端后检查：</p>
+<pre><code class="language-bash">t3 --help
+</code></pre>
+<h3>第六步：安装 Tailscale</h3>
+<pre><code class="language-bash">curl -fsSL https://tailscale.com/install.sh \
+  -o /tmp/tailscale-install.sh
+
+sh /tmp/tailscale-install.sh
+
+sudo tailscale up
+</code></pre>
+<p>根据终端提示完成设备认证。</p>
+<p>然后执行：</p>
+<pre><code class="language-bash">tailscale ip -4
+
+tailscale status
+</code></pre>
+<p>现在 Windows、手机、Linux VPS 三台设备都加入同一个私有网络。</p>
+<h3>第七步：启动后台服务</h3>
+<pre><code class="language-bash">sudo loginctl enable-linger "$(id -un)"
+
+t3 up --lan
+
+t3 service status
+</code></pre>
+<p>Linux 的 lingering 设置可以让用户级服务在 SSH 退出后继续运行。</p>
+<p>生成 HTTPS 配对链接前，需要允许普通用户操作 Tailscale：</p>
+<pre><code class="language-bash">sudo tailscale set --operator="$USER"
+
+t3 pair --tailscale
+</code></pre>
+<p>手机和 Windows 客户端使用生成的配对链接连接 VPS。</p>
+<p>也可以直接采用 <code>t3 up</code> 的 T3 Connect 连接选项，不配置 Tailscale HTTPS。</p>
+<h3>第八步：同步你的 Java 项目</h3>
+<p>例如：</p>
+<pre><code class="language-bash">mkdir -p ~/projects
+
+cd ~/projects
+
+git clone YOUR_REPOSITORY_URL
+
+cd box-im
+</code></pre>
+<p>私有 Git 仓库建议配置独立 SSH Key，不要将 GitHub Token 明文写进克隆命令。</p>
+<p>在 T3 Code 中添加远程项目目录：</p>
+<pre><code class="language-text">/home/developer/projects/box-im
+</code></pre>
+<p>现在就可以在 VPS 上运行前五课学习的多 Agent 工作流了。</p>
+<h2>6. 进阶功能：同时管理 Windows 和 VPS</h2>
+<p>原课程介绍的版本支持连接多个远程环境，还提供新任务的主机选择和负载均衡功能。跨机器 Agent 委派属于 Linked environments Beta 功能。</p>
+<div class="panel"><h4>多环境管理架构</h4><div class="flow"><div class="node">手机 T3 Code / 桌面端</div><span class="arrow">→</span><div class="node">Windows 环境 / VPS 环境</div></div><div class="cols"><div class="panel"><h4>Windows 环境</h4>复杂 Java 编译<br/>大型项目测试<br/>本地数据库</div><div class="panel"><h4>VPS 环境</h4>源码分析<br/>代码审查<br/>轻量开发任务</div></div></div>
+<p>桌面端添加 VPS 的另一种方法是：</p>
+<p><code>Settings → Environments → Add environment → SSH</code></p>
+<p>输入服务器 SSH 地址，让 T3 Code 自动管理远程运行时。</p>
+<p>如果未来你想实现 Windows 上的 Agent 自动将简单任务分配给 VPS 上的 Agent，可以研究：</p>
+<p><code>Settings → Labs → Linked environments</code></p>
+<p>这比仅仅管理多台机器更进一步。不过，跨机器执行还涉及项目代码版本、环境依赖和权限问题，不是简单地共享同一个文件夹。</p>
+<h2>7. Tailscale 会改变 Claude Code 的出口 IP 吗？</h2>
+<p>这是你之前比较关注的问题。</p>
+<p><strong>默认情况下不会。</strong></p>
+<div class="panel"><h4>远程控制与模型请求是两条不同链路</h4><div class="flow"><div class="node">手机：提交任务</div><span class="arrow">→</span><div class="node">Tailscale：控制流量</div><span class="arrow">→</span><div class="node">VPS：Claude Code</div><span class="arrow">→</span><div class="node">VPS 公网出口</div><span class="arrow">→</span><div class="node">模型服务商 Anthropic / OpenAI</div></div></div>
+<p>Tailscale 默认用于设备之间的私有网络通信。Claude Code 或 Codex 对外发起的模型请求，通常仍使用运行 Agent 的机器的网络出口，除非你额外配置了代理、Exit Node 等网络设置。</p>
+<p>因此，T3 Code + Tailscale 并不能保证账号不会被封禁。仍然需要遵守模型供应商的地区限制、账号规则和订阅服务条款。</p>
+<h2>8. 常见问题排查</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>问题</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>手机无法连接电脑</td>
+<td>检查电脑是否在线、网络访问是否开启</td>
+</tr>
+<tr>
+<td>关闭软件后断线</td>
+<td>配置 <code>t3 up</code> 后台服务</td>
+</tr>
+<tr>
+<td>锁屏一段时间后断线</td>
+<td>检查 Windows 睡眠设置</td>
+</tr>
+<tr>
+<td>Tailscale 显示在线但无法连接</td>
+<td>检查防火墙、访问策略和 T3 服务监听状态</td>
+</tr>
+<tr>
+<td>HTTPS 配对失败</td>
+<td>检查 MagicDNS 和 HTTPS Certificates</td>
+</tr>
+<tr>
+<td>VPS 找不到 Codex</td>
+<td>检查 CLI 安装与服务进程 PATH</td>
+</tr>
+<tr>
+<td>VPS 登录 SSH 后正常，退出就断线</td>
+<td>检查 lingering 和后台服务</td>
+</tr>
+<tr>
+<td>Maven 编译时 Agent 退出</td>
+<td>检查服务器内存及 OOM 日志</td>
+</tr>
+<tr>
+<td>手机能查看任务但不能修改</td>
+<td>检查配对权限和 Agent 审批权限</td>
+</tr>
+</tbody>
+</table></div>
+<p>安全方面，不建议将 T3 Code 的控制端口直接暴露到公网，也不需要为了远程控制而关闭 Windows 防火墙。</p>
+<h3>第六课验收</h3><div class="checks" data-items="成功安装 T3 Code 手机端|通过 T3 Connect 连接 Windows|成功配置 Tailscale 私有网络|关闭手机 Wi-Fi 后仍可远程控制|成功配置后台服务并测试锁屏访问|（可选）成功部署 Linux VPS 远程开发环境"></div>
+<p>本课参考了 <a href="https://github.com/pingdotgg/t3code/blob/main/docs/user/remote-access.md" target="_blank" rel="noopener noreferrer">T3 Code 远程连接官方文档</a>、<a href="https://github.com/pingdotgg/t3code/blob/main/docs/user/background-service.md" target="_blank" rel="noopener noreferrer">后台服务文档</a> 和 <a href="https://tailscale.com/docs/install" target="_blank" rel="noopener noreferrer">Tailscale 安装文档</a>。我没有直接操作你的设备，界面为教学示意，VPS 部署命令也需要根据实际系统和项目依赖调整。</p>
+<p><strong>第七课进阶预告：Skills + MCP + AGENTS.md。</strong> 学习如何将前面使用的长篇任务编排 Prompt 固化成可复用的技能和项目规则，避免每次开发都要重新输入完整的工作流指令。</p>
+</section>
+<section id="c7"><div class="tag">LESSON 07</div><h2>第七课：Skills、MCP、AGENTS.md 与自定义自动化开发工作流</h2><p>前六课已经完成了从本地开发、多 Agent 编排、Git Worktree 隔离，到手机远程控制的完整学习。</p>
+<p>现在进入进阶阶段。我们要解决一个问题：<strong>如何让 Agent 记住你的开发规范、自动选择工具、复用工作流，而不需要每次都输入几百字的 Prompt？</strong></p>
+<p>本课完成后，你可以尝试通过一句简单的指令启动完整的多 Agent 开发流程。</p>
+<h2>1. 首先理解四个核心概念</h2>
+<div class="panel"><h4>四个核心概念</h4><div class="flow"><div class="node">用户：帮我实现消息幂等</div><span class="arrow">→</span><div class="node">T3 Code · Codex / Claude Code</div></div><div class="cols"><div class="panel"><h4>AGENTS.md</h4>项目规则：应该遵守什么</div><div class="panel"><h4>Skills</h4>专业技能：具体应该怎么做</div><div class="panel"><h4>MCP</h4>外部工具：能够调用什么</div><div class="panel"><h4>Workflow</h4>任务编排：谁来做、按什么顺序</div></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>概念</th>
+<th>通俗理解</th>
+<th>Java 开发场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AGENTS.md</td>
+<td>员工守则</td>
+<td>所有 Java 修改必须考虑事务和并发安全</td>
+</tr>
+<tr>
+<td>Skill</td>
+<td>岗位操作手册</td>
+<td>如何进行 MySQL 慢 SQL 分析</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>工具箱</td>
+<td>查询 GitHub、数据库、项目文档</td>
+</tr>
+<tr>
+<td>Workflow</td>
+<td>项目管理流程</td>
+<td>开发 → 审查 → 修复 → 测试</td>
+</tr>
+</tbody>
+</table></div>
+<p>这四者是互补关系，而不是替代关系。</p>
+<p>例如，AGENTS.md 规定必须执行测试，Skill 描述怎样编写测试，MCP 提供工具调用能力，Workflow 则决定由哪个 Agent 执行测试以及何时执行。</p>
+<h2>2. 实操一：创建项目级 AGENTS.md</h2>
+<p>AGENTS.md 是提供给编程 Agent 的项目说明和行为规范。</p>
+<p>你可以将它理解为专门给 AI 阅读的 README。</p>
+<h3>第一步：了解配置文件的位置</h3>
+<p>对于 Codex 和 Claude Code，需要注意它们的原生项目规则文件不同。</p>
+<pre><code class="language-text">D:\Project\box-im
+├── AGENTS.md           Codex 项目规则
+├── CLAUDE.md           Claude Code 项目规则
+├── .agents/skills/     Codex Skills
+├── .claude/skills/     Claude Code Skills
+├── im-platform/        HTTP 业务服务
+├── im-server/          WebSocket 服务
+└── pom.xml             Maven 配置
+</code></pre>
+<h3>第二步：创建 AGENTS.md</h3>
+<p>在 T3 Code 中打开 box-im 项目，创建 Codex Thread，使用 Local 工作区。</p>
+<p>如果已经存在 AGENTS.md，应在保留原有规则的基础上修改，而不是直接覆盖。</p>
+<p>下面是我针对你的盒子 IM 项目设计的规则模板。</p>
+<pre><code class="language-markdown"># AGENTS.md
+
+## 项目说明
+
+本项目是基于 Java、Spring Boot、Netty、MySQL、Redis、Kafka 和 Kubernetes 的分布式即时通信系统。
+
+## 开发规范
+
+- 修改代码前先阅读现有实现。
+- 优先复用已有组件，不重复造轮子。
+- 遵循当前项目的模块划分与代码风格。
+- 不进行与当前任务无关的重构。
+- 分析结论必须提供源码路径和方法名称。
+
+## 分布式系统规范
+
+涉及消息发送时，必须考虑：
+
+- 消息幂等性
+- 消息顺序性
+- Kafka 重复消费
+- Redis 与 MySQL 数据一致性
+- WebSocket ACK 与离线补拉
+- 多节点并发与故障恢复
+
+涉及缓存时，必须考虑：
+
+- 缓存穿透、击穿与雪崩
+- 并发读写
+- 缓存失效时机
+- 多实例环境下的一致性
+
+## 测试规范
+
+- 修改业务逻辑后运行相关 Maven 测试。
+- 优先使用隔离测试环境。
+- 禁止连接生产数据库。
+- 不得虚构测试结果。
+- 测试失败时报告具体原因。
+
+## Git 规范
+
+- 多 Agent 修改代码时使用独立 Worktree。
+- 不覆盖其他 Agent 的未提交修改。
+- 未经用户批准不得 Push、Merge 或部署。
+- 禁止擅自执行 git reset --hard。
+
+## 任务交付规范
+
+任务完成后必须说明：
+
+1. 修改文件列表。
+2. 实现思路。
+3. 测试命令和实际结果。
+4. 尚未解决的问题。
+5. 潜在风险。
+</code></pre>
+<h3>第三步：让 Claude Code 复用相同规则</h3>
+<p>在项目根目录创建 <code>CLAUDE.md</code>，写入：</p>
+<pre><code class="language-markdown"># 项目开发规范
+
+@AGENTS.md
+</code></pre>
+<p>Claude Code 支持通过文件引用导入项目规则。这样可以避免维护两份几乎完全相同的配置。</p>
+<h3>第四步：验证规则是否生效</h3>
+<p>重新创建 Codex 和 Claude Code Thread，分别询问：</p>
+<pre><code class="language-text">请列出当前项目自动加载的开发规范，
+说明规则来自哪些文件。
+不要修改任何源码。
+</code></pre>
+<p>观察两个 Agent 是否都能够识别项目规范。</p>
+<p><strong>预期结果：</strong> 以后即使只发送一句“帮我优化消息发送接口”，Agent 也会获得相应的项目开发要求。不过，这些规则属于模型指令，不是不可绕过的权限控制。</p>
+<p>补充一点：新版本 Claude Code 也可能提供直接读取 AGENTS.md 的能力，但存在版本和配置差异。上面的 <code>CLAUDE.md</code> 引用方式可以用于兼容不支持该能力的版本。如果已经启用了原生读取，就不必重复引用。</p>
+<h2>3. 实操二：创建自己的第一个 Skill</h2>
+<p>假如你经常让 AI 分析项目亮点、核查源码、优化简历，那么完全可以将这套流程封装成 Skill。</p>
+<h3>第一步：理解 Skill 的加载机制</h3>
+<div class="panel"><h4>Skill 的加载机制</h4><div class="flow"><div class="node">用户提出任务：帮我分析项目亮点</div><span class="arrow">→</span><div class="node">Agent 匹配 Skill：根据 name 和 description 判断</div><span class="arrow">→</span><div class="node">加载 SKILL.md：读取完整操作流程</div><span class="arrow">→</span><div class="node">执行技能：源码分析 → 证据核查 → 输出简历</div></div></div>
+<p>Skill 通常采用渐进式加载：先根据技能名称和描述判断是否需要使用，再加载完整指令及相关资源。这可以避免将所有技能的详细内容始终塞入上下文。</p>
+<p>这个机制也与你之前研究的 Agent 工具描述压缩、动态上下文发现有一定关联。</p>
+<h3>第二步：创建 Skill 文件夹</h3>
+<p>在 PowerShell 中执行：</p>
+<pre><code class="language-powershell">cd D:\Project\box-im
+
+New-Item -ItemType Directory -Force `
+  .agents/skills/project-resume
+</code></pre>
+<p>创建以下文件：</p>
+<pre><code class="language-text">.agents/skills/project-resume/SKILL.md
+</code></pre>
+<h3>第三步：编写 SKILL.md</h3>
+<pre><code class="language-markdown">---
+name: project-resume
+description: 根据 Java 后端项目源码和真实性能报告提炼简历亮点，核查技术实现、量化指标及面试证据。当用户要求优化项目简历、提炼技术亮点或准备项目面试时使用。
+---
+
+# Java 后端项目简历分析
+
+## 执行流程
+
+### 1. 分析项目架构
+
+识别技术栈、模块职责、核心业务链路和部署方式。
+
+### 2. 提炼技术亮点
+
+重点寻找：
+
+- 分布式系统设计
+- 多级缓存及缓存一致性
+- 消息队列与可靠性
+- 并发编程与线程池
+- SQL 和索引优化
+- 性能压测与系统优化
+
+### 3. 核查源码证据
+
+每个亮点必须提供：
+
+- 文件路径
+- 类名和方法名
+- 核心实现原理
+- 已实现的功能
+- 尚未解决的问题
+
+### 4. 核查量化指标
+
+区分实际压测数据、理论估算和未经验证的数据。
+
+禁止编造吞吐量、响应时间、命中率或性能提升比例。
+
+### 5. 输出简历
+
+使用以下结构：
+
+业务痛点 + 技术方案 + 实际效果。
+
+优先输出适合 Java 后端校招的高价值技术亮点。
+
+### 6. 模拟面试
+
+针对每个亮点生成：
+
+- 3 个基础问题
+- 3 个原理问题
+- 3 个深挖问题
+- 参考回答与源码证据
+
+默认只读分析，不修改项目源码。
+</code></pre>
+<p>Skill 文件开头的 YAML 中，<code>name</code> 和 <code>description</code> 非常重要，它们帮助 Agent 判断何时应该使用这个技能。</p>
+<h3>第四步：同步给 Claude Code</h3>
+<pre><code class="language-powershell">New-Item -ItemType Directory -Force `
+  .claude/skills/project-resume
+
+Copy-Item `
+  .agents/skills/project-resume/SKILL.md `
+  .claude/skills/project-resume/SKILL.md
+</code></pre>
+<p>本次采用文件复制的方式，兼容性较好。以后修改 Skill 时需要同步这两份文件。</p>
+<h3>第五步：在 T3 Code 中调用 Skill</h3>
+<p>重新创建 Thread，在输入框尝试输入 <code>$</code> 或 <code>/</code>，查看当前 Provider 提供的技能和命令列表。</p>
+<div class="panel"><h4>技能选择（界面示意）</h4><div class="uirow">$project-resume</div><div class="uirow">✓ project-resume：根据项目源码提炼简历亮点</div><div class="uirow">请分析当前项目，输出最适合 Java 后端校招的四个技术亮点。</div></div>
+<p>Codex 可以尝试 <code>$project-resume</code>，Claude Code 可以尝试 <code>/project-resume</code>，也可以直接使用自然语言描述任务，让 Agent 根据技能描述进行匹配。</p>
+<p>如果菜单没有出现，尝试重启 Agent Session，并确认技能文件在 Agent 实际运行的机器和项目目录中。</p>
+<h2>4. 建立自己的 Skills 技能库</h2>
+<p>对于你目前的项目开发、简历优化和面试准备，我建议建立以下技能库。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>技能</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>project-resume</td>
+<td>源码证据、简历亮点、面试题</td>
+</tr>
+<tr>
+<td>java-code-review</td>
+<td>Java 并发、事务、安全代码审查</td>
+</tr>
+<tr>
+<td>mysql-optimize</td>
+<td>EXPLAIN、索引与慢 SQL 优化</td>
+</tr>
+<tr>
+<td>redis-consistency</td>
+<td>缓存一致性与分布式锁分析</td>
+</tr>
+<tr>
+<td>im-reliability</td>
+<td>Kafka、WebSocket、ACK、消息幂等</td>
+</tr>
+<tr>
+<td>maven-testing</td>
+<td>单元测试、集成测试、测试报告</td>
+</tr>
+<tr>
+<td>multi-agent-dev</td>
+<td>自动开发、审查、修复与测试</td>
+</tr>
+</tbody>
+</table></div>
+<p>这些是建议你自定义的技能名称，并不是 T3 Code 内置技能。</p>
+<p>项目专用技能可以放在项目目录中；跨项目通用技能则可以放到用户目录下，例如 <code>$HOME/.agents/skills/</code> 或 <code>$HOME/.claude/skills/</code>，具体取决于 Provider。</p>
+<h2>5. 实操三：配置 MCP 工具</h2>
+<p>Skill 教会 AI 怎样完成任务，而 MCP 为 AI 提供实际调用工具的能力。</p>
+<p>例如，让 Agent 分析 Spring Boot 中的某个技术问题时，可以通过文档 MCP 获取官方资料，而不是完全依赖模型自身的知识。</p>
+<h3>MCP 的工作原理</h3>
+<div class="panel"><h4>MCP 的工作原理</h4><div class="flow"><div class="node">Codex / Claude Code</div><span class="arrow">→</span><div class="node">MCP Client</div></div><div class="cols"><div class="panel"><h4>GitHub MCP</h4>仓库 / PR → GitHub API</div><div class="panel"><h4>文档 MCP</h4>技术文档 → 官方资料</div><div class="panel"><h4>MySQL MCP</h4>数据库查询 → MySQL</div></div></div>
+<h3>第一步：检查已经安装的 MCP</h3>
+<p>在 Windows PowerShell 中执行：</p>
+<pre><code class="language-powershell">codex mcp list
+</code></pre>
+<p>然后检查 Claude Code：</p>
+<pre><code class="language-powershell">claude mcp list
+</code></pre>
+<p>注意，两个 Provider 的 MCP 配置并不一定共享。</p>
+<h3>第二步：了解 MCP 配置位置</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>常见配置文件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Codex</td>
+<td><code>~/.codex/config.toml</code></td>
+</tr>
+<tr>
+<td>Claude Code 用户配置</td>
+<td><code>~/.claude.json</code></td>
+</tr>
+<tr>
+<td>Claude Code 项目配置</td>
+<td><code>.mcp.json</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>建议优先通过 CLI 安装 MCP，而不是手动修改配置文件，以减少格式错误。</p>
+<h3>第三步：选择适合自己的 MCP</h3>
+<p><strong>Context7</strong>：查询开发框架与第三方库文档。适合 Spring Boot、Redis、LangGraph 等技术资料查询。<a href="https://github.com/upstash/context7" target="_blank" rel="noopener noreferrer">GitHub 仓库</a></p>
+<p><strong>GitHub MCP</strong>：仓库、Issue、Pull Request 管理。适合多 Agent 开发和代码审查工作流。<a href="https://github.com/github/github-mcp-server" target="_blank" rel="noopener noreferrer">官方仓库</a></p>
+<p><strong>Playwright MCP</strong>：浏览器自动化。适合验证盒子 IM 前端交互、登录和消息发送流程。<a href="https://github.com/microsoft/playwright-mcp" target="_blank" rel="noopener noreferrer">官方仓库</a></p>
+<p><strong>MySQL MCP</strong>：表结构、SQL 查询、数据库分析。建议仅连接测试数据库，并使用只读账号。</p>
+<p>MCP 不是越多越好。安装太多工具可能增加上下文开销、工具选择难度以及安全风险。</p>
+<p>对于你的 Java 项目，优先安装文档查询和 GitHub MCP 即可。</p>
+<h2>6. 实操四：创建多 Agent 开发 Skill</h2>
+<p>这是第五课自动化开发流程的升级版。</p>
+<p>创建文件：</p>
+<pre><code class="language-text">.agents/skills/multi-agent-dev/SKILL.md
+</code></pre>
+<p>写入以下内容：</p>
+<pre><code class="language-markdown">---
+name: multi-agent-dev
+description: 使用 T3 Code 编排多个编程 Agent，完成需求分析、代码开发、独立审查、修复和测试。当用户提出复杂功能开发、分布式系统优化或多模块重构时使用。
+---
+
+# 多 Agent 自动化开发
+
+## 任务分级
+
+- 简单任务：使用单个轻量模型。
+- 普通任务：使用单个主力模型。
+- 复杂任务：启动开发 Agent 和独立审查 Agent。
+- 核心架构任务：执行跨模型方案验证。
+
+## 能力检查
+
+检查当前环境是否支持 orchestrator_capabilities 和 delegate_task。
+
+如果不支持，明确告知用户，并提供手动任务分配方案。
+
+## 开发阶段
+
+委派 Codex：
+
+- 分析需求和源码。
+- 在独立 Worktree 中实现功能。
+- 运行相关测试。
+- 返回 Git 分支、Commit SHA 和修改报告。
+
+## 审查阶段
+
+委派 Claude Code：
+
+- 确认审查的是最新 Commit。
+- 独立检查代码质量、事务、并发、幂等和安全。
+- 按 P0/P1/P2/P3 输出问题。
+
+## 修复阶段
+
+将经过核实的问题交回开发 Agent。
+
+最多执行两轮修复和重新审查。
+
+如果仍有严重问题，停止并报告。
+
+## 测试阶段
+
+使用独立测试 Agent 验证：
+
+- Maven 编译。
+- 单元测试。
+- 必要的集成测试。
+
+仅允许使用隔离测试环境。
+
+## 交付阶段
+
+输出修改列表、Commit SHA、审查结论、测试结果和剩余风险。
+
+未经用户批准不得 Push、Merge 或部署。
+
+必须执行真实工具调用，不得通过角色扮演模拟子 Agent 或虚构测试结果。
+</code></pre>
+<p>以后只需要在 Codex 中输入：</p>
+<pre><code class="language-text">$multi-agent-dev
+
+请完善私聊消息的端到端幂等机制。
+</code></pre>
+<p>Agent 就可以按照 Skill 中定义的流程开展工作，前提是当前环境具备相应的工具和权限。</p>
+<p>这仍然是<strong>基于模型指令的编排</strong>，模型不一定每次都严格遵守流程。真正需要稳定的自动化执行，应使用下面的 Workflows 功能。</p>
+<h2>7. 实操五：T3 Code 原生 Workflows</h2>
+<p>这是本课最值得深入学习的进阶功能。</p>
+<p>原课程介绍的 T3 Code 主分支文档已经提供原生 Workflows 实验功能，支持 TypeScript 工作流、Agent 调度、人工审批、定时触发以及执行状态恢复。</p>
+<h3>Skill 编排与原生 Workflow 的区别</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>能力</th>
+<th>Skill</th>
+<th>T3 Workflows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>工作流程描述</td>
+<td>Markdown</td>
+<td>TypeScript</td>
+</tr>
+<tr>
+<td>执行顺序</td>
+<td>模型决定</td>
+<td>代码控制</td>
+</tr>
+<tr>
+<td>条件分支</td>
+<td>模型判断</td>
+<td>程序判断</td>
+</tr>
+<tr>
+<td>失败重试</td>
+<td>依赖 Agent</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>并发限制</td>
+<td>依赖 Agent</td>
+<td>支持</td>
+</tr>
+<tr>
+<td>人工审批节点</td>
+<td>提示词约束</td>
+<td>原生支持</td>
+</tr>
+<tr>
+<td>服务重启后恢复</td>
+<td>不由 Skill 保证</td>
+<td>支持检查点恢复</td>
+</tr>
+<tr>
+<td>定时执行</td>
+<td>需要其他机制</td>
+<td>支持</td>
+</tr>
+</tbody>
+</table></div>
+<h3>第一步：开启 Workflows</h3>
+<p>进入：<code>Settings → Labs → Workflows</code></p>
+<div class="panel"><h4>Labs（界面示意）</h4><div class="uirow">Workflows · ON</div><div class="uirow">启用可持久化的自动化工作流</div></div>
+<p>然后按 <code>Ctrl + K</code>，搜索：</p>
+<pre><code class="language-text">Open workflows
+</code></pre>
+<h3>第二步：安装官方工作流开发 Skill</h3>
+<p>T3 Code 官方已经提供了专门用于编写 Workflow 的 Skill，不需要你从零研究全部 TypeScript API。</p>
+<p><strong>t3-workflows</strong>：<a href="https://github.com/pingdotgg/t3code/tree/main/skills/t3-workflows" target="_blank" rel="noopener noreferrer">查看官方 Skill</a>。</p>
+<p>在 PowerShell 中执行：</p>
+<pre><code class="language-powershell">cd $HOME
+
+git clone --depth 1 `
+  https://github.com/pingdotgg/t3code.git `
+  t3code-reference
+</code></pre>
+<p>复制官方 Skill 到 Codex 技能目录：</p>
+<pre><code class="language-powershell">New-Item -ItemType Directory -Force `
+  "$HOME/.agents/skills"
+
+Copy-Item `
+  "$HOME/t3code-reference/skills/t3-workflows" `
+  "$HOME/.agents/skills/" `
+  -Recurse
+</code></pre>
+<p>官方 Skill 包含工作流开发所需的接口说明和相关资源，因此建议复制整个技能目录，而不仅仅是 SKILL.md。</p>
+<h3>第三步：编写第一个原生工作流</h3>
+<p>不要一开始就编写复杂的多 Agent 流水线。我们先练习一个包含人工审批节点的简单工作流。</p>
+<p>新建文件：</p>
+<pre><code class="language-text">~/.t3/workflows/java-review.ts
+</code></pre>
+<p>参考官方 Workflow API，编写（保留原课代码，未在本机验证）：</p>
+<pre><code class="language-typescript">const { workflow, step, ask, stop, title } = T3;
+
+export default workflow(
+  "java-review",
+  {
+    version: 1,
+    payload: Schema.Struct({
+      task: Schema.String
+    })
+  },
+
+  Effect.fn(function* (payload) {
+
+    yield* title(`Java Review: ${payload.task}`);
+
+    const summary = yield* step(
+      "prepare",
+      { returns: Schema.String },
+      Effect.succeed(payload.task)
+    );
+
+    const answer = yield* ask("approve", {
+      title: `是否批准任务：${summary}`,
+      choices: ["Approve", "Reject"]
+    });
+
+    if (
+      Option.isNone(answer) ||
+      answer.value.choice !== "Approve"
+    ) {
+      return yield* stop("用户未批准");
+    }
+
+    return {
+      approved: true,
+      task: payload.task
+    };
+  })
+);
+</code></pre>
+<p>这是基于官方示例改写的最小工作流，用来验证输入参数、步骤执行和人工审批，不会实际修改 Java 代码。</p>
+<p>工作流文件应保存在运行 T3 Code Server 的机器上。</p>
+<h3>第四步：理解执行过程</h3>
+<div class="panel"><h4>Java Review 工作流模拟</h4><p id="approvalStatus">等待启动：task = 优化消息幂等</p><div class="actions" id="approvalButtons"></div><button onclick="ap=0;renderApproval()">重置</button><p><small>教学模拟，不会连接你的 T3 Code Server。</small></p></div>
+<p>官方还提供了以下 CLI 命令：</p>
+<pre><code class="language-powershell">t3 workflow list
+</code></pre>
+<pre><code class="language-powershell">t3 workflow questions
+</code></pre>
+<pre><code class="language-powershell">t3 workflow --help
+</code></pre>
+<p>你可以在 Workflows 页面启动工作流、查看运行记录、处理审批，以及检查执行结果。</p>
+<h2>8. 实操六：让 Agent 自动编写复杂 Workflow</h2>
+<p>官方 Skill 安装成功后，创建一个 Codex Thread，输入下面的任务。</p>
+<pre><code class="language-text">$t3-workflows
+
+请帮我创建一个 Java 多 Agent 自动化开发工作流。
+
+要求：
+
+1. 输入项目标识和用户开发需求。
+2. 使用 Codex High 分析需求。
+3. 使用 Codex 开发 Agent，在独立 Worktree 中编写代码。
+4. 使用 Claude Code 审查最新 Commit。
+5. 如果存在 P0/P1 问题，交回开发 Agent 修复。
+6. 最多执行两轮修复。
+7. 审查通过后运行 Maven 测试。
+8. 全部测试通过后进入人工审批节点。
+9. 禁止自动 Push、Merge 或部署。
+10. 整个工作流最多同时执行两个开发任务。
+11. 支持执行失败后的恢复。
+12. 严格依据当前安装版本的官方 Workflow API 编写，不得虚构接口。
+
+保存为 ~/.t3/workflows/java-multi-agent.ts。
+
+先展示设计方案，再编写工作流文件，并验证其是否能被当前 T3 Code Server 正常加载。
+</code></pre>
+<p>之所以推荐通过官方 Skill 生成复杂工作流，是因为不同版本的 Agent 调度接口和类型定义可能变化，需要由能够读取你实际环境的 Agent 进行适配。</p>
+<h2>9. 实操七：配置项目专用 t3.json</h2>
+<p>除了 Skill 和 Workflow，T3 Code 还支持在项目根目录使用 <code>t3.json</code> 声明项目操作和默认工作区（需确认版本）。</p>
+<p>例如，在 box-im 根目录创建：</p>
+<pre><code class="language-json">{
+  "$schema": "https://t3.codes/schema/t3.json",
+  "defaultThreadEnvMode": "worktree",
+  "scripts": [
+    {
+      "name": "Maven Compile",
+      "command": "mvn -DskipTests compile"
+    },
+    {
+      "name": "Maven Test",
+      "command": "mvn test"
+    },
+    {
+      "name": "Git Status",
+      "command": "git status --short"
+    }
+  ]
+}
+</code></pre>
+<p>这样可以将常用命令固化为项目操作，并默认让新任务使用 Worktree。</p>
+<div class="panel"><h4>box-im · Project Actions（界面示意）</h4><div class="uirow">▶ Maven Compile</div><div class="uirow">▶ Maven Test</div><div class="uirow">▶ Git Status</div></div>
+<p>这里的 Maven 命令是通用示例。你需要确认项目实际构建入口、JDK 版本和测试环境配置，尤其不要让测试意外连接生产数据库。</p>
+<h2>10. 最终形成你的个人 AI 开发体系</h2>
+<p>完成本课以后，你的整个开发环境可以按照下面的架构组织。</p>
+<div class="panel"><h4>个人 AI 开发体系</h4><div class="flow"><div class="node">手机 / Windows 客户端</div><span class="arrow">→</span><div class="node">T3 Code Server：会话管理、远程连接</div><span class="arrow">→</span><div class="node">Workflow 编排层：路由、重试、审批、状态恢复</div><span class="arrow">→</span><div class="node">Codex：复杂任务 / Claude Code：审查</div><span class="arrow">→</span><div class="node">Skills / MCP / AGENTS.md</div><span class="arrow">→</span><div class="node">Git Worktree 隔离层</div><span class="arrow">→</span><div class="node">Java / Maven / box-im</div></div></div>
+<p>这套架构实际上已经具备一个多 Agent 软件开发系统的基本组成：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>层级</th>
+<th>技术</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>交互层</td>
+<td>手机、Windows</td>
+</tr>
+<tr>
+<td>管理层</td>
+<td>T3 Code</td>
+</tr>
+<tr>
+<td>编排层</td>
+<td>Workflows</td>
+</tr>
+<tr>
+<td>推理层</td>
+<td>Codex、Claude Code</td>
+</tr>
+<tr>
+<td>技能层</td>
+<td>Skills</td>
+</tr>
+<tr>
+<td>工具层</td>
+<td>MCP</td>
+</tr>
+<tr>
+<td>规则层</td>
+<td>AGENTS.md</td>
+</tr>
+<tr>
+<td>隔离层</td>
+<td>Git Worktree</td>
+</tr>
+<tr>
+<td>执行层</td>
+<td>Java、Maven、测试环境</td>
+</tr>
+</tbody>
+</table></div>
+<h3>第七课验收</h3><div class="checks" data-items="创建项目 AGENTS.md 并验证生效|配置 Claude Code 共享项目规则|创建 project-resume Skill|成功调用自定义 Skill|检查两个 Provider 的 MCP 配置|创建 multi-agent-dev Skill|开启 T3 Workflows 实验功能|安装官方 t3-workflows Skill|运行第一个人工审批 Workflow|创建项目级 t3.json"></div>
+<p>本课参考了原课程的官方文档，但 Workflows 仍属于 Labs 实验功能，我没有在你的 Windows 环境实际运行这些配置和代码。若菜单或 API 不一致，以你的安装版本为准。</p>
+<p><strong>第八课预告：自动化模型路由与成本优化。</strong> 重点解决你最初提出的需求：简单任务交给低成本模型，复杂任务交给 Codex 高能力模型，同时实现模型失败降级、额度管理和跨机器任务调度。</p>
+</section>
+
+    <footer>
+      <span>个人学习教程 · 所有实验均在浏览器本地模拟 · 学习进度存储于当前浏览器</span>
+      <a href="../../index.html#topic=llm">返回 LLM 工程目录 ↗</a>
+    </footer>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const store = {
+      get(k) {
+        try {
+          return localStorage.getItem(k);
+        } catch {
+          return null;
+        }
+      },
+      set(k, v) {
+        try {
+          localStorage.setItem(k, v);
+        } catch {}
+      }
+    };
+
+    const names = [
+      '项目导入与基础操作',
+      '模型切换与参数配置',
+      '多 Agent 并行编排',
+      'Git Worktree 隔离',
+      '跨模型审查与交接',
+      '手机远程控制与 VPS',
+      'Skills / MCP / Workflows',
+      '附录：命令与资料'
+    ];
+
+    document.querySelectorAll('section').forEach((s, i) => {
+      const a = document.createElement('a');
+      a.href = '#' + s.id;
+      a.textContent = (i < 7 ? '0' + (i + 1) + '  ' : '') + names[i];
+      $('nav').append(a);
+    });
+
+    document.querySelectorAll('pre').forEach((p) => {
+      const w = document.createElement('div');
+      w.className = 'code';
+      p.before(w);
+      w.append(p);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'copy';
+      b.textContent = '复制';
+      w.append(b);
+      b.onclick = async () => {
+        try {
+          if (navigator.clipboard) await navigator.clipboard.writeText(p.textContent);
+          else throw 0;
+        } catch {
+          const t = document.createElement('textarea');
+          t.value = p.textContent;
+          document.body.append(t);
+          t.select();
+          const ok = document.execCommand('copy');
+          t.remove();
+          if (!ok) {
+            b.textContent = '请手动复制';
+            return;
+          }
+        }
+        b.textContent = '已复制';
+        b.classList.add('is-copied');
+        setTimeout(() => {
+          b.textContent = '复制';
+          b.classList.remove('is-copied');
+        }, 1200);
+      };
+    });
+
+    let saved = {};
+    try {
+      saved = JSON.parse(store.get('t3-course-progress') || '{}');
+    } catch {}
+
+    document.querySelectorAll('.checks').forEach((el, i) => {
+      const h = document.createElement('b');
+      h.textContent = '本课验收';
+      el.append(h);
+      el.dataset.items.split('|').forEach((s, j) => {
+        const l = document.createElement('label');
+        const c = document.createElement('input');
+        c.type = 'checkbox';
+        c.id = 'check-' + i + '-' + j;
+        c.checked = !!saved[c.id];
+        c.onchange = () => {
+          saved[c.id] = c.checked;
+          store.set('t3-course-progress', JSON.stringify(saved));
+          progress();
+        };
+        l.append(c, document.createTextNode(s));
+        el.append(l);
+      });
+    });
+
+    function progress() {
+      const all = [...document.querySelectorAll('.checks input')];
+      const n = all.filter((c) => c.checked).length;
+      const p = all.length ? Math.round((n / all.length) * 100) : 0;
+      $('progress').textContent = '学习进度 ' + p + '% · ' + n + '/' + all.length;
+      $('bar').style.width = p + '%';
+    }
+    progress();
+
+    $('reset').onclick = () => {
+      if (confirm('清空本教程的学习进度？')) {
+        saved = {};
+        store.set('t3-course-progress', '{}');
+        document.querySelectorAll('.checks input').forEach((c) => {
+          c.checked = false;
+        });
+        progress();
+      }
+    };
+
+    if (store.get('t3-theme') === 'dark') document.body.classList.add('dark');
+    $('theme').onclick = () => {
+      document.body.classList.toggle('dark');
+      store.set('t3-theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    };
+
+    function route() {
+      $('recommend').textContent = [
+        '推荐：Mini / Haiku，低推理，单 Agent。',
+        '推荐：Codex Medium / Sonnet，常规执行。',
+        '推荐：Codex High，必要时 Claude 独立审查。',
+        '推荐：先计划，再高能力模型交叉验证，人工审批。'
+      ][$('difficulty').selectedIndex];
+    }
+    $('difficulty').onchange = route;
+    route();
+
+    let wt = [0, 0];
+    function advance(i) {
+      wt[i] = Math.min(3, wt[i] + 1);
+      renderWT();
+    }
+    function renderWT() {
+      const s = ['等待开发', '已修改，尚未提交', '已提交，尚未合并', '已合并'];
+      $('wa').textContent = s[wt[0]];
+      $('wb').textContent = s[wt[1]];
+      $('merged').textContent =
+        wt
+          .map((v, i) => (v === 3 ? ['message-reliability.md', 'cache-consistency.md'][i] : ''))
+          .filter(Boolean)
+          .join(' + ') || '尚无新增文件';
+    }
+    renderWT();
+
+    let review = 0;
+    let rounds = 0;
+    function renderReview() {
+      const texts = [
+        '等待开发',
+        '开发完成，等待审查',
+        '修复中（第 ' + rounds + ' 轮）',
+        '审查通过，等待测试',
+        '测试通过，等待人工验收',
+        '达到修复上限，停止并报告'
+      ];
+      $('reviewStatus').textContent = texts[review];
+      const buttons = $('reviewButtons');
+      buttons.replaceChildren();
+      function add(text, f) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = text;
+        b.className = 'primary';
+        b.onclick = () => {
+          f();
+          renderReview();
+        };
+        buttons.append(b);
+      }
+      if (review === 0) add('完成开发', () => (review = 1));
+      if (review === 1) {
+        add('PASS', () => (review = 3));
+        add('REQUEST_CHANGES', () => {
+          if (rounds >= 2) review = 5;
+          else {
+            rounds++;
+            review = 2;
+          }
+        });
+      }
+      if (review === 2) add('完成修复并复审', () => (review = 1));
+      if (review === 3) add('测试通过', () => (review = 4));
+    }
+    renderReview();
+
+    if ('IntersectionObserver' in window) {
+      const o = new IntersectionObserver(
+        (es) =>
+          es.forEach((e) => {
+            if (e.isIntersecting) {
+              document.querySelectorAll('nav a').forEach((a) => {
+                const active = a.hash === '#' + e.target.id;
+                a.classList.toggle('active', active);
+                if (active) a.setAttribute('aria-current', 'location');
+                else a.removeAttribute('aria-current');
+              });
+            }
+          }),
+        { rootMargin: '-5% 0px -70% 0px' }
+      );
+      document.querySelectorAll('section').forEach((s) => o.observe(s));
+    }
+
+    function modelUpdate(reset = false) {
+      if (reset) {
+        const opts =
+          $('provider').value === 'Codex'
+            ? ['GPT-6 系列', 'Mini 系列']
+            : ['Claude Sonnet', 'Claude Opus', 'Claude Haiku'];
+        $('model').replaceChildren(
+          ...opts.map((label) => {
+            const opt = document.createElement('option');
+            opt.textContent = label;
+            return opt;
+          })
+        );
+      }
+      $('modelResult').textContent =
+        '当前配置：' +
+        $('provider').value +
+        ' / ' +
+        $('model').value +
+        ' · 推理开销 ' +
+        ['较低', '适中', '较高', '很高'][$('effort').selectedIndex] +
+        ' · ' +
+        ($('mode').value === 'Plan' ? '先分析并制定方案' : '常规任务执行') +
+        ' · 人工监督 ' +
+        ['高', '中等', '自动审查', '低'][$('permission').selectedIndex];
+    }
+    $('provider').onchange = () => modelUpdate(true);
+    ['model', 'effort', 'mode', 'permission'].forEach((id) => {
+      $(id).onchange = () => modelUpdate();
+    });
+    modelUpdate(true);
+
+    function mergeUpdate() {
+      const a = $('branchA').value.trim();
+      const b = $('branchB').value.trim();
+      $('mergeCmd').textContent = [
+        'git switch practice/t3-worktree',
+        'git status',
+        'git merge --no-ff ' + (a || 'CODEX_BRANCH'),
+        '# 确认第一次合并成功后再执行下一条',
+        'git merge --no-ff ' + (b || 'CLAUDE_BRANCH'),
+        'git status',
+        'git log --oneline --graph -10'
+      ].join('\n');
+    }
+    $('branchA').oninput = mergeUpdate;
+    $('branchB').oninput = mergeUpdate;
+    mergeUpdate();
+
+    let ap = 0;
+    function renderApproval() {
+      const text = [
+        '等待启动：task = 优化消息幂等',
+        'Prepare Step：生成待审批任务',
+        'Human Approval：是否批准优化消息幂等？',
+        '审批通过，工作流返回结果。',
+        '任务被拒绝，工作流停止。'
+      ];
+      $('approvalStatus').textContent = text[ap];
+      const el = $('approvalButtons');
+      el.replaceChildren();
+      function b(t, n) {
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = n === 4 ? '' : 'primary';
+        x.textContent = t;
+        x.onclick = () => {
+          ap = n;
+          renderApproval();
+        };
+        el.append(x);
+      }
+      if (ap === 0) b('启动 Workflow', 1);
+      if (ap === 1) b('执行 Prepare Step', 2);
+      if (ap === 2) {
+        b('Approve', 3);
+        b('Reject', 4);
+      }
+    }
+    renderApproval();
+  </script>
+</body>
+</html>
